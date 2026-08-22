@@ -5,10 +5,31 @@ assignment. Built from the Claude Design source
 [`FEM Freelancer Portal.dc.html`](https://claude.ai/design/p/ba17e9f1-e3c8-42d5-be20-1092596c20f2)
 and the assignments PDF.
 
+**Live:** https://artoushmo.github.io/fem-crew-portal/
+
 ```bash
 npm install
 npm run dev
 ```
+
+## Deploying
+
+Every push to `main` rebuilds and republishes via
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml). Nothing to run by
+hand.
+
+All routes are statically prerenderable, so the site ships as plain files:
+
+```bash
+NEXT_STATIC_EXPORT=1 NEXT_BASE_PATH=/fem-crew-portal \
+NEXT_PUBLIC_BASE_PATH=/fem-crew-portal npm run build   # → out/
+```
+
+GitHub Pages serves a project repo from `/<repo>/`, hence the base path. It has to
+be passed twice: `NEXT_BASE_PATH` prefixes the framework's own URLs, and
+`NEXT_PUBLIC_BASE_PATH` reaches the plain `<img>` tags in `Logo.tsx`, which Next
+does not rewrite. The workflow also drops a `.nojekyll` file, without which Pages
+runs the output through Jekyll and silently discards `_next/`.
 
 ## Working on this
 
@@ -23,7 +44,7 @@ NEXT_BUILD_DIR=.next-build npm run build
 
 | Route | What it does |
 | --- | --- |
-| `/` | Greeting, the one assignment that needs attention: date, call time, location + Maps, role, fee, status, next action, Add to Calendar. Shows an Action-required banner when the agreement is unsigned. |
+| `/` | Action queue first — everything waiting on the freelancer across all assignments — then the next assignment with a live countdown, what follows it, and the money position. |
 | `/assignments` | Expandable overview of every assignment, split upcoming / completed. A row opens to reveal stage progress, call time, location, FEM contact, briefing summary, and the next action. |
 | `/assignments/[id]` | The full job, in five tabs — see below. |
 | `/payments` | Paid out / awaiting / ready to invoice tiles, then every assignment with its fee and payment state. |
@@ -67,6 +88,18 @@ different moments:
 
 Checklist ticks live in `localStorage` (`fem.shots.<id>`, `fem.kit.<id>`) — they are
 the freelancer's own working memory for the day, not something the server needs.
+
+## The dashboard
+
+`actionQueue` in `lib/assignments.ts` is **derived from stage**, never maintained by
+hand: stage 1 produces "Accept assignment", stage 2 "Review briefing", stage 5 with
+an unsent invoice produces "Send your invoice", and an unsigned agreement jumps to
+the top because it blocks everything else. Advance an assignment's stage and the
+dashboard follows.
+
+The countdown ("In 33 days") renders only after mount. The pages are statically
+prerendered, so a server-computed value would freeze at build time and disagree
+with the client during hydration.
 
 ## Navigation
 
@@ -154,6 +187,7 @@ components/
   Stepper.tsx             seven-stage tracker, scrolls on narrow screens
   Tabs.tsx                WAI-ARIA tabs, arrow-key navigable
   Checklist.tsx           tickable shot list / packing list
+  Countdown.tsx           client-only "in N days"
   StatusPill.tsx
   AddToCalendar.tsx       Google link + .ics download
   Logo.tsx
