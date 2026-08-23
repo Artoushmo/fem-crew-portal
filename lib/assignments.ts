@@ -358,50 +358,112 @@ export interface ActionItem {
 
 /** Everything waiting on the freelancer, derived from stage — never hand-maintained.
     Ordered by urgency: contract first (it blocks everything), then unanswered
-    offers, then briefings, then money already earned. */
-export const actionQueue: ActionItem[] = [
-  ...(agreement.signed
-    ? []
-    : [
-        {
-          key: 'agreement',
-          label: `Sign Freelancer Agreement ${agreement.year}`,
-          detail: 'Assignments cannot be confirmed without it',
-          href: '/documents',
-          tone: 'act' as const,
-        },
-      ]),
-  ...assignments
-    .filter((a) => a.stage === 1)
-    .map((a) => ({
+    offers, then briefings, then the shoot day, then money already earned. */
+export function buildActionQueue(
+  list: Assignment[],
+  signed: boolean,
+  year: number,
+): ActionItem[] {
+  const at = (stage: number) => list.filter((a) => a.stage === stage);
+  const job = (a: Assignment) => `${a.title} — ${a.client}, ${a.dateLabel}`;
+
+  return [
+    ...(signed
+      ? []
+      : [
+          {
+            key: 'agreement',
+            label: `Sign Freelancer Agreement ${year}`,
+            detail: 'Assignments cannot be accepted without it',
+            href: '/documents',
+            tone: 'act' as const,
+          },
+        ]),
+    ...at(1).map((a) => ({
       key: `accept-${a.id}`,
       label: 'Accept assignment',
-      detail: `${a.title} — ${a.client}, ${a.dateLabel}`,
+      detail: job(a),
       href: `/assignments/${a.id}`,
       tone: 'act' as const,
     })),
-  ...assignments
-    .filter((a) => a.stage === 2)
-    .map((a) => ({
+    ...at(2).map((a) => ({
       key: `brief-${a.id}`,
       label: 'Review briefing',
-      detail: `${a.title} — ${a.client}, ${a.dateLabel}`,
+      detail: job(a),
       href: `/assignments/${a.id}`,
       tone: 'act' as const,
     })),
-  ...assignments
-    .filter((a) => a.stage === 5 && a.payment.state === 'not-invoiced')
-    .map((a) => ({
+    ...at(3)
+      .filter((a) => daysUntil(a.startsAt) <= 0)
+      .map((a) => ({
+        key: `wrap-${a.id}`,
+        label: 'Confirm the shoot is done',
+        detail: job(a),
+        href: `/assignments/${a.id}`,
+        tone: 'act' as const,
+      })),
+    ...at(4).map((a) => ({
+      key: `upload-${a.id}`,
+      label: 'Upload your files',
+      detail: job(a),
+      href: `/assignments/${a.id}`,
+      tone: 'act' as const,
+    })),
+    ...at(5).map((a) => ({
       key: `invoice-${a.id}`,
       label: 'Send your invoice',
-      detail: `${a.title} — ${formatFeeRaw(a.fee)} waiting`,
+      detail: `${a.title} — €${a.fee.toLocaleString('nl-NL')} waiting`,
       href: `/assignments/${a.id}`,
       tone: 'money' as const,
     })),
-];
+  ];
+}
 
-function formatFeeRaw(fee: number) {
-  return `€${fee.toLocaleString('nl-NL')}`;
+/** What the freelancer can do at the stage an assignment currently sits on.
+    `blocked` explains why the button is unavailable rather than hiding it. */
+export function stageAction(a: Assignment, signed: boolean) {
+  switch (a.stage) {
+    case 1:
+      return {
+        label: 'Accept assignment',
+        hint: 'Confirms you are available and locks in the fee.',
+        done: 'Accepted',
+        blocked: signed ? null : 'Sign your Freelancer Agreement first.',
+      };
+    case 2:
+      return {
+        label: 'I have read the briefing',
+        hint: 'Confirms you know the shots, kit and dresscode.',
+        done: 'Briefing confirmed',
+        blocked: null,
+      };
+    case 3:
+      return {
+        label: 'Confirm the shoot is done',
+        hint: 'Marks the shoot day complete so you can upload.',
+        done: 'Shoot complete',
+        blocked:
+          daysUntil(a.startsAt) > 0
+            ? `Available on ${a.dateLabel}.`
+            : null,
+      };
+    case 4:
+      return {
+        label: 'Upload files',
+        hint: 'Hands your work to the producer for review.',
+        done: 'Files uploaded',
+        blocked: null,
+      };
+    case 5:
+      return {
+        label: 'Send invoice',
+        hint: `Invoices ${withVat(a.fee)} including VAT.`,
+        done: 'Invoice sent',
+        blocked: null,
+      };
+    default:
+      return null;
+  }
 }
 
 export function formatFee(fee: number) {

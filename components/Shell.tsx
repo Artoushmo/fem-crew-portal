@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AssignmentProvider } from '@/lib/assignment-state';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 
@@ -24,10 +25,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`layout ${collapsed ? 'layout--collapsed' : ''}`}>
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
-      <div className="shell">{children}</div>
-      <BottomNav />
-    </div>
+    <AssignmentProvider>
+      <div className={`layout ${collapsed ? 'layout--collapsed' : ''}`}>
+        <Sidebar collapsed={collapsed} onToggle={toggle} />
+        <div className="shell">{children}</div>
+        <BottomNav />
+      </div>
+    </AssignmentProvider>
   );
 }
