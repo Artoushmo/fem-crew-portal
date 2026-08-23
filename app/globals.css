@@ -1368,24 +1368,20 @@ a.rail__agreement:hover .rail__label {
 /* ---------- Stepper ---------- */
 
 .stepper {
-  background: #eef3f9;
-  border: 1px solid var(--fem-blue-faint);
+  background: var(--fem-white);
+  border: 1px solid var(--fem-border);
   border-radius: 14px;
-  padding: 0 4px 16px;
+  padding: 16px 4px 12px;
   margin-bottom: 12px;
-  overflow: hidden;
 }
 
-/* Solid blue band so the workflow reads as the spine of the page. */
 .stepper__head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 4px 16px;
-  margin: 0 -4px 18px;
-  padding: 12px 18px;
-  background: var(--fem-blue);
+  padding: 0 18px;
 }
 
 .stepper__label {
@@ -1394,24 +1390,25 @@ a.rail__agreement:hover .rail__label {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--fem-blue);
 }
 
 .stepper__count {
   margin: 0;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--fem-text-muted);
 }
 
 .stepper__count strong {
-  color: var(--fem-white);
+  color: var(--fem-text);
   font-weight: 700;
 }
 
+/* overflow-x also clips vertically, so the current step's glow needs headroom
+   here or it gets sliced off. The ring reaches ~14px past the dot at full scale. */
 .stepper__scroll {
   overflow-x: auto;
-  /* Room for the scrollbar so it cannot sit on top of the stage dates. */
-  padding: 0 18px 10px;
+  padding: 20px 18px 10px;
 }
 
 /* Both horizontal scrollers keep their bar — it signals there is more to see —
@@ -1458,7 +1455,7 @@ a.rail__agreement:hover .rail__label {
   height: 2px;
   left: calc(100% / 14);
   right: calc(100% / 14);
-  background: #cdd8e6;
+  background: var(--fem-track);
 }
 
 .stepper__track::after {
@@ -1489,26 +1486,55 @@ a.rail__agreement:hover .rail__label {
   font-size: 12px;
   font-weight: 700;
   background: var(--fem-white);
-  border: 2px solid #c3cfdd;
-  color: #9aa7b6;
+  border: 2px solid var(--fem-step-idle);
+  color: var(--fem-step-idle);
 }
 
+/* Cleared steps read as blue but stay outlined — only the step in play is
+   filled, so it is the one thing the eye lands on. */
 .stp--done .stp__dot {
-  background: var(--fem-blue);
   border-color: var(--fem-blue);
-  color: var(--fem-white);
+  color: var(--fem-blue);
 }
 
-/* The step in play: filled, larger, ringed — findable at a glance on a phone. */
 .stp--current .stp__dot {
   width: 34px;
   height: 34px;
   margin-top: -3px;
   font-size: 14px;
-  background: var(--fem-obsidian);
-  border-color: var(--fem-obsidian);
+  background: var(--fem-blue);
+  border-color: var(--fem-blue);
   color: var(--fem-white);
-  box-shadow: 0 0 0 5px rgba(76, 114, 169, 0.22);
+  box-shadow: 0 0 0 4px rgba(76, 114, 169, 0.18);
+}
+
+/* Glow radiating off the live step. */
+.stp--current .stp__dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--fem-blue);
+  animation: fem-ping 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes fem-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  70%,
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stp--current .stp__dot::after {
+    animation: none;
+    opacity: 0.5;
+  }
 }
 
 .stp__label {
@@ -1519,25 +1545,21 @@ a.rail__agreement:hover .rail__label {
 }
 
 .stp--upcoming .stp__label {
-  color: #8a95a3;
+  color: var(--fem-step-idle);
 }
 
 .stp--current .stp__label {
-  color: var(--fem-obsidian);
+  color: var(--fem-blue);
 }
 
 .stp__date {
   font-size: 10px;
-  color: #8a95a3;
+  color: var(--fem-text-muted);
   line-height: 1.2;
 }
 
-.stp--done .stp__date {
-  color: var(--fem-blue);
-}
-
 .stp--current .stp__date {
-  color: var(--fem-obsidian);
+  color: var(--fem-blue);
   font-weight: 700;
 }
 
@@ -1550,14 +1572,19 @@ a.rail__agreement:hover .rail__label {
   padding-bottom: 2px;
 }
 
+/* width:fit-content + auto margins centres the pill row when it fits and
+   collapses to a plain left-aligned scroller when it does not. Using
+   justify-content:center on the scroller instead would clip the first tab
+   out of reach. */
 .tabs__list {
-  display: inline-flex;
+  display: flex;
   gap: 2px;
-  min-width: max-content;
+  width: fit-content;
+  margin-inline: auto;
   padding: 4px;
   border-radius: 999px;
-  background: #e7ecf3;
-  border: 1px solid var(--fem-blue-faint);
+  background: #eef1f5;
+  border: 1px solid var(--fem-border);
 }
 
 .tabs__tab {
