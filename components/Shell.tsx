@@ -2,12 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { AssignmentProvider } from '@/lib/assignment-state';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { AuthGate, DemoBanner } from './AuthGate';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 
 const STORAGE_KEY = 'fem.rail.collapsed';
 
 export function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <AuthProvider>
+      <AuthGate>
+        <AssignmentProvider>
+          <PortalLayout>{children}</PortalLayout>
+        </AssignmentProvider>
+      </AuthGate>
+    </AuthProvider>
+  );
+}
+
+/** Split out so it sits inside AuthProvider and can read the session. */
+function PortalLayout({ children }: { children: React.ReactNode }) {
+  const { configured } = useAuth();
+
   // Always render expanded on the server, then adopt the stored preference once
   // mounted, so the markup cannot mismatch during hydration.
   const [collapsed, setCollapsed] = useState(false);
@@ -25,12 +42,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AssignmentProvider>
-      <div className={`layout ${collapsed ? 'layout--collapsed' : ''}`}>
-        <Sidebar collapsed={collapsed} onToggle={toggle} />
-        <div className="shell">{children}</div>
-        <BottomNav />
+    <div className={`layout ${collapsed ? 'layout--collapsed' : ''}`}>
+      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <div className="shell">
+        {!configured && <DemoBanner />}
+        {children}
       </div>
-    </AssignmentProvider>
+      <BottomNav />
+    </div>
   );
 }

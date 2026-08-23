@@ -40,6 +40,60 @@ leaves that server returning 500s. Build somewhere else while dev is running:
 NEXT_BUILD_DIR=.next-build npm run build
 ```
 
+## Authentication
+
+Sign-in is Supabase: **email one-time code**, then **TOTP** as a second factor.
+There are no passwords, which suits crew who sign in every few weeks — nothing to
+forget, reset or reuse.
+
+```
+crew.fastelevatemedia.com → email OTP → MFA (where required) → portal → RLS
+```
+
+| Role | Requirement |
+| --- | --- |
+| Freelancer | Email OTP; MFA optional but enforced once enrolled |
+| FEM staff | Email OTP + mandatory MFA |
+| Admin | Email OTP + mandatory MFA |
+
+Accounts are invite-only: `signInWithOtp` passes `shouldCreateUser: false`, so
+knowing the URL is not enough to make one. FEM creates crew accounts.
+
+### RLS is the authorization, not the UI
+
+The portal is a static client talking straight to PostgREST with the public anon
+key. That key identifies the project; it grants nothing. Every rule lives in
+[`supabase/migrations/0001_schema_and_rls.sql`](supabase/migrations/0001_schema_and_rls.sql)
+and Postgres enforces it on every request. `AuthGate` only decides what to paint.
+
+Consequences worth keeping in mind:
+
+- **A table without RLS is world-readable.** The migration enables it everywhere
+  and revokes blanket grants; keep it that way for anything added later.
+- **MFA is enforced in the database too**, via `app.mfa_satisfied()`, which checks
+  the JWT's `aal` claim. A staff account at aal1 reads nothing — skipping the
+  second factor in the client gains nothing.
+- **Freelancers cannot rewrite what FEM owns.** A trigger pins fee, client, title
+  and dates to their previous values, allows the stage to advance by one only, and
+  refuses to let anyone but FEM mark an invoice paid.
+- **Never expose the `service_role` key.** It bypasses RLS entirely.
+
+### Setting it up
+
+1. Create a Supabase project of its own — not shared with any other product.
+2. Run the migration in the SQL editor.
+3. Auth → Providers → Email: enable, and turn **off** "Confirm email"/magic-link if
+   you want the six-digit code rather than a link.
+4. Auth → set the site URL and redirect URLs to the portal's domain only.
+5. Copy `.env.example` to `.env.local` and fill in the URL and anon key.
+6. Create the first admin by hand: insert the user, then
+   `update public.profiles set role = 'admin' where email = '…';`
+7. Run the smoke tests at the bottom of the migration. They are there to catch the
+   one mistake that matters — a table left unprotected.
+
+Without those variables the portal runs as an open demo on seed data and shows a
+banner saying so, which is how the public GitHub Pages build stays shareable.
+
 ## Screens
 
 | Route | What it does |
@@ -49,7 +103,7 @@ NEXT_BUILD_DIR=.next-build npm run build
 | `/assignments/[id]` | The full job, in five tabs — see below. |
 | `/payments` | Paid out / awaiting / ready to invoice tiles, then every assignment with its fee and payment state. |
 | `/documents` | Current Freelancer Agreement with signed state, plus the archive. |
-| `/profile` | Freelancer details, agreement status, and the demo reset. |
+| `/profile` | Freelancer details, role, two-factor setup, sign out. |
 
 `/payments` is called Payments, not Earnings: what a freelancer comes here for is
 when the money arrives, not a running income total.
@@ -198,6 +252,9 @@ app/
 components/
   Shell.tsx               rail state; wraps the tree in AssignmentProvider
   StageAction.tsx         the current step's button and its blocked reasons
+  AuthGate.tsx            paints login, MFA challenge or the portal
+  LoginView.tsx           email → code → second factor
+  MfaSetup.tsx            TOTP enrolment and removal
   DashboardView.tsx       } client screens, all reading the same
   AssignmentsView.tsx     } progress store, so one advance updates
   AssignmentDetail.tsx    } every one of them
@@ -219,13 +276,19 @@ components/
 lib/
   assignments.ts          seed content, stages, gating rules, calendar helpers
   assignment-state.tsx    the progress store: stage, dates, invoices, agreement
+  supabase.ts             client; null when unconfigured (demo mode)
+  auth.tsx                session, assurance level, OTP and MFA calls
+supabase/
+  migrations/             schema, RLS policies, the update guard trigger
 assets/
   logo-source.png         original artwork, not served
 ```
 
 ## Not built yet
 
-`lib/assignments.ts` is the seed data and `localStorage` holds the progress on top
-of it, so nothing survives a different browser and FEM cannot see any of it. Still
-to do: a backend behind `assignment-state.tsx`, real file upload and download,
-messaging with the producer, and auth.
+Auth is real; the assignment data is not yet. `lib/assignments.ts` is seed data and
+`localStorage` holds the progress on top of it, so nothing survives a different
+browser and FEM cannot see any of it. The tables and policies are already written,
+so the remaining work is pointing `assignment-state.tsx` at Supabase instead of
+localStorage. After that: file upload and download through Storage with signed
+URLs, and messaging with the producer.
