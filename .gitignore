@@ -9,3 +9,6 @@ out
 .env.local
 .env.*.local
 .turbo
+
+*.tsbuildinfo
+next-env.d.ts
