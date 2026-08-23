@@ -45,11 +45,11 @@ NEXT_BUILD_DIR=.next-build npm run build
 | Route | What it does |
 | --- | --- |
 | `/` | Action queue first — everything waiting on the freelancer across all assignments — then the next assignment with a live countdown, what follows it, and the money position. |
-| `/assignments` | Expandable overview of every assignment, split upcoming / completed. A row opens to reveal stage progress, call time, location, FEM contact, briefing summary, and the next action. |
+| `/assignments` | Expandable overview of every assignment, split open / finished. A row opens to reveal stage progress, timings, location, FEM contact, briefing summary, and the next action. |
 | `/assignments/[id]` | The full job, in five tabs — see below. |
 | `/payments` | Paid out / awaiting / ready to invoice tiles, then every assignment with its fee and payment state. |
 | `/documents` | Current Freelancer Agreement with signed state, plus the archive. |
-| `/profile` | Freelancer details and agreement status. |
+| `/profile` | Freelancer details, agreement status, and the demo reset. |
 
 `/payments` is called Payments, not Earnings: what a freelancer comes here for is
 when the money arrives, not a running income total.
@@ -68,10 +68,27 @@ freelancer's job is not finished until the money lands, and that is what the
 Payments screen tracks.
 
 That single number drives the stepper, the progress bar in the list, which step
-reads "Now", and whether the Delivery and Payment tabs offer their action or
-explain why it is not available yet. `stageDates` holds the completion date per
-stage. Status (`confirmed`, `action-required`, …) is separate and drives the pill
-only.
+reads "Now", the status pill, and whether the Delivery and Payment tabs offer their
+action or explain why it is not available yet. `stageDates` holds the completion
+date per stage.
+
+**The stages are actionable.** `StageAction` puts the current step's button at the
+top of the assignment, and `advance()` moves it on, stamping today's date on the
+step just completed. Two steps are gated, and say so rather than going quiet:
+
+- nothing can be accepted without a signed agreement
+- the shoot cannot be confirmed before its date
+
+Sending the invoice is the one step with a second effect: it mints an invoice
+number and flips the assignment to `awaiting`, which moves the money on the
+Payments screen and the dashboard tiles. Confirming payment is FEM's job, not the
+freelancer's, so stage 7 shows "Waiting on FEM" with no button.
+
+Progress lives in `localStorage` under `fem.progress.v1` via
+[`lib/assignment-state.tsx`](lib/assignment-state.tsx) — there is no backend yet.
+Every screen reads that one store, so advancing an assignment updates the queue,
+the list, the pills and the totals together. Profile has a reset, and a toggle for
+the agreement so the contract gate can be demonstrated.
 
 ## The assignment screen
 
@@ -91,11 +108,11 @@ the freelancer's own working memory for the day, not something the server needs.
 
 ## The dashboard
 
-`actionQueue` in `lib/assignments.ts` is **derived from stage**, never maintained by
-hand: stage 1 produces "Accept assignment", stage 2 "Review briefing", stage 5 with
-an unsent invoice produces "Send your invoice", and an unsigned agreement jumps to
-the top because it blocks everything else. Advance an assignment's stage and the
-dashboard follows.
+`buildActionQueue` in `lib/assignments.ts` is **derived from stage**, never
+maintained by hand: stage 1 produces "Accept assignment", stage 2 "Review briefing",
+stage 4 "Upload your files", stage 5 "Send your invoice", and an unsigned agreement
+jumps to the top because it blocks everything else. Advance an assignment and the
+dashboard follows — press Accept and that row leaves the queue.
 
 The countdown ("In 33 days") renders only after mount. The pages are statically
 prerendered, so a server-computed value would freeze at build time and disagree
@@ -179,7 +196,14 @@ app/
   documents/page.tsx      agreements
   profile/page.tsx
 components/
-  Shell.tsx               rail collapse state; renders Sidebar + BottomNav
+  Shell.tsx               rail state; wraps the tree in AssignmentProvider
+  StageAction.tsx         the current step's button and its blocked reasons
+  DashboardView.tsx       } client screens, all reading the same
+  AssignmentsView.tsx     } progress store, so one advance updates
+  AssignmentDetail.tsx    } every one of them
+  PaymentsView.tsx        }
+  DocumentsView.tsx       }
+  ProfileView.tsx         }
   Sidebar.tsx             desktop rail  (owns NAV + isActive)
   Masthead.tsx            obsidian block with the chevron cut
   BottomNav.tsx           mobile tab bar
@@ -193,14 +217,15 @@ components/
   Logo.tsx
   Icons.tsx
 lib/
-  assignments.ts          all content, stages, calendar helpers
+  assignments.ts          seed content, stages, gating rules, calendar helpers
+  assignment-state.tsx    the progress store: stage, dates, invoices, agreement
 assets/
   logo-source.png         original artwork, not served
 ```
 
 ## Not built yet
 
-Everything is read from `lib/assignments.ts`; there is no backend. The buttons that
-would change server state — Accept assignment, Sign agreement, Upload files, Send
-invoice — are present but inert. Still to do: those four flows, real file downloads,
+`lib/assignments.ts` is the seed data and `localStorage` holds the progress on top
+of it, so nothing survives a different browser and FEM cannot see any of it. Still
+to do: a backend behind `assignment-state.tsx`, real file upload and download,
 messaging with the producer, and auth.
