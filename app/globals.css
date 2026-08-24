@@ -1205,22 +1205,11 @@ a.rail__agreement:hover .rail__label {
   animation: fem-spin 1s linear infinite;
 }
 
-.loader__mark,
-.loader__fallback {
+.loader__mark {
   position: relative;
   width: 52px;
   height: auto;
   animation: fem-breathe 1.9s ease-in-out infinite;
-}
-
-.loader__fallback {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  font-size: 30px;
-  font-weight: 800;
-  color: var(--fem-blue);
 }
 
 .loader__label {
@@ -1250,13 +1239,11 @@ a.rail__agreement:hover .rail__label {
 /* Still shows a ring and a mark, just not moving. */
 @media (prefers-reduced-motion: reduce) {
   .loader__ring,
-  .loader__mark,
-  .loader__fallback {
+  .loader__mark {
     animation: none;
   }
 
-  .loader__mark,
-  .loader__fallback {
+  .loader__mark {
     opacity: 1;
     transform: none;
   }
