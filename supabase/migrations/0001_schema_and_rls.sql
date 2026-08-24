@@ -26,7 +26,7 @@ create table public.profiles (
 
 -- security definer so a policy can read the caller's role without recursing
 -- through profiles' own policies.
-create or replace function app.current_role()
+create or replace function app.user_role()
 returns public.app_role
 language sql
 stable
@@ -47,7 +47,7 @@ security definer
 set search_path = public, pg_temp
 as $$
   select case
-    when app.current_role() in ('staff', 'admin')
+    when app.user_role() in ('staff', 'admin')
       then coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'
     when exists (
       select 1 from auth.mfa_factors
@@ -62,7 +62,7 @@ create or replace function app.is_staff()
 returns boolean
 language sql
 stable
-as $$ select app.current_role() in ('staff', 'admin') and app.mfa_satisfied() $$;
+as $$ select app.user_role() in ('staff', 'admin') and app.mfa_satisfied() $$;
 
 -- Give every new auth user a profile. Role is deliberately not settable from
 -- sign-up metadata: promoting someone is an admin action, not self-service.
@@ -183,7 +183,9 @@ revoke all on all tables in schema public from anon, authenticated;
 grant select, insert, update, delete on public.assignments      to authenticated;
 grant select                        on public.assignment_files  to authenticated;
 grant select                        on public.agreements        to authenticated;
-grant select, update                on public.profiles          to authenticated;
+grant select                        on public.profiles          to authenticated;
+-- Column-level: the client can never write `role`, whatever the policies say.
+grant update (full_name)            on public.profiles          to authenticated;
 grant insert                        on public.access_log        to authenticated;
 
 -- profiles ------------------------------------------------------------------
@@ -204,7 +206,7 @@ create policy "update own profile"
   on public.profiles for update
   to authenticated
   using (id = auth.uid() and app.mfa_satisfied())
-  with check (id = auth.uid() and role = app.current_role());
+  with check (id = auth.uid() and profiles.role = app.user_role());
 
 -- assignments ---------------------------------------------------------------
 

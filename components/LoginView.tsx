@@ -6,7 +6,9 @@ import { Logo } from './Logo';
 
 type Step = 'email' | 'code' | 'mfa';
 
-const RESEND_SECONDS = 45;
+// Must not be shorter than Supabase's "minimum interval per user" (60s), or the
+// resend button becomes available before the server will honour it.
+const RESEND_SECONDS = 60;
 
 export function LoginView() {
   const { stage, sendCode, verifyCode, verifyMfa } = useAuth();
