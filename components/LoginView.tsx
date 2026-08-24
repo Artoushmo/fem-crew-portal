@@ -133,7 +133,9 @@ export function LoginView() {
                   }
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder={'0'.repeat(maxCode)}
+                  // TOTP is always six digits; an emailed code's length varies by
+                  // project, so hinting a count there would mislead.
+                  placeholder={step === 'mfa' ? '000000' : ''}
                   maxLength={maxCode}
                   required
                 />
