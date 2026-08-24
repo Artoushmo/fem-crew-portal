@@ -7,13 +7,14 @@ import { Logo } from './Logo';
 type Step = 'email' | 'code' | 'mfa';
 
 // Must not be shorter than Supabase's "minimum interval per user" (60s), or the
-// resend button becomes available before the server will honour it.
+// resend button unlocks before the server will honour it.
 const RESEND_SECONDS = 60;
 
-// Supabase's email OTP length is configurable from 6 to 10 digits, so accept the
-// full range rather than silently truncating. TOTP is always 6.
+// Supabase's email OTP length is configurable from 6 to 10. Accept the whole
+// range rather than silently truncating; the hint below is only cosmetic.
 const MIN_CODE = 6;
 const MAX_CODE = { code: 10, mfa: 6 } as const;
+const CODE_HINT = Number(process.env.NEXT_PUBLIC_OTP_LENGTH ?? 8);
 
 export function LoginView() {
   const { stage, sendCode, verifyCode, verifyMfa } = useAuth();
@@ -59,8 +60,15 @@ export function LoginView() {
         await verifyMfa(code);
       }
     } catch (err) {
-      setError(readableError(err, step));
-      setCode('');
+      // An address without access lands on the code screen too, so this screen
+      // never reveals which addresses exist.
+      if (step === 'email' && isUnknownAddress(err)) {
+        setStep('code');
+        setCooldown(RESEND_SECONDS);
+      } else {
+        setError(readableError(err, step));
+        setCode('');
+      }
     } finally {
       setBusy(false);
     }
@@ -73,7 +81,8 @@ export function LoginView() {
       await sendCode(email);
       setCooldown(RESEND_SECONDS);
     } catch (err) {
-      setError(readableError(err, 'email'));
+      if (isUnknownAddress(err)) setCooldown(RESEND_SECONDS);
+      else setError(readableError(err, 'email'));
     } finally {
       setBusy(false);
     }
@@ -87,31 +96,28 @@ export function LoginView() {
         </div>
 
         <div className="auth__body">
-          <p className="auth__eyebrow">
-            {step === 'mfa' ? 'Two-factor authentication' : 'Crew sign in'}
-          </p>
+          <p className="auth__eyebrow">Crew Portal</p>
           <h1 className="auth__title">{TITLES[step]}</h1>
           <p className="auth__lead">
-            {step === 'email' && 'We send a one-time code to your FEM address.'}
+            {step === 'email' && 'We’ll email you a sign-in code.'}
             {step === 'code' && (
               <>
-                Enter the code sent to <strong>{email}</strong>.
+                Sent to <strong>{email}</strong>
               </>
             )}
-            {step === 'mfa' && 'Enter the current code from your authenticator app.'}
+            {step === 'mfa' && 'Enter the code from your authenticator app.'}
           </p>
 
           <form onSubmit={submit} className="auth__form" noValidate>
             {step === 'email' ? (
               <label className="field">
-                <span className="field__label">Email address</span>
+                <span className="field__label">Email</span>
                 <input
                   type="email"
                   name="email"
                   className="field__input"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
                   autoComplete="email"
                   autoFocus
                   required
@@ -119,9 +125,7 @@ export function LoginView() {
               </label>
             ) : (
               <label className="field">
-                <span className="field__label">
-                  {step === 'mfa' ? 'Authenticator code' : 'Verification code'}
-                </span>
+                <span className="field__label">Code</span>
                 <input
                   ref={codeField}
                   type="text"
@@ -133,9 +137,7 @@ export function LoginView() {
                   }
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  // TOTP is always six digits; an emailed code's length varies by
-                  // project, so hinting a count there would mislead.
-                  placeholder={step === 'mfa' ? '000000' : ''}
+                  placeholder={'0'.repeat(step === 'mfa' ? MAX_CODE.mfa : CODE_HINT)}
                   maxLength={maxCode}
                   required
                 />
@@ -153,7 +155,7 @@ export function LoginView() {
               className="btn btn--primary auth__submit"
               disabled={busy || (step === 'email' ? !email : code.length < MIN_CODE)}
             >
-              {busy ? 'One moment…' : SUBMIT[step]}
+              {busy ? (step === 'email' ? 'Sending…' : 'Verifying…') : 'Continue'}
             </button>
           </form>
 
@@ -165,69 +167,53 @@ export function LoginView() {
                 onClick={resend}
                 disabled={busy || cooldown > 0}
               >
-                {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Send a new code'}
+                {cooldown > 0 ? `New code in ${cooldown}s` : 'Send a new code'}
               </button>
               <button
                 type="button"
-                className="link-arrow link-arrow--button auth__back"
+                className="link-arrow link-arrow--button"
                 onClick={() => {
                   setStep('email');
                   setCode('');
                   setError(null);
                 }}
               >
-                Use a different address
+                Change email
               </button>
             </div>
           )}
 
           {step === 'mfa' && (
-            <p className="auth__note">
-              Lost your authenticator? Ask your FEM producer to reset it — for security
-              it cannot be done from here.
-            </p>
+            <p className="auth__note">Lost access? Contact your FEM producer.</p>
           )}
         </div>
       </div>
-
-      <p className="auth__legal">
-        Access is by invitation. FEM creates crew accounts; there is no self sign-up.
-      </p>
     </div>
   );
 }
 
 const TITLES: Record<Step, string> = {
-  email: 'Sign in to the Crew Portal',
-  code: 'Check your email',
-  mfa: 'One more step',
+  email: 'Sign in',
+  code: 'Enter your code',
+  mfa: 'Two-step verification',
 };
 
-const SUBMIT: Record<Step, string> = {
-  email: 'Send code',
-  code: 'Verify and continue',
-  mfa: 'Verify',
-};
+function isUnknownAddress(err: unknown) {
+  const m = err instanceof Error ? err.message.toLowerCase() : '';
+  return m.includes('signups not allowed') || m.includes('not found');
+}
 
-/** Supabase messages are aimed at developers. Say what the person should do,
-    without confirming whether an address has an account. */
+/** Supabase messages are written for developers. Keep these short and let the
+    buttons on screen offer the next step. */
 function readableError(err: unknown, step: Step) {
   const message = err instanceof Error ? err.message.toLowerCase() : '';
 
   if (message.includes('rate') || message.includes('too many')) {
-    return 'Too many attempts. Wait a minute and try again.';
+    return 'Too many attempts. Try again in a minute.';
   }
-  if (step === 'mfa') {
-    return 'That code was not accepted. Check your authenticator and try the current code.';
+  if (step !== 'email') {
+    // Supabase returns "expired or invalid" for both, so do not claim it expired.
+    return 'Incorrect code.';
   }
-  // Supabase returns "Token has expired or is invalid" for both cases, so do not
-  // claim it expired — the usual cause is an older email after a second code was
-  // requested, which silently voids the first.
-  if (step === 'code') {
-    return 'That code was not accepted. Use the most recent email, or request a new code.';
-  }
-  if (message.includes('signups not allowed') || message.includes('not found')) {
-    return 'If that address has crew access, a code is on its way.';
-  }
-  return 'Something went wrong. Try again, or contact your FEM producer.';
+  return 'Something went wrong. Try again.';
 }
