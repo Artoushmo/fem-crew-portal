@@ -10,6 +10,11 @@ type Step = 'email' | 'code' | 'mfa';
 // resend button becomes available before the server will honour it.
 const RESEND_SECONDS = 60;
 
+// Supabase's email OTP length is configurable from 6 to 10 digits, so accept the
+// full range rather than silently truncating. TOTP is always 6.
+const MIN_CODE = 6;
+const MAX_CODE = { code: 10, mfa: 6 } as const;
+
 export function LoginView() {
   const { stage, sendCode, verifyCode, verifyMfa } = useAuth();
   const [step, setStep] = useState<Step>('email');
@@ -19,6 +24,7 @@ export function LoginView() {
   const [error, setError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const codeField = useRef<HTMLInputElement>(null);
+  const maxCode = step === 'mfa' ? MAX_CODE.mfa : MAX_CODE.code;
 
   // The provider decides when a second factor is outstanding; follow it rather
   // than guessing from the code step.
@@ -89,7 +95,7 @@ export function LoginView() {
             {step === 'email' && 'We send a one-time code to your FEM address.'}
             {step === 'code' && (
               <>
-                Enter the six-digit code sent to <strong>{email}</strong>.
+                Enter the code sent to <strong>{email}</strong>.
               </>
             )}
             {step === 'mfa' && 'Enter the current code from your authenticator app.'}
@@ -122,11 +128,13 @@ export function LoginView() {
                   name="code"
                   className="field__input field__input--code"
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) =>
+                    setCode(e.target.value.replace(/\D/g, '').slice(0, maxCode))
+                  }
                   inputMode="numeric"
-                  autoComplete={step === 'mfa' ? 'one-time-code' : 'one-time-code'}
-                  placeholder="000000"
-                  maxLength={6}
+                  autoComplete="one-time-code"
+                  placeholder={'0'.repeat(maxCode)}
+                  maxLength={maxCode}
                   required
                 />
               </label>
@@ -141,7 +149,7 @@ export function LoginView() {
             <button
               type="submit"
               className="btn btn--primary auth__submit"
-              disabled={busy || (step === 'email' ? !email : code.length < 6)}
+              disabled={busy || (step === 'email' ? !email : code.length < MIN_CODE)}
             >
               {busy ? 'One moment…' : SUBMIT[step]}
             </button>
@@ -210,11 +218,11 @@ function readableError(err: unknown, step: Step) {
   if (step === 'mfa') {
     return 'That code was not accepted. Check your authenticator and try the current code.';
   }
-  if (message.includes('expired')) {
-    return 'That code has expired. Request a new one.';
-  }
+  // Supabase returns "Token has expired or is invalid" for both cases, so do not
+  // claim it expired — the usual cause is an older email after a second code was
+  // requested, which silently voids the first.
   if (step === 'code') {
-    return 'That code was not accepted. Check it, or request a new one.';
+    return 'That code was not accepted. Use the most recent email, or request a new code.';
   }
   if (message.includes('signups not allowed') || message.includes('not found')) {
     return 'If that address has crew access, a code is on its way.';

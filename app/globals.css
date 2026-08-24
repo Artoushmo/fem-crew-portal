@@ -1237,13 +1237,15 @@ a.rail__agreement:hover .rail__label {
   color: #b6bcc5;
 }
 
+/* Sized so a ten-digit code still fits on a 375px screen. */
 .field__input--code {
-  font-size: 26px;
+  font-size: clamp(20px, 5.5vw, 26px);
   font-weight: 700;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  padding: 12px 14px;
+  padding: 12px 10px;
 }
 
 .auth__submit {

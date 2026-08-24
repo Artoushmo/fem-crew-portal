@@ -1,7 +1,12 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Supabase replaced the anon JWT with a "publishable key" (sb_publishable_…).
+// Both do the same job, so accept either name.
+const anonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 /** With no project configured the portal runs as an unauthenticated demo on seed
     data. Production must set both variables — see README, "Authentication". */
@@ -17,7 +22,11 @@ export const supabase: SupabaseClient | null = isAuthConfigured
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
-        flowType: 'pkce',
+        // Codes are verified server-side against the email, never carried in a
+        // redirect URL, so PKCE buys nothing here — and its verifier lives in
+        // the localStorage of whichever browser asked for the code, which breaks
+        // entering that code anywhere else.
+        flowType: 'implicit',
       },
     })
   : null;
