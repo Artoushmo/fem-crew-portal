@@ -1121,6 +1121,8 @@ a.rail__agreement:hover .rail__label {
 /* ---------- Sign in ---------- */
 
 .auth {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -1129,14 +1131,135 @@ a.rail__agreement:hover .rail__label {
   gap: 18px;
   padding: 24px 20px 40px;
   background: var(--fem-obsidian);
+  /* Low enough to clear the card on a phone, where it spans nearly the full
+     width; the band can sit higher once there is room beside it. */
+  --auth-band: 20%;
+  --auth-rise: clamp(26px, 9vw, 88px);
 }
 
-.auth--loading {
+@media (min-width: 560px) {
+  .auth {
+    --auth-band: 46%;
+  }
+}
+
+/* The site's chevron, echoed behind the card: a raised band in a lighter
+   obsidian, traced by a hairline of brand blue along its edge. Two layers of
+   the same shape, the darker one nudged down so only the blue edge shows. */
+.auth::before,
+.auth::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--auth-band);
+  clip-path: polygon(
+    0 var(--auth-rise),
+    50% 0,
+    100% var(--auth-rise),
+    100% 100%,
+    0 100%
+  );
+}
+
+.auth::before {
+  background: var(--fem-blue);
+}
+
+.auth::after {
+  background: #1a1919;
+  transform: translateY(2px);
+}
+
+.auth > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Brand loader ---------- */
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.loader__stage {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+}
+
+/* Ring turning around the mark. The near-transparent remainder keeps the circle
+   readable instead of showing a lone arc. */
+.loader__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(76, 114, 169, 0.22);
+  border-top-color: var(--fem-blue);
+  animation: fem-spin 1s linear infinite;
+}
+
+.loader__mark,
+.loader__fallback {
+  position: relative;
+  width: 52px;
+  height: auto;
+  animation: fem-breathe 1.9s ease-in-out infinite;
+}
+
+.loader__fallback {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--fem-blue);
+}
+
+.loader__label {
+  margin: 0;
+  font-size: 13px;
   color: var(--fem-on-dark-muted);
 }
 
-.auth__loading {
-  font-size: 13px;
+@keyframes fem-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fem-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Still shows a ring and a mark, just not moving. */
+@media (prefers-reduced-motion: reduce) {
+  .loader__ring,
+  .loader__mark,
+  .loader__fallback {
+    animation: none;
+  }
+
+  .loader__mark,
+  .loader__fallback {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .auth__panel {

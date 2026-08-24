@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
+import { BrandLoader } from './BrandLoader';
 import { LoginView } from './LoginView';
 
 /** Nothing renders until the session is resolved and, where required, a second
@@ -16,7 +17,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (stage === 'loading') {
     return (
       <div className="auth auth--loading">
-        <p className="auth__loading">Checking your session…</p>
+        <BrandLoader />
       </div>
     );
   }

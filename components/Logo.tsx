@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 // next/image would handle this, but these are plain <img> tags.
 const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 const FULL_SRC = `${BASE}/logo.png`;
-const MARK_SRC = `${BASE}/logo-mark.png`;
+export const MARK_SRC = `${BASE}/logo-mark.png`;
 
 /** Renders the Fast Elevate Crew Portal lockup from public/logo.png, or the
     circular mark from public/logo-mark.png when the rail is collapsed (falling
