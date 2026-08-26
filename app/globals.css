@@ -1414,10 +1414,21 @@ a.rail__agreement:hover .rail__label {
   border-radius: 12px;
 }
 
-.mfa__qr svg {
+/* Bigger than strictly necessary: a phone camera reads a dense TOTP code far
+   more reliably at this size. */
+.mfa__qr svg,
+.mfa__qr--image {
   display: block;
-  width: 168px;
-  height: 168px;
+  width: 208px;
+  height: 208px;
+}
+
+.mfa__qr--image {
+  padding: 12px;
+  background: var(--fem-white);
+  border: 1px solid var(--fem-border);
+  border-radius: 12px;
+  box-sizing: content-box;
 }
 
 .mfa__manual {

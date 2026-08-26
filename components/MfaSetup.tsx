@@ -135,11 +135,16 @@ export function MfaSetup() {
             app, then enter the code it shows.
           </p>
 
-          <div
-            className="mfa__qr"
-            // Supabase returns the QR as an SVG string it generated itself.
-            dangerouslySetInnerHTML={{ __html: enrolment.qr }}
-          />
+          {/* Supabase returns this either as a data URI or as raw SVG markup,
+              depending on version. Injecting a data URI as HTML renders the
+              "data:image/svg+xml" prefix as text and leaves a QR the camera
+              cannot read, so branch on what actually came back. */}
+          {enrolment.qr.trimStart().startsWith('<svg') ? (
+            <div className="mfa__qr" dangerouslySetInnerHTML={{ __html: enrolment.qr }} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="mfa__qr mfa__qr--image" src={enrolment.qr} alt="" />
+          )}
 
           <details className="mfa__manual">
             <summary>Can&rsquo;t scan? Enter the key by hand</summary>
