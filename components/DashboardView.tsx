@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useActionQueue, useAssignments } from '@/lib/assignment-state';
+import { useAuth } from '@/lib/auth';
 import { formatFee, freelancer } from '@/lib/assignments';
 import { AddToCalendar } from './AddToCalendar';
 import { Countdown } from './Countdown';
@@ -12,6 +13,15 @@ import { StatusPill } from './StatusPill';
 export function DashboardView() {
   const assignments = useAssignments();
   const queue = useActionQueue();
+  const { profile, session, configured } = useAuth();
+
+  // Greet the signed-in person, not the seed data. Falls back to the sample
+  // name only when there is no account to read — i.e. the unauthenticated demo.
+  const firstName = configured
+    ? (profile?.full_name?.trim().split(/\s+/)[0] ??
+      session?.user?.email?.split('@')[0] ??
+      'there')
+    : freelancer.firstName;
 
   const scheduled = assignments
     .filter((a) => a.stage < 3)
@@ -30,7 +40,7 @@ export function DashboardView() {
   return (
     <>
       <Masthead>
-        <h1 className="hero__greeting">Hi, {freelancer.firstName}</h1>
+        <h1 className="hero__greeting">Hi, {firstName}</h1>
         <p className="hero__sub">
           {queue.length > 0
             ? `${queue.length} thing${queue.length > 1 ? 's' : ''} need your attention.`
