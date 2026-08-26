@@ -67,7 +67,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [{ data: aal }, { data: factorData }, { data: profileRow }] = await Promise.all([
       supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
       supabase.auth.mfa.listFactors(),
-      supabase.from('profiles').select('id, role, full_name, email, avatar_path').single(),
+      // Always filter by id. RLS decides what you may read, not how many rows
+      // come back — and staff may read everyone's, which breaks .single().
+      supabase
+        .from('profiles')
+        .select('id, role, full_name, email, avatar_path')
+        .eq('id', next.user.id)
+        .single(),
     ]);
 
     const verified = (factorData?.all ?? []).filter((f) => f.status === 'verified');

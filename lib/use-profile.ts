@@ -24,8 +24,11 @@ export interface ProfileBundle {
 const EMPTY: ProfileBundle = { profile: null, crafts: [], gear: [], credentials: [] };
 
 /** Everything on the profile screen, loaded together and refetched as a unit.
-    RLS already limits every one of these to the signed-in user's own rows, so
-    none of the queries filter by id. */
+    Every query filters by the signed-in id explicitly. Leaving that to RLS
+    looks equivalent until someone becomes staff — then they may read everyone's
+    rows, .single() gets more than one, and the Kit tab fills with other
+    people's gear. RLS bounds what you may see; it does not narrow what you
+    asked for. */
 export function useProfileData() {
   const { session } = useAuth();
   const [data, setData] = useState<ProfileBundle>(EMPTY);
@@ -41,11 +44,21 @@ export function useProfileData() {
 
     setError(null);
 
+    const uid = session.user.id;
+
     const [profile, crafts, gear, credentials] = await Promise.all([
-      supabase.from('profiles').select(PROFILE_COLUMNS).single(),
-      supabase.from('freelancer_crafts').select('*').order('is_primary', { ascending: false }),
-      supabase.from('gear').select('*').order('category').order('model'),
-      supabase.from('credentials').select('*').order('expires_on', { nullsFirst: false }),
+      supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', uid).single(),
+      supabase
+        .from('freelancer_crafts')
+        .select('*')
+        .eq('profile_id', uid)
+        .order('is_primary', { ascending: false }),
+      supabase.from('gear').select('*').eq('profile_id', uid).order('category').order('model'),
+      supabase
+        .from('credentials')
+        .select('*')
+        .eq('profile_id', uid)
+        .order('expires_on', { nullsFirst: false }),
     ]);
 
     const failure =
