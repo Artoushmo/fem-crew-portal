@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { NAV as TABS, isActive } from './Sidebar';
+import { useAuth } from '@/lib/auth';
+import { isActive, visibleNav } from './Sidebar';
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const tabs = visibleNav(profile?.role);
 
   return (
     <nav className="tabbar" aria-label="Primary">
-      {TABS.map(({ href, label, short, Icon }) => (
+      {tabs.map(({ href, label, short, Icon }) => (
         <Link
           key={href}
           href={href}

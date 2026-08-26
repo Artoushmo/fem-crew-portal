@@ -2045,6 +2045,137 @@ select.field__input {
   padding-right: 30px;
 }
 
+/* ---------- Team ---------- */
+
+.invite {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+@media (min-width: 720px) {
+  .invite {
+    grid-template-columns: 1.4fr 1fr 0.9fr;
+  }
+}
+
+.member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 14px 18px;
+}
+
+.member__avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.member__avatar--initials {
+  display: grid;
+  place-items: center;
+  background: var(--fem-page);
+  border: 1px solid var(--fem-border);
+  color: var(--fem-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.member__who {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.member__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.member__you {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fem-blue);
+  background: rgba(76, 114, 169, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.member__email {
+  font-size: 12px;
+  color: var(--fem-text-muted);
+  word-break: break-all;
+}
+
+.member__state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.tag--ok {
+  color: #2f6b4f;
+  background: #eef7f2;
+}
+
+.tag--wait {
+  color: #7a6118;
+  background: #fdf8ec;
+}
+
+.tag--warn {
+  color: #b4541f;
+  background: #fdf4ee;
+}
+
+.member__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.member__role {
+  padding: 7px 30px 7px 10px;
+  font-size: 13px;
+  width: auto;
+}
+
+.member__role-static {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fem-text-secondary);
+}
+
+.member__warning {
+  margin: 0;
+  padding: 10px 18px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #b4541f;
+  border-top: 1px solid var(--fem-border-soft);
+}
+
 /* ---------- Demo banner ---------- */
 
 .demo-banner {

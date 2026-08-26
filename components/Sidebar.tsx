@@ -9,18 +9,29 @@ import {
   FeeIcon,
   PanelIcon,
   ProfileIcon,
+  TeamIcon,
 } from './Icons';
+import { useAuth } from '@/lib/auth';
 import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
 
-/** `short` is what the mobile tab bar uses — five full labels do not fit at 375px. */
+/** `short` is what the mobile tab bar uses — full labels do not fit at 375px.
+    `staffOnly` items stay hidden from freelancers, who would only get a page
+    the database refuses to answer anyway. */
 export const NAV = [
   { href: '/', label: 'Dashboard', short: 'Home', Icon: DashboardIcon },
   { href: '/assignments', label: 'Assignments', short: 'Jobs', Icon: AssignmentsIcon },
   { href: '/payments', label: 'Payments', short: 'Pay', Icon: FeeIcon },
   { href: '/documents', label: 'Documents', short: 'Docs', Icon: DocumentsIcon },
+  { href: '/team', label: 'Team', short: 'Team', Icon: TeamIcon, staffOnly: true },
   { href: '/profile', label: 'Profile', short: 'Profile', Icon: ProfileIcon },
 ];
+
+/** The rail and the tab bar both need the same filtered list. */
+export function visibleNav(role: string | undefined) {
+  const isStaff = role === 'staff' || role === 'admin' || role === 'superadmin';
+  return NAV.filter((item) => !item.staffOnly || isStaff);
+}
 
 export function isActive(pathname: string, href: string) {
   return href === '/' ? pathname === '/' : pathname.startsWith(href);
@@ -34,6 +45,8 @@ export function Sidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
+  const { profile } = useAuth();
+  const items = visibleNav(profile?.role);
 
   return (
     <aside className="rail">
@@ -53,7 +66,7 @@ export function Sidebar({
       </div>
 
       <nav className="rail__nav" aria-label="Primary">
-        {NAV.map(({ href, label, Icon }) => (
+        {items.map(({ href, label, Icon }) => (
           <Link
             key={href}
             href={href}

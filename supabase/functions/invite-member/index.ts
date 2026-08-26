@@ -11,6 +11,7 @@
 //
 // Only then does the privileged client come out.
 
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -21,24 +22,24 @@ const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 // only caller is localhost.
 const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
 
-const cors = {
+const cors: Record<string, string> = {
   'Access-Control-Allow-Origin': ORIGIN,
   'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Vary': 'Origin',
+  Vary: 'Origin',
 };
 
 const GRANTABLE = ['freelancer', 'staff', 'admin', 'superadmin'] as const;
 type Role = (typeof GRANTABLE)[number];
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }
 
-Deno.serve(async (req) => {
+async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
 
@@ -95,8 +96,8 @@ Deno.serve(async (req) => {
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
-    // Confirmed on creation: the portal signs people in with a emailed code, so
-    // there is no password to set and no confirmation link to chase.
+    // Confirmed on creation: the portal signs people in with an emailed code,
+    // so there is no password to set and no confirmation link to chase.
     email_confirm: true,
     user_metadata: fullName ? { full_name: fullName } : {},
   });
@@ -132,4 +133,9 @@ Deno.serve(async (req) => {
   });
 
   return json({ id: newId, email, role }, 201);
-});
+}
+
+// The runtime's current shape. Deliberately not using withSupabase: this needs
+// two distinct clients — the caller's, so RLS applies, and the privileged one —
+// and building them by hand keeps that boundary visible.
+export default { fetch: handler };

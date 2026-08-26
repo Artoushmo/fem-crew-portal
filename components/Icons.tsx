@@ -108,6 +108,16 @@ export function ChevronIcon({ size = 13 }: IconProps) {
   );
 }
 
+export function TeamIcon({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 19c0-3.2 2.9-5.4 6-5.4s6 2.2 6 5.4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 5.5a3 3 0 010 5.6M18 19c0-2.4-.9-4.2-2.3-5.3" />
+    </svg>
+  );
+}
+
 /** Collapse / expand control for the sidebar rail. */
 export function PanelIcon({ size = 18 }: IconProps) {
   return (
