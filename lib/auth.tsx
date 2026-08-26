@@ -4,13 +4,14 @@ import type { Factor, Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { isAuthConfigured, requireSupabase, supabase } from './supabase';
 
-export type AppRole = 'freelancer' | 'staff' | 'admin';
+export type AppRole = 'freelancer' | 'staff' | 'admin' | 'superadmin';
 
 export interface Profile {
   id: string;
   role: AppRole;
   full_name: string | null;
   email: string | null;
+  avatar_path: string | null;
 }
 
 /** Where the session sits in the login flow.
@@ -66,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [{ data: aal }, { data: factorData }, { data: profileRow }] = await Promise.all([
       supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
       supabase.auth.mfa.listFactors(),
-      supabase.from('profiles').select('id, role, full_name, email').single(),
+      supabase.from('profiles').select('id, role, full_name, email, avatar_path').single(),
     ]);
 
     const verified = (factorData?.all ?? []).filter((f) => f.status === 'verified');

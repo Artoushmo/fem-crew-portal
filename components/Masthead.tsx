@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { freelancer } from '@/lib/assignments';
+import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
 
 /** The obsidian block at the top of every page. Its lower edge is cut into the
@@ -20,9 +20,11 @@ export function Masthead({ children }: { children?: React.ReactNode }) {
             <Logo />
           </Link>
 
-          <Link href="/profile" className="avatar" aria-label="Profile">
-            {freelancer.initials}
-          </Link>
+          {/* Desktop keeps this in the rail; here it is the only place identity
+              and sign-out live, since there is no rail below 768px. */}
+          <div className="topbar__account">
+            <AccountMenu compact />
+          </div>
         </div>
 
         {children && <div className="hero">{children}</div>}

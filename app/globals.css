@@ -151,31 +151,164 @@ button {
   background: rgba(76, 114, 169, 0.14);
 }
 
-.rail__agreement {
-  margin: auto 0 0;
-  padding: 12px;
+
+
+.rail__foot {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* ---------- Account menu ---------- */
+
+.account {
+  position: relative;
+}
+
+.account__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  transition: background-color 0.15s;
+}
+
+.account__trigger:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.account--compact .account__trigger {
+  justify-content: center;
+  padding: 6px;
+}
+
+.account__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.account__avatar--initials {
+  display: grid;
+  place-items: center;
+  background: var(--fem-blue);
+  color: var(--fem-white);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.account__who {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--fem-nav-footer, #5a5d63);
-  white-space: nowrap;
 }
 
-.rail__signed {
-  display: flex;
-  gap: 4px;
-  color: var(--fem-gold);
+.account__name {
+  font-size: 13px;
   font-weight: 600;
-}
-
-.rail__signed--todo {
-  color: #e07a45;
-}
-
-a.rail__agreement:hover .rail__label {
   color: var(--fem-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account__role {
+  font-size: 11px;
+  color: var(--fem-nav-idle);
+}
+
+.account__caret {
+  flex-shrink: 0;
+  color: var(--fem-nav-idle);
+  transform: rotate(-90deg);
+}
+
+.account__menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 210px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--fem-white);
+  border: 1px solid var(--fem-border-light);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  z-index: 40;
+}
+
+.account__header {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--fem-border-soft);
+  margin-bottom: 4px;
+}
+
+.account__header .account__name {
+  color: var(--fem-text);
+}
+
+.account__email {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--fem-text-muted);
+  word-break: break-all;
+}
+
+.account__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fem-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.account__item:hover {
+  background: var(--fem-page);
+  color: var(--fem-text);
+}
+
+.account__item--danger {
+  color: #b4541f;
+}
+
+.account__item--danger:hover {
+  background: #fdf4ee;
+  color: #b4541f;
+}
+
+/* In the masthead the menu has room below rather than above. */
+.topbar__account {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.topbar__account .account__menu {
+  bottom: auto;
+  top: calc(100% + 8px);
+  left: auto;
+  right: 0;
+}
+
+.topbar__account .account__trigger:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Collapsed rail: icons only, everything else folds away. */
@@ -206,15 +339,9 @@ a.rail__agreement:hover .rail__label {
   display: none;
 }
 
-.layout--collapsed .rail__agreement {
-  align-items: center;
-  padding: 12px 0;
-  font-size: 15px;
-}
 
-.layout--collapsed .rail__signed {
-  gap: 0;
-}
+
+
 
 @media (min-width: 768px) {
   .rail {

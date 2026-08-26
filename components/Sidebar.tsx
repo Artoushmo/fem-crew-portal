@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAgreement } from '@/lib/assignment-state';
 import {
   AssignmentsIcon,
   DashboardIcon,
@@ -11,6 +10,7 @@ import {
   PanelIcon,
   ProfileIcon,
 } from './Icons';
+import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
 
 /** `short` is what the mobile tab bar uses — five full labels do not fit at 375px. */
@@ -34,7 +34,6 @@ export function Sidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const agreement = useAgreement();
 
   return (
     <aside className="rail">
@@ -68,23 +67,9 @@ export function Sidebar({
         ))}
       </nav>
 
-      <Link href="/documents" className="rail__agreement">
-        <span className="rail__label">Freelancer Agreement {agreement.year}</span>
-        <span
-          className={`rail__signed ${agreement.signed ? '' : 'rail__signed--todo'}`}
-          aria-label={`Freelancer Agreement ${agreement.year} ${
-            agreement.signed ? 'signed' : 'not signed'
-          }`}
-          title={`Freelancer Agreement ${agreement.year} — ${
-            agreement.signed ? 'signed' : 'not signed'
-          }`}
-        >
-          <span aria-hidden="true">{agreement.signed ? '✓' : '!'}</span>
-          <span className="rail__label" aria-hidden="true">
-            {agreement.signed ? 'Signed' : 'Sign now'}
-          </span>
-        </span>
-      </Link>
+      <div className="rail__foot">
+        <AccountMenu compact={collapsed} />
+      </div>
     </aside>
   );
 }

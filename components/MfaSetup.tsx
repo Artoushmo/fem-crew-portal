@@ -28,9 +28,18 @@ export function MfaSetup() {
     setError(null);
     setBusy(true);
     try {
-      const { data, error: enrollError } = await requireSupabase().auth.mfa.enroll({
+      const client = requireSupabase();
+
+      // An abandoned attempt leaves an unverified factor behind, and Supabase
+      // then refuses a second one under the same name. Clear those out first so
+      // retrying just works.
+      const { data: existing } = await client.auth.mfa.listFactors();
+      const stale = (existing?.all ?? []).filter((f) => f.status !== 'verified');
+      await Promise.all(stale.map((f) => client.auth.mfa.unenroll({ factorId: f.id })));
+
+      const { data, error: enrollError } = await client.auth.mfa.enroll({
         factorType: 'totp',
-        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 10)}`,
+        friendlyName: `Authenticator ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
       });
       if (enrollError) throw enrollError;
       setEnrolment({
