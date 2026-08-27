@@ -17,7 +17,7 @@ import { requireSupabase, supabase } from './supabase';
 const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
-  contract_signed_on,
+  contract_signed_on, reopened_reason,
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
@@ -39,6 +39,7 @@ interface RawRole {
   invoiced_on: string | null;
   paid_on: string | null;
   contract_signed_on: string | null;
+  reopened_reason: string | null;
   offered_at: string | null;
   accepted_at: string | null;
   assignments: {
@@ -157,6 +158,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
           signedOn: row.contract_signed_on ? shortDate(row.contract_signed_on) : null,
         }
       : null,
+    reopened: row.reopened_reason,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),
@@ -286,6 +288,22 @@ export function useMyAssignments() {
     load();
   }, [load]);
 
+  // FEM can change the paperwork while a freelancer has the page open, and the
+  // step they were on may reopen underneath them. Refetching when the tab comes
+  // back to the front is enough to stop that being a mystery, without holding a
+  // realtime connection open all day.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [load]);
+
   /** One step forward, and only one -- the database enforces that too, so a
       stale tab cannot skip ahead. Sending the invoice is the single step that
       also moves the money on. */
@@ -362,6 +380,10 @@ export function useMyAssignments() {
         .update({
           contract_signed_on: now.toISOString().slice(0, 10),
           contract_signed_at: now.toISOString(),
+          contract_signed_sha256: job?.contract_sha256 ?? null,
+          // Whatever sent them back has been dealt with.
+          reopened_at: null,
+          reopened_reason: null,
         })
         .eq('id', id);
 
@@ -433,6 +455,7 @@ export function useMyAssignments() {
         year,
         signed_on: new Date().toISOString().slice(0, 10),
         signed_at: new Date().toISOString(),
+        signed_sha256: doc?.sha256 ?? null,
       })
       .select('id')
       .single();

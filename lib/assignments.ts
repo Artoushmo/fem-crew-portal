@@ -64,6 +64,9 @@ export interface Assignment {
   /** The job's own contract, when the client brought one. Null means the yearly
       Freelancer Agreement is the paperwork. */
   contract: { name: string; signedOn: string | null } | null;
+  /** Set when FEM changed the paperwork after someone had already signed, so
+      the screen can say why the step came back instead of looking like a bug. */
+  reopened: string | null;
   status: Status;
   /** Index into STAGES: the stage currently in play. */
   stage: number;
@@ -102,6 +105,7 @@ export const assignments: Assignment[] = [
     role: 'Photographer',
     fee: 450,
     contract: null,
+    reopened: null,
     status: 'confirmed',
     stage: 2,
     stageDates: ['4 Jan 2026', '2 Sep 2026', null, null, null, null, null],
@@ -169,6 +173,7 @@ export const assignments: Assignment[] = [
     role: 'Videographer',
     fee: 780,
     contract: null,
+    reopened: null,
     status: 'action-required',
     stage: 1,
     stageDates: ['4 Jan 2026', null, null, null, null, null, null],
@@ -230,6 +235,7 @@ export const assignments: Assignment[] = [
     role: 'Drone operator',
     fee: 520,
     contract: null,
+    reopened: null,
     status: 'delivered',
     stage: 5,
     stageDates: [
@@ -291,6 +297,7 @@ export const assignments: Assignment[] = [
     role: 'Photographer',
     fee: 640,
     contract: null,
+    reopened: null,
     status: 'completed',
     stage: 6,
     stageDates: [

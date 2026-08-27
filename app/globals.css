@@ -3762,6 +3762,17 @@ select.field__input {
 /* A <label> wrapping a hidden file input is the button here, so it needs the
    disabled look the input alone cannot give it. */
 /* Read it / Sign sit together where a single action normally goes. */
+.stage-act__reopened {
+  flex-basis: 100%;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(242, 190, 80, 0.18);
+  color: var(--fem-on-dark);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
 /* --- Signing receipt ---------------------------------------------------- */
 
 .receipt {

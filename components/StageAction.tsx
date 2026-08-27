@@ -53,6 +53,14 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
 
   return (
     <div className={`stage-act ${action.blocked ? 'stage-act--blocked' : ''}`}>
+      {/* Says why the step came back. Without it, finding yourself at step one
+          again reads as the portal losing your work. */}
+      {assignment.reopened && (
+        <p className="stage-act__reopened" role="status">
+          {assignment.reopened}
+        </p>
+      )}
+
       <div className="stage-act__body">
         <p className="stage-act__step">
           Step {assignment.stage + 1} of {STAGES.length}
