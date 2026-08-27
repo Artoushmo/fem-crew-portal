@@ -221,7 +221,9 @@ export function StaffAssignmentsView() {
                             {s.roles.map((r) => (
                               <li key={r.id} className="roles__row">
                                 <span className="roles__craft">{CRAFT_LABEL[r.craft]}</span>
-                                <span className="roles__label">{r.role_label}</span>
+                                <span className="roles__label">
+                                  {r.role_label === CRAFT_LABEL[r.craft] ? '' : r.role_label}
+                                </span>
 
                                 {r.freelancer_id ? (
                                   <span className="tag tag--ok">

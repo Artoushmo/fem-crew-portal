@@ -36,7 +36,7 @@ interface Row {
   role: string;
   freelancer_crafts: { craft: Craft; is_primary: boolean }[];
   gear: { id: string }[];
-  credentials: { title: string; expires_on: string | null }[];
+  credentials: { label: string; expires_on: string | null }[];
   availability: { kind: string; starts_on: string; ends_on: string }[];
   assignment_roles: { offered_at: string | null; assignments: { starts_at: string } | null }[];
 }
@@ -45,7 +45,7 @@ const COLUMNS = `
   id, full_name, email, avatar_path, base_city, travel_radius_km, status, role,
   freelancer_crafts ( craft, is_primary ),
   gear ( id ),
-  credentials ( title, expires_on ),
+  credentials ( label, expires_on ),
   availability ( kind, starts_on, ends_on ),
   assignment_roles ( offered_at, assignments ( starts_at ) )
 `;
@@ -93,7 +93,7 @@ export function useCrew(shootDate: string | null) {
       const expiring = day
         ? (r.credentials ?? [])
             .filter((c) => c.expires_on !== null && c.expires_on < day)
-            .map((c) => c.title)
+            .map((c) => c.label)
         : [];
 
       const unavailable = day

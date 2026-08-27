@@ -69,7 +69,7 @@ export function CrewPicker({
 
       {loading ? (
         <BrandLoader label="Finding crew" />
-      ) : shown.length === 0 ? (
+      ) : error ? null : shown.length === 0 ? (
         <p className="state state--idle">
           {crew.length === 0
             ? 'No freelancers yet. Add one under Team.'
