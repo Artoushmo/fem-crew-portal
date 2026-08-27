@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { CRAFT_LABEL } from '@/lib/profile-types';
 import { avatarUrl } from '@/lib/use-profile';
-import { formatEuro, KIND_LABEL } from '@/lib/use-staff-assignments';
+import { formatEuro } from '@/lib/use-staff-assignments';
 import { daysFrom, jobName, useStaffDashboard, whenLabel } from '@/lib/use-staff-dashboard';
 import { BrandLoader } from '../BrandLoader';
 import { Masthead } from '../Masthead';
@@ -134,11 +134,9 @@ export function StaffDashboard() {
                         <div className="agenda__what">
                           <span className="job__title">{jobName(s)}</span>
                           <span className="job__meta">
-                            {s.kind === 'shoot'
-                              ? [s.on_site?.slice(0, 5), s.venue, s.city]
-                                  .filter(Boolean)
-                                  .join(' · ')
-                              : `${KIND_LABEL[s.kind]} · deadline`}
+                            {s.on_site
+                              ? [s.on_site.slice(0, 5), s.venue, s.city].filter(Boolean).join(' · ')
+                              : 'Deadline'}
                           </span>
                         </div>
 

@@ -90,7 +90,10 @@ export interface RoleDraft {
 }
 
 export interface ShootDraft {
-  kind: JobKind;
+  /** Two independent facts, not a choice between two kinds of work. A launch
+      with a shoot day and a website has both. */
+  hasShootDay: boolean;
+  hasDeadline: boolean;
   title: string;
   client_id: string;
   date: string;
@@ -118,7 +121,8 @@ export interface ShootDraft {
 export const BLANK_ROLE: RoleDraft = { craft: '', role_label: '', fee: '' };
 
 export const BLANK_SHOOT: ShootDraft = {
-  kind: 'shoot',
+  hasShootDay: true,
+  hasDeadline: false,
   title: '',
   client_id: '',
   date: '',
@@ -237,25 +241,24 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     return t === '' ? null : t;
   };
 
-  const isShoot = draft.kind === 'shoot';
+  const { hasShootDay, hasDeadline } = draft;
 
   return {
-    kind: draft.kind,
     title: draft.title.trim(),
     client_id: draft.client_id,
     producer_id: producerId,
-    // For a shoot the date and the on-site time are one moment, so it cannot
-    // end up on two days. A project has no call time, so it starts at the top
-    // of its deadline day and sorts alongside everything else.
-    starts_at: isShoot
+    // Whatever comes first is what the job sorts by, so a shoot day and a
+    // deadline both land in the same list in the order a producer works
+    // through them.
+    starts_at: hasShootDay
       ? new Date(`${draft.date}T${draft.on_site}`).toISOString()
       : new Date(`${draft.due_on}T09:00`).toISOString(),
-    due_on: isShoot ? null : draft.due_on,
-    on_site: isShoot ? draft.on_site : null,
-    camera_ready: isShoot ? draft.camera_ready : null,
-    wrapped: isShoot ? draft.wrapped : null,
-    city: isShoot ? draft.city.trim() : tidy(draft.city),
-    venue: isShoot ? draft.venue.trim() : null,
+    due_on: hasDeadline ? draft.due_on : null,
+    on_site: hasShootDay ? draft.on_site : null,
+    camera_ready: hasShootDay ? draft.camera_ready : null,
+    wrapped: hasShootDay ? draft.wrapped : null,
+    city: tidy(draft.city),
+    venue: hasShootDay ? draft.venue.trim() : null,
     maps_url: tidy(draft.maps_url),
     travel: tidy(draft.travel),
     parking: tidy(draft.parking),

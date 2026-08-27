@@ -9,7 +9,6 @@ import {
   centsToInput,
   fromLines,
   type RoleDraft,
-  type JobKind,
   type Shoot,
   type ShootDraft,
 } from '@/lib/use-staff-assignments';
@@ -19,7 +18,8 @@ export function toDraft(s: Shoot): ShootDraft {
   return {
     title: s.title,
     client_id: s.client_id ?? '',
-    kind: s.kind,
+    hasShootDay: Boolean(s.on_site && s.venue),
+    hasDeadline: Boolean(s.due_on),
     date: s.starts_at.slice(0, 10),
     due_on: s.due_on ?? '',
     on_site: s.on_site?.slice(0, 5) ?? '12:30',
@@ -83,17 +83,16 @@ export function ShootForm({
   const dropRole = (i: number) =>
     setForm((f) => ({ ...f, roles: f.roles.filter((_, n) => n !== i) }));
 
-  const isShoot = form.kind === 'shoot';
+  const { hasShootDay, hasDeadline } = form;
 
-  // Enough to put on a call sheet, or enough to hold a deadline. Without it
-  // there is nothing to send anyone, so the button stays shut rather than
-  // saving a shell.
+  // Enough to put on a call sheet, or enough to hold a deadline, or both. A job
+  // with neither cannot be scheduled or chased, so the button stays shut.
   const ready =
     form.title.trim() !== '' &&
     form.client_id !== '' &&
-    (isShoot
-      ? form.date !== '' && form.city.trim() !== '' && form.venue.trim() !== ''
-      : form.due_on !== '') &&
+    (hasShootDay || hasDeadline) &&
+    (!hasShootDay || (form.date !== '' && form.venue.trim() !== '')) &&
+    (!hasDeadline || form.due_on !== '') &&
     (editing || form.roles.some((r) => r.craft !== ''));
 
   const submit = async (e: React.FormEvent) => {
@@ -110,34 +109,43 @@ export function ShootForm({
 
   return (
     <form className="panel" onSubmit={submit}>
-      <h2 className="panel__title">
-        {editing ? 'Edit job' : isShoot ? 'New shoot' : 'New project'}
-      </h2>
+      <h2 className="panel__title">{editing ? 'Edit assignment' : 'New assignment'}</h2>
       <p className="panel__hint">
         Everything here is shared by everyone on it. Who fills each role is decided on the
         job itself, so nobody is offered anything before you have read it back.
       </p>
 
-      <p className="eyebrow eyebrow--spaced">What kind of job</p>
-      <div className="segmented segmented--inline" role="radiogroup" aria-label="Kind of job">
-        {(['shoot', 'project'] as JobKind[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            aria-checked={form.kind === k}
-            className={`segmented__item ${form.kind === k ? 'is-on' : ''}`}
-            onClick={() => setForm((f) => ({ ...f, kind: k }))}
-          >
-            {k === 'shoot' ? 'Shoot' : 'Project'}
-          </button>
-        ))}
-      </div>
+      <p className="eyebrow eyebrow--spaced">What this job involves</p>
       <p className="field__hint field__hint--block">
-        {isShoot
-          ? 'A day on location, with call times and a venue.'
-          : 'Work with a deadline rather than a call time - a web build, an app design, an edit.'}
+        Not a choice between two kinds of work. A launch can be a shoot day and a website,
+        so tick whatever applies.
       </p>
+
+      <div className="toggles">
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={hasShootDay}
+            onChange={(e) => setForm((f) => ({ ...f, hasShootDay: e.target.checked }))}
+          />
+          <span>
+            <b>A shoot day</b>
+            Call times and a venue.
+          </span>
+        </label>
+
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={hasDeadline}
+            onChange={(e) => setForm((f) => ({ ...f, hasDeadline: e.target.checked }))}
+          />
+          <span>
+            <b>A deadline</b>
+            Work delivered by a date &mdash; a web build, an app design, an edit.
+          </span>
+        </label>
+      </div>
 
       <p className="eyebrow eyebrow--spaced">The job</p>
       <div className="form-grid">
@@ -232,9 +240,10 @@ export function ShootForm({
         </>
       )}
 
-      <p className="eyebrow eyebrow--spaced">When</p>
-      {isShoot ? (
-        <div className="form-grid form-grid--four">
+      {hasShootDay && (
+        <>
+          <p className="eyebrow eyebrow--spaced">The shoot day</p>
+          <div className="form-grid form-grid--four">
           <Field label="Date">
             <input type="date" className="field__input" value={form.date} onChange={set('date')} required />
           </Field>
@@ -250,19 +259,25 @@ export function ShootForm({
               required
             />
           </Field>
-          <Field label="Wrapped">
-            <input type="time" className="field__input" value={form.wrapped} onChange={set('wrapped')} required />
-          </Field>
-        </div>
-      ) : (
-        <div className="form-grid">
-          <Field label="Deadline" hint="What the work is measured against.">
-            <input type="date" className="field__input" value={form.due_on} onChange={set('due_on')} required />
-          </Field>
-        </div>
+            <Field label="Wrapped">
+              <input type="time" className="field__input" value={form.wrapped} onChange={set('wrapped')} required />
+            </Field>
+          </div>
+        </>
       )}
 
-      {isShoot && (
+      {hasDeadline && (
+        <>
+          <p className="eyebrow eyebrow--spaced">Deadline</p>
+          <div className="form-grid">
+            <Field label="Delivered by" hint="What the work is measured against.">
+              <input type="date" className="field__input" value={form.due_on} onChange={set('due_on')} required />
+            </Field>
+          </div>
+        </>
+      )}
+
+      {hasShootDay && (
         <>
           <p className="eyebrow eyebrow--spaced">Where</p>
           <div className="form-grid">
@@ -319,27 +334,27 @@ export function ShootForm({
             placeholder={'Arrive 30 min early\nCheck in with the producer'}
           />
         </Field>
-        <Field label={isShoot ? 'Shot list' : 'Deliverables'} hint="One per line.">
+        <Field label={hasShootDay ? 'Shot list' : 'Deliverables'} hint="One per line.">
           <textarea
             className="field__input field__input--area"
             rows={4}
             value={form.shots}
             onChange={set('shots')}
             placeholder={
-              isShoot
+              hasShootDay
                 ? 'Keynote wide\nAudience reactions\nProduct close-ups'
                 : 'Homepage\nProduct page\nContact form'
             }
           />
         </Field>
-        <Field label={isShoot ? 'Bring' : 'Tools and access'} hint="One per line.">
+        <Field label={hasShootDay ? 'Bring' : 'Tools and access'} hint="One per line.">
           <textarea
             className="field__input field__input--area"
             rows={4}
             value={form.equipment}
             onChange={set('equipment')}
             placeholder={
-              isShoot
+              hasShootDay
                 ? 'Two bodies\n24-70 and 70-200\nSpare batteries'
                 : 'Figma file\nStaging access\nBrand kit'
             }
@@ -399,7 +414,7 @@ export function ShootForm({
 
       <div className="panel__actions">
         <button type="submit" className="btn btn--primary btn--sm" disabled={busy || !ready}>
-          {busy ? 'Saving...' : editing ? 'Save changes' : isShoot ? 'Create shoot' : 'Create project'}
+          {busy ? 'Saving...' : editing ? 'Save changes' : 'Create assignment'}
         </button>
         <button type="button" className="btn btn--outline btn--sm" onClick={onCancel} disabled={busy}>
           Cancel

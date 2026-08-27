@@ -3762,6 +3762,54 @@ select.field__input {
 /* A <label> wrapping a hidden file input is the button here, so it needs the
    disabled look the input alone cannot give it. */
 /* Read it / Sign sit together where a single action normally goes. */
+/* Two independent facts about a job, not a pair of radio buttons. */
+.toggles {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+@media (min-width: 720px) {
+  .toggles {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.toggle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--fem-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.toggle:has(input:checked) {
+  border-color: var(--fem-blue-faint);
+  background: rgba(76, 114, 169, 0.05);
+}
+
+.toggle input {
+  margin-top: 3px;
+  accent-color: var(--fem-blue);
+  flex: none;
+}
+
+.toggle span {
+  display: block;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--fem-text-secondary);
+}
+
+.toggle b {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--fem-text);
+}
+
 .deliver {
   display: flex;
   flex-wrap: wrap;
