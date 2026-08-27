@@ -49,6 +49,9 @@ interface Ctx {
   /** Records this person's signature on the job's own contract, where there is
       one. A no-op in demo, which has no paperwork behind it. */
   signContract: (id: string) => void;
+  /** Returns a countersigned PDF instead of clicking. Both are signatures; this
+      one is for contracts that have to come back on paper. */
+  returnSignedCopy: (id: string, file: File) => Promise<void>;
   /** A short-lived link to that contract. */
   contractUrl: (id: string) => Promise<string>;
   unsignAgreement: () => void;
@@ -88,6 +91,7 @@ function LiveProvider({
       advance: live.advance,
       signAgreement: live.signAgreement,
       signContract: live.signContract,
+      returnSignedCopy: live.returnSignedCopy,
       contractUrl: live.contractUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
@@ -216,6 +220,9 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
       advance,
       signAgreement,
       signContract: () => {},
+      returnSignedCopy: async () => {
+        throw new Error('The sample assignments have no contract to return.');
+      },
       contractUrl: async () => {
         throw new Error('The sample assignments have no contract attached.');
       },
@@ -247,9 +254,30 @@ export function useAgreement() {
 }
 
 export function useProgressActions() {
-  const { advance, signAgreement, signContract, contractUrl, unsignAgreement, reset, ready, error, live } =
-    useCtx();
-  return { advance, signAgreement, signContract, contractUrl, unsignAgreement, reset, ready, error, live };
+  const {
+    advance,
+    signAgreement,
+    signContract,
+    returnSignedCopy,
+    contractUrl,
+    unsignAgreement,
+    reset,
+    ready,
+    error,
+    live,
+  } = useCtx();
+  return {
+    advance,
+    signAgreement,
+    signContract,
+    returnSignedCopy,
+    contractUrl,
+    unsignAgreement,
+    reset,
+    ready,
+    error,
+    live,
+  };
 }
 
 export function useActionQueue() {

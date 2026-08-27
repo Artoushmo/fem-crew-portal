@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
 import type { Assignment, PaymentState, Status } from './assignments';
-import { recordSignature } from './signing';
+import { recordSignature, sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
 /** The freelancer's own work, read from the database and shaped into the
@@ -414,6 +414,67 @@ export function useMyAssignments() {
     [load],
   );
 
+  /** Uploads a countersigned PDF against a role. The click-to-sign route stays;
+      this is for the contracts that have to come back on paper.
+
+      Recorded in the ledger like any other signature, with the fingerprint of
+      the file that was returned -- so what is on record is the copy that was
+      actually sent back, not the one that was sent out. */
+  const returnSignedCopy = useCallback(
+    async (id: string, file: File) => {
+      if (file.type !== 'application/pdf') throw new Error('The signed copy has to be a PDF.');
+      if (file.size > 10 * 1024 * 1024) throw new Error('That file is over 10 MB.');
+
+      const client = requireSupabase();
+      const digest = await hashFile(file);
+      const path = `signed/${id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
+
+      const { error: uploadError } = await client.storage
+        .from('agreements')
+        .upload(path, file, { contentType: 'application/pdf' });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { data: role } = await client
+        .from('assignment_roles')
+        .select('assignments ( contract_sha256 )')
+        .eq('id', id)
+        .maybeSingle();
+
+      const jobHash = (role as { assignments?: { contract_sha256?: string | null } } | null)
+        ?.assignments?.contract_sha256 ?? null;
+
+      const now = new Date();
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({
+          signed_copy_path: path,
+          signed_copy_name: file.name,
+          signed_copy_sha256: digest,
+          contract_signed_on: now.toISOString().slice(0, 10),
+          contract_signed_at: now.toISOString(),
+          contract_signed_sha256: jobHash,
+          reopened_at: null,
+          reopened_reason: null,
+        })
+        .eq('id', id);
+
+      if (writeError) throw new Error(writeError.message);
+
+      await recordSignature({
+        documentKind: 'job-contract',
+        documentName: file.name,
+        documentSha256: digest,
+        documentPath: path,
+        subjectType: 'assignment_role',
+        subjectId: id,
+      });
+
+      await load();
+    },
+    [load],
+  );
+
   /** A short-lived link to the job's contract. */
   const contractUrl = useCallback(async (id: string): Promise<string> => {
     const client = requireSupabase();
@@ -495,6 +556,7 @@ export function useMyAssignments() {
     advance,
     signAgreement,
     signContract,
+    returnSignedCopy,
     contractUrl,
     reload: load,
   };

@@ -23,6 +23,9 @@ export interface Role {
   payment_state: string;
   offered_at: string | null;
   accepted_at: string | null;
+  contract_signed_on: string | null;
+  signed_copy_path: string | null;
+  signed_copy_name: string | null;
 }
 
 export type JobKind = 'shoot' | 'project';
@@ -144,6 +147,7 @@ const SHOOT_COLUMNS = `
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
+    contract_signed_on, signed_copy_path, signed_copy_name,
     profiles ( full_name, avatar_path )
   )
 `;
@@ -193,6 +197,9 @@ interface RawRole {
   payment_state: string;
   offered_at: string | null;
   accepted_at: string | null;
+  contract_signed_on: string | null;
+  signed_copy_path: string | null;
+  signed_copy_name: string | null;
   profiles: { full_name: string | null; avatar_path: string | null } | null;
 }
 

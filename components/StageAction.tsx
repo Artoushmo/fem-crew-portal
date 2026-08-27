@@ -10,8 +10,9 @@ import { CheckIcon } from './Icons';
     itself rather than going quiet. */
 export function StageAction({ assignment }: { assignment: Assignment }) {
   const { signed } = useAgreement();
-  const { advance, signContract, contractUrl } = useProgressActions();
+  const { advance, signContract, returnSignedCopy, contractUrl } = useProgressActions();
   const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const action = stageAction(assignment, signed);
 
   // Step one with paperwork of its own: the contract has to be readable before
@@ -79,8 +80,33 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
             className="btn btn--primary stage-act__btn"
             onClick={() => signContract(assignment.id)}
           >
-            Sign
+            Sign here
           </button>
+
+          {/* The other way most contracts are signed: print it, sign it, send
+              it back. Recorded the same way, against the file returned. */}
+          <label className={`btn btn--outline stage-act__btn ${busy ? 'is-busy' : ''}`}>
+            {busy ? 'Uploading...' : 'Upload a signed copy'}
+            <input
+              type="file"
+              accept="application/pdf"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                setBusy(true);
+                setNotice(null);
+                try {
+                  await returnSignedCopy(assignment.id, file);
+                } catch (err) {
+                  setNotice(err instanceof Error ? err.message : 'Could not upload that file.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </label>
         </div>
       ) : (
         <button

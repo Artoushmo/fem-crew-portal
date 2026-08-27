@@ -249,6 +249,30 @@ export function StaffAssignmentsView() {
                                   <span className="tag tag--wait">Open</span>
                                 )}
 
+                                {r.contract_signed_on && (
+                                  <span className="tag tag--ok">
+                                    {r.signed_copy_name ? 'Signed copy' : 'Signed'}
+                                  </span>
+                                )}
+
+                                {r.signed_copy_path && (
+                                  <button
+                                    type="button"
+                                    className="link-arrow link-arrow--button"
+                                    onClick={() =>
+                                      guard(async () => {
+                                        window.open(
+                                          await contractUrl(r.signed_copy_path!),
+                                          '_blank',
+                                          'noopener',
+                                        );
+                                      })
+                                    }
+                                  >
+                                    Open signed
+                                  </button>
+                                )}
+
                                 <span className="roles__fee">{formatEuro(r.fee_cents)}</span>
 
                                 <span className="roles__controls">
