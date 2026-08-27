@@ -46,6 +46,11 @@ interface Ctx {
   live: boolean;
   advance: (id: string) => void;
   signAgreement: () => void;
+  /** Records this person's signature on the job's own contract, where there is
+      one. A no-op in demo, which has no paperwork behind it. */
+  signContract: (id: string) => void;
+  /** A short-lived link to that contract. */
+  contractUrl: (id: string) => Promise<string>;
   unsignAgreement: () => void;
   reset: () => void;
 }
@@ -82,6 +87,8 @@ function LiveProvider({
       live: true,
       advance: live.advance,
       signAgreement: live.signAgreement,
+      signContract: live.signContract,
+      contractUrl: live.contractUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
       unsignAgreement: () => {},
@@ -207,6 +214,10 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
       live: false,
       advance,
       signAgreement,
+      signContract: () => {},
+      contractUrl: async () => {
+        throw new Error('The sample assignments have no contract attached.');
+      },
       unsignAgreement,
       reset,
     }),
@@ -235,8 +246,9 @@ export function useAgreement() {
 }
 
 export function useProgressActions() {
-  const { advance, signAgreement, unsignAgreement, reset, ready, error, live } = useCtx();
-  return { advance, signAgreement, unsignAgreement, reset, ready, error, live };
+  const { advance, signAgreement, signContract, contractUrl, unsignAgreement, reset, ready, error, live } =
+    useCtx();
+  return { advance, signAgreement, signContract, contractUrl, unsignAgreement, reset, ready, error, live };
 }
 
 export function useActionQueue() {

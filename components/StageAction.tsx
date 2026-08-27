@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useAgreement, useProgressActions } from '@/lib/assignment-state';
 import { STAGES, stageAction, type Assignment } from '@/lib/assignments';
 import { CheckIcon } from './Icons';
@@ -9,8 +10,26 @@ import { CheckIcon } from './Icons';
     itself rather than going quiet. */
 export function StageAction({ assignment }: { assignment: Assignment }) {
   const { signed } = useAgreement();
-  const { advance } = useProgressActions();
+  const { advance, signContract, contractUrl } = useProgressActions();
+  const [notice, setNotice] = useState<string | null>(null);
   const action = stageAction(assignment, signed);
+
+  // Step one with paperwork of its own: the contract has to be readable before
+  // it can be signed, so reading it is part of the step rather than a link
+  // somewhere else on the page.
+  const unsignedContract =
+    assignment.stage === 0 && assignment.contract && !assignment.contract.signedOn
+      ? assignment.contract
+      : null;
+
+  const openContract = async () => {
+    setNotice(null);
+    try {
+      window.open(await contractUrl(assignment.id), '_blank', 'noopener');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not open the contract.');
+    }
+  };
 
   if (!action) {
     return (
@@ -42,14 +61,35 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
         <p className="stage-act__hint">{action.blocked ?? action.hint}</p>
       </div>
 
-      <button
-        type="button"
-        className="btn btn--primary stage-act__btn"
-        disabled={Boolean(action.blocked)}
-        onClick={() => advance(assignment.id)}
-      >
-        {action.label}
-      </button>
+      {unsignedContract ? (
+        <div className="stage-act__pair">
+          <button type="button" className="btn btn--outline stage-act__btn" onClick={openContract}>
+            Read it
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary stage-act__btn"
+            onClick={() => signContract(assignment.id)}
+          >
+            Sign
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="btn btn--primary stage-act__btn"
+          disabled={Boolean(action.blocked)}
+          onClick={() => advance(assignment.id)}
+        >
+          {action.label}
+        </button>
+      )}
+
+      {notice && (
+        <p className="auth__error" role="alert">
+          {notice}
+        </p>
+      )}
     </div>
   );
 }

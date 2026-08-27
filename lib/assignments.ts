@@ -61,6 +61,9 @@ export interface Assignment {
   parking: string;
   role: string;
   fee: number;
+  /** The job's own contract, when the client brought one. Null means the yearly
+      Freelancer Agreement is the paperwork. */
+  contract: { name: string; signedOn: string | null } | null;
   status: Status;
   /** Index into STAGES: the stage currently in play. */
   stage: number;
@@ -98,6 +101,7 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — P1, code at the desk',
     role: 'Photographer',
     fee: 450,
+    contract: null,
     status: 'confirmed',
     stage: 2,
     stageDates: ['4 Jan 2026', '2 Sep 2026', null, null, null, null, null],
@@ -164,6 +168,7 @@ export const assignments: Assignment[] = [
     parking: 'Not confirmed yet',
     role: 'Videographer',
     fee: 780,
+    contract: null,
     status: 'action-required',
     stage: 1,
     stageDates: ['4 Jan 2026', null, null, null, null, null, null],
@@ -224,6 +229,7 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — on-site, spot 12',
     role: 'Drone operator',
     fee: 520,
+    contract: null,
     status: 'delivered',
     stage: 5,
     stageDates: [
@@ -284,6 +290,7 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — boulevard, day ticket reimbursed',
     role: 'Photographer',
     fee: 640,
+    contract: null,
     status: 'completed',
     stage: 6,
     stageDates: [
@@ -423,6 +430,20 @@ export function buildActionQueue(
     `blocked` explains why the button is unavailable rather than hiding it. */
 export function stageAction(a: Assignment, signed: boolean) {
   switch (a.stage) {
+    case 0:
+      return a.contract
+        ? {
+            label: a.contract.signedOn ? 'Continue' : 'Sign the contract',
+            hint: `${a.contract.name} — read it before you sign.`,
+            done: 'Contract signed',
+            blocked: a.contract.signedOn ? null : 'Open the contract below and sign it.',
+          }
+        : {
+            label: 'Confirm and continue',
+            hint: 'No separate contract for this job — your Freelancer Agreement covers it.',
+            done: 'Contract signed',
+            blocked: signed ? null : 'Sign your Freelancer Agreement first.',
+          };
     case 1:
       return {
         label: 'Accept assignment',

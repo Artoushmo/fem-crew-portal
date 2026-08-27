@@ -16,10 +16,11 @@ import { requireSupabase, supabase } from './supabase';
 const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
+  contract_signed_on,
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
-    equipment, dresscode, client_notes, delivery,
+    equipment, dresscode, client_notes, delivery, contract_path, contract_name,
     clients ( name ),
     assignment_files ( name, kind, size_label )
   )
@@ -36,6 +37,7 @@ interface RawRole {
   invoice_number: string | null;
   invoiced_on: string | null;
   paid_on: string | null;
+  contract_signed_on: string | null;
   offered_at: string | null;
   accepted_at: string | null;
   assignments: {
@@ -58,6 +60,8 @@ interface RawRole {
     equipment: string[] | null;
     dresscode: string | null;
     client_notes: string | null;
+    contract_path: string | null;
+    contract_name: string | null;
     delivery: Record<string, string> | null;
     clients: { name: string } | null;
     assignment_files: { name: string; kind: string; size_label: string | null }[] | null;
@@ -146,6 +150,12 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     parking: s.parking ?? '',
     role: row.role_label,
     fee: row.fee_cents / 100,
+    contract: s.contract_path
+      ? {
+          name: s.contract_name ?? 'Contract',
+          signedOn: row.contract_signed_on ? shortDate(row.contract_signed_on) : null,
+        }
+      : null,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),
@@ -320,6 +330,47 @@ export function useMyAssignments() {
     [assignments, load],
   );
 
+  /** Records this person's signature on the job's own contract. Kept apart from
+      advance() because signing and moving on are two decisions, and the second
+      is refused until the first has happened. */
+  const signContract = useCallback(
+    async (id: string) => {
+      const { error: writeError } = await requireSupabase()
+        .from('assignment_roles')
+        .update({ contract_signed_on: new Date().toISOString().slice(0, 10) })
+        .eq('id', id);
+
+      if (writeError) {
+        setError(writeError.message);
+        return;
+      }
+      await load();
+    },
+    [load],
+  );
+
+  /** A short-lived link to the job's contract. */
+  const contractUrl = useCallback(async (id: string): Promise<string> => {
+    const client = requireSupabase();
+
+    const { data: role } = await client
+      .from('assignment_roles')
+      .select('assignments ( contract_path )')
+      .eq('id', id)
+      .maybeSingle();
+
+    const path = (role as { assignments?: { contract_path?: string } } | null)?.assignments
+      ?.contract_path;
+    if (!path) throw new Error('There is no contract for this job.');
+
+    const { data, error: signError } = await client.storage
+      .from('agreements')
+      .createSignedUrl(path, 300);
+
+    if (signError || !data) throw new Error(signError?.message ?? 'Could not open the contract.');
+    return data.signedUrl;
+  }, []);
+
   const signAgreement = useCallback(async () => {
     if (!uid) return;
 
@@ -336,5 +387,15 @@ export function useMyAssignments() {
     await load();
   }, [load, uid]);
 
-  return { assignments, agreement, ready, error, advance, signAgreement, reload: load };
+  return {
+    assignments,
+    agreement,
+    ready,
+    error,
+    advance,
+    signAgreement,
+    signContract,
+    contractUrl,
+    reload: load,
+  };
 }

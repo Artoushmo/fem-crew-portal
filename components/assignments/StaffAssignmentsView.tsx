@@ -41,8 +41,21 @@ function bucket(s: Shoot): Filter {
 }
 
 export function StaffAssignmentsView() {
-  const { shoots, loading, error, create, update, remove, addRole, removeRole, book, unbook } =
-    useShoots();
+  const {
+    shoots,
+    loading,
+    error,
+    create,
+    update,
+    remove,
+    addRole,
+    removeRole,
+    book,
+    unbook,
+    attachContract,
+    removeContract,
+    contractUrl,
+  } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
 
   const [filter, setFilter] = useState<Filter>('unbooked');
@@ -53,6 +66,7 @@ export function StaffAssignmentsView() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<{ shootId: string; draft: RoleDraft } | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { unbooked: 0, booked: 0, past: 0 };
@@ -281,6 +295,72 @@ export function StaffAssignmentsView() {
                               onCancel={() => setPickingRole(null)}
                             />
                           )}
+
+                          {/* The client's own paperwork, when there is any.
+                              Attached here rather than in the form, because it
+                              often arrives after the job has been written up. */}
+                          <div className="contract">
+                            {s.contract_path ? (
+                              <>
+                                <span className="contract__name">
+                                  {s.contract_name ?? 'Contract'}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="link-arrow link-arrow--button"
+                                  onClick={() =>
+                                    guard(async () => {
+                                      window.open(
+                                        await contractUrl(s.contract_path!),
+                                        '_blank',
+                                        'noopener',
+                                      );
+                                    })
+                                  }
+                                >
+                                  Open
+                                </button>
+                                <button
+                                  type="button"
+                                  className="link-arrow link-arrow--button link-arrow--danger"
+                                  onClick={() => guard(() => removeContract(s.id))}
+                                >
+                                  Detach
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="contract__name contract__name--none">
+                                  No contract for this job
+                                </span>
+                                <label
+                                  className={`link-arrow link-arrow--button ${
+                                    uploadingFor === s.id ? 'is-busy' : ''
+                                  }`}
+                                >
+                                  {uploadingFor === s.id ? 'Uploading...' : 'Attach a contract'}
+                                  <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    className="sr-only"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      e.target.value = '';
+                                      if (!file) return;
+                                      setUploadingFor(s.id);
+                                      guard(async () => {
+                                        try {
+                                          await attachContract(s.id, file);
+                                        } finally {
+                                          setUploadingFor(null);
+                                        }
+                                      });
+                                    }}
+                                  />
+                                </label>
+                              </>
+                            )}
+                          </div>
 
                           {newRole?.shootId === s.id ? (
                             <div className="rolelines__row rolelines__row--add">

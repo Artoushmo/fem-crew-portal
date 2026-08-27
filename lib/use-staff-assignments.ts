@@ -57,6 +57,8 @@ export interface Shoot {
   equipment: string[];
   dresscode: string | null;
   client_notes: string | null;
+  contract_path: string | null;
+  contract_name: string | null;
   delivery: Delivery;
   roles: Role[];
 }
@@ -136,7 +138,7 @@ export const BLANK_SHOOT: ShootDraft = {
 const SHOOT_COLUMNS = `
   id, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
-  equipment, dresscode, client_notes, delivery,
+  equipment, dresscode, client_notes, delivery, contract_path, contract_name,
   clients ( name ),
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
@@ -254,6 +256,8 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     delivery: draft.delivery,
   };
 }
+
+const MAX_CONTRACT_BYTES = 10 * 1024 * 1024;
 
 export function useShoots() {
   const { profile, stage } = useAuth();
@@ -423,11 +427,70 @@ export function useShoots() {
     [load],
   );
 
+  /** Attaches the client's own paperwork to a job. Stored beside the yearly
+      agreement in the same private bucket, under the job's id, and reached
+      through an expiring signed url like everything else in there. */
+  const attachContract = useCallback(
+    async (shootId: string, file: File) => {
+      if (file.type !== 'application/pdf') throw new Error('The contract has to be a PDF.');
+      if (file.size > MAX_CONTRACT_BYTES) throw new Error('That file is over 10 MB.');
+
+      const client = requireSupabase();
+      const path = `jobs/${shootId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
+
+      const { error: uploadError } = await client.storage
+        .from('agreements')
+        .upload(path, file, { contentType: 'application/pdf' });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const { error: writeError } = await client
+        .from('assignments')
+        .update({ contract_path: path, contract_name: file.name })
+        .eq('id', shootId);
+
+      if (writeError) {
+        await client.storage.from('agreements').remove([path]);
+        throw new Error(writeError.message);
+      }
+
+      await load();
+    },
+    [load],
+  );
+
+  /** Detaches it. The file stays in the bucket: someone may already have signed
+      against it, and deleting the paper under a signature is not a tidy-up. */
+  const removeContract = useCallback(
+    async (shootId: string) => {
+      const { error: writeError } = await requireSupabase()
+        .from('assignments')
+        .update({ contract_path: null, contract_name: null })
+        .eq('id', shootId);
+
+      if (writeError) throw new Error(writeError.message);
+      await load();
+    },
+    [load],
+  );
+
+  const contractUrl = useCallback(async (path: string): Promise<string> => {
+    const { data, error: signError } = await requireSupabase()
+      .storage.from('agreements')
+      .createSignedUrl(path, 300);
+
+    if (signError || !data) throw new Error(signError?.message ?? 'Could not open the contract.');
+    return data.signedUrl;
+  }, []);
+
   return {
     shoots,
     loading,
     error,
     reload: load,
+    attachContract,
+    removeContract,
+    contractUrl,
     create,
     update,
     remove,
