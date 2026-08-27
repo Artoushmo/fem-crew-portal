@@ -3759,6 +3759,13 @@ select.field__input {
   background: #f7f7f7;
 }
 
+/* A <label> wrapping a hidden file input is the button here, so it needs the
+   disabled look the input alone cannot give it. */
+.btn.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .btn--sm {
   padding: 8px 14px;
   font-size: 12px;
