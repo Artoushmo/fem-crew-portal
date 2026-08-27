@@ -31,10 +31,12 @@ language plpgsql
 set search_path = public, pg_temp
 as $$
 begin
+  -- Cast explicitly: kind is an enum, and Postgres will not quietly take a
+  -- text literal for one.
   new.kind := case
     when new.on_site is not null and new.venue is not null then 'shoot'
     else 'project'
-  end;
+  end::public.job_kind;
   return new;
 end;
 $$;
@@ -50,7 +52,7 @@ update public.assignments
 set kind = case
   when on_site is not null and venue is not null then 'shoot'
   else 'project'
-end;
+end::public.job_kind;
 
 comment on column public.assignments.kind is
   'Derived label, not a choice. A job may have a shoot day, a deadline, or both.';
