@@ -1,17 +1,22 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CRAFT_LABEL } from '@/lib/profile-types';
+import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
 import { useClients } from '@/lib/use-clients';
 import {
+  BLANK_ROLE,
   formatEuro,
-  useStaffAssignments,
-  type AssignmentDraft,
-  type StaffAssignment,
+  useShoots,
+  type Role,
+  type RoleDraft,
+  type Shoot,
+  type ShootDraft,
 } from '@/lib/use-staff-assignments';
 import { BrandLoader } from '../BrandLoader';
+import { ChevronIcon } from '../Icons';
 import { Masthead } from '../Masthead';
-import { AssignmentForm } from './AssignmentForm';
+import { CrewPicker } from './CrewPicker';
+import { ShootForm } from './ShootForm';
 
 type Filter = 'unbooked' | 'booked' | 'past';
 
@@ -30,48 +35,60 @@ function dateLabel(iso: string): string {
   });
 }
 
-/** Which bucket a row belongs in, in the order a producer thinks about them:
-    what still needs someone, what is covered, and what is behind us. */
-function bucket(a: StaffAssignment): Filter {
-  if (new Date(a.starts_at) < new Date(new Date().toDateString())) return 'past';
-  return a.freelancer_id ? 'booked' : 'unbooked';
+function bucket(s: Shoot): Filter {
+  if (new Date(s.starts_at) < new Date(new Date().toDateString())) return 'past';
+  return s.roles.some((r) => !r.freelancer_id) ? 'unbooked' : 'booked';
 }
 
 export function StaffAssignmentsView() {
-  const { assignments, loading, error, create, update, remove } = useStaffAssignments();
+  const { shoots, loading, error, create, update, remove, addRole, removeRole, book, unbook } =
+    useShoots();
   const { clients, loading: clientsLoading } = useClients();
 
   const [filter, setFilter] = useState<Filter>('unbooked');
   const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<StaffAssignment | null>(null);
+  const [editing, setEditing] = useState<Shoot | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [pickingRole, setPickingRole] = useState<{ role: Role; shoot: Shoot } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [newRole, setNewRole] = useState<{ shootId: string; draft: RoleDraft } | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { unbooked: 0, booked: 0, past: 0 };
-    for (const a of assignments) c[bucket(a)] += 1;
+    for (const s of shoots) c[bucket(s)] += 1;
     return c;
-  }, [assignments]);
+  }, [shoots]);
 
-  const shown = useMemo(
-    () => assignments.filter((a) => bucket(a) === filter),
-    [assignments, filter],
+  const shown = useMemo(() => shoots.filter((s) => bucket(s) === filter), [shoots, filter]);
+
+  const openRoles = useMemo(
+    () => shoots.filter((s) => bucket(s) !== 'past').reduce(
+      (n, s) => n + s.roles.filter((r) => !r.freelancer_id).length,
+      0,
+    ),
+    [shoots],
   );
 
-  const save = async (draft: AssignmentDraft) => {
-    if (editing) await update(editing.id, draft);
-    else await create(draft);
-    setAdding(false);
-    setEditing(null);
-  };
-
-  const drop = async (a: StaffAssignment) => {
-    setConfirmId(null);
+  const guard = async (fn: () => Promise<void>) => {
     setRowError(null);
     try {
-      await remove(a.id);
+      await fn();
     } catch (err) {
-      setRowError(err instanceof Error ? err.message : 'Could not remove that assignment.');
+      setRowError(err instanceof Error ? err.message : 'That did not work.');
+    }
+  };
+
+  const save = async (draft: ShootDraft) => {
+    if (editing) {
+      await update(editing.id, draft);
+      setEditing(null);
+    } else {
+      // Land on the shoot you just made, with its roles waiting to be filled.
+      const id = await create(draft);
+      setAdding(false);
+      setFilter('unbooked');
+      setOpenId(id);
     }
   };
 
@@ -82,9 +99,9 @@ export function StaffAssignmentsView() {
       <Masthead>
         <h1 className="hero__greeting">Assignments</h1>
         <p className="hero__sub">
-          {counts.unbooked === 0
-            ? 'Everything upcoming has crew.'
-            : `${counts.unbooked} still need${counts.unbooked === 1 ? 's' : ''} crew`}
+          {openRoles === 0
+            ? 'Every upcoming role is filled.'
+            : `${openRoles} role${openRoles === 1 ? '' : 's'} still open`}
         </p>
       </Masthead>
 
@@ -98,8 +115,8 @@ export function StaffAssignmentsView() {
         {busy ? (
           <BrandLoader label="Loading assignments" />
         ) : adding || editing ? (
-          <AssignmentForm
-            assignment={editing ?? undefined}
+          <ShootForm
+            shoot={editing ?? undefined}
             clients={clients}
             onSave={save}
             onCancel={() => {
@@ -108,9 +125,7 @@ export function StaffAssignmentsView() {
             }}
           />
         ) : clients.length === 0 ? (
-          <p className="state state--idle">
-            Add a client first. An assignment has to belong to one.
-          </p>
+          <p className="state state--idle">Add a client first. A shoot has to belong to one.</p>
         ) : (
           <>
             <div className="toolbar">
@@ -138,7 +153,7 @@ export function StaffAssignmentsView() {
                   setAdding(true);
                 }}
               >
-                New assignment
+                New shoot
               </button>
             </div>
 
@@ -153,85 +168,251 @@ export function StaffAssignmentsView() {
                 {filter === 'unbooked'
                   ? 'Nothing waiting for crew.'
                   : filter === 'booked'
-                    ? 'Nothing booked yet.'
+                    ? 'Nothing fully booked yet.'
                     : 'Nothing behind us yet.'}
               </p>
             ) : (
               <ul className="list">
-                {shown.map((a) => (
-                  <li key={a.id} className="row">
-                    <div className="job">
-                      <div className="job__when">
-                        <span className="job__date">{dateLabel(a.starts_at)}</span>
-                        <span className="job__time">
-                          {a.on_site.slice(0, 5)}&ndash;{a.wrapped.slice(0, 5)}
-                        </span>
-                      </div>
+                {shown.map((s) => {
+                  const open = openId === s.id;
+                  const filled = s.roles.filter((r) => r.freelancer_id).length;
+                  const total = s.roles.length;
+                  const fees = s.roles.reduce((n, r) => n + r.fee_cents, 0);
 
-                      <div className="job__what">
-                        <span className="job__title">{a.title}</span>
-                        <span className="job__meta">
-                          {[a.client_name, a.city, a.venue].filter(Boolean).join(' · ')}
+                  return (
+                    <li key={s.id} className={`row ${open ? 'row--open' : ''}`}>
+                      <button
+                        type="button"
+                        className="row__summary"
+                        aria-expanded={open}
+                        onClick={() => setOpenId(open ? null : s.id)}
+                      >
+                        <span className="row__chevron" aria-hidden>
+                          <ChevronIcon size={14} />
                         </span>
-                      </div>
 
-                      <div className="job__who">
-                        {a.freelancer_name ? (
-                          <span className="tag tag--ok">{a.freelancer_name}</span>
-                        ) : (
-                          <span className="tag tag--wait">
-                            {a.required_craft ? CRAFT_LABEL[a.required_craft] : 'Crew'} wanted
+                        <span className="job">
+                          <span className="job__when">
+                            <span className="job__date">{dateLabel(s.starts_at)}</span>
+                            <span className="job__time">
+                              {s.on_site.slice(0, 5)}&ndash;{s.wrapped.slice(0, 5)}
+                            </span>
                           </span>
-                        )}
-                        <span className="job__fee">{formatEuro(a.fee_cents)}</span>
-                      </div>
 
-                      <div className="job__controls">
-                        <button
-                          type="button"
-                          className="link-arrow link-arrow--button"
-                          onClick={() => {
-                            setAdding(false);
-                            setConfirmId(null);
-                            setEditing(a);
-                          }}
-                        >
-                          Edit
-                        </button>
+                          <span className="job__what">
+                            <span className="job__title">{s.title}</span>
+                            <span className="job__meta">
+                              {[s.client_name, s.city, s.venue].filter(Boolean).join(' · ')}
+                            </span>
+                          </span>
 
-                        {confirmId === a.id ? (
-                          <>
-                            <button
-                              type="button"
-                              className="link-arrow link-arrow--button link-arrow--danger"
-                              onClick={() => drop(a)}
-                            >
-                              Yes, delete
-                            </button>
-                            <button
-                              type="button"
-                              className="link-arrow link-arrow--button"
-                              onClick={() => setConfirmId(null)}
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            type="button"
-                            className="link-arrow link-arrow--button link-arrow--danger"
-                            onClick={() => {
-                              setRowError(null);
-                              setConfirmId(a.id);
-                            }}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </li>
-                ))}
+                          <span className="job__who">
+                            <span className={filled === total ? 'tag tag--ok' : 'tag tag--wait'}>
+                              {filled} of {total} booked
+                            </span>
+                            <span className="job__fee">{formatEuro(fees)}</span>
+                          </span>
+                        </span>
+                      </button>
+
+                      {open && (
+                        <div className="shoot">
+                          <ul className="roles">
+                            {s.roles.map((r) => (
+                              <li key={r.id} className="roles__row">
+                                <span className="roles__craft">{CRAFT_LABEL[r.craft]}</span>
+                                <span className="roles__label">{r.role_label}</span>
+
+                                {r.freelancer_id ? (
+                                  <span className="tag tag--ok">
+                                    {r.freelancer_name ?? 'Booked'}
+                                  </span>
+                                ) : (
+                                  <span className="tag tag--wait">Open</span>
+                                )}
+
+                                <span className="roles__fee">{formatEuro(r.fee_cents)}</span>
+
+                                <span className="roles__controls">
+                                  {r.freelancer_id ? (
+                                    <button
+                                      type="button"
+                                      className="link-arrow link-arrow--button link-arrow--danger"
+                                      onClick={() => guard(() => unbook(r.id))}
+                                    >
+                                      Unbook
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        className="link-arrow link-arrow--button"
+                                        onClick={() => setPickingRole({ role: r, shoot: s })}
+                                      >
+                                        Find someone
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="link-arrow link-arrow--button link-arrow--danger"
+                                        onClick={() => guard(() => removeRole(r.id))}
+                                      >
+                                        Drop role
+                                      </button>
+                                    </>
+                                  )}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+
+                          {pickingRole?.shoot.id === s.id && (
+                            <CrewPicker
+                              craft={pickingRole.role.craft}
+                              city={s.city}
+                              shootDate={s.starts_at}
+                              onPick={async (freelancerId) => {
+                                await book(pickingRole.role.id, freelancerId);
+                                setPickingRole(null);
+                              }}
+                              onCancel={() => setPickingRole(null)}
+                            />
+                          )}
+
+                          {newRole?.shootId === s.id ? (
+                            <div className="rolelines__row rolelines__row--add">
+                              <select
+                                className="field__input"
+                                aria-label="Craft for the new role"
+                                value={newRole.draft.craft}
+                                onChange={(e) => {
+                                  const craft = e.target.value as RoleDraft['craft'];
+                                  setNewRole({
+                                    shootId: s.id,
+                                    draft: {
+                                      ...newRole.draft,
+                                      craft,
+                                      role_label:
+                                        craft === '' ? '' : CRAFT_LABEL[craft],
+                                    },
+                                  });
+                                }}
+                              >
+                                <option value="">Choose a craft</option>
+                                {CRAFTS.map((c) => (
+                                  <option key={c} value={c}>
+                                    {CRAFT_LABEL[c]}
+                                  </option>
+                                ))}
+                              </select>
+
+                              <input
+                                className="field__input"
+                                aria-label="Call sheet label"
+                                value={newRole.draft.role_label}
+                                onChange={(e) =>
+                                  setNewRole({
+                                    shootId: s.id,
+                                    draft: { ...newRole.draft, role_label: e.target.value },
+                                  })
+                                }
+                                placeholder="On the call sheet"
+                              />
+
+                              <input
+                                className="field__input"
+                                aria-label="Fee"
+                                value={newRole.draft.fee}
+                                onChange={(e) =>
+                                  setNewRole({
+                                    shootId: s.id,
+                                    draft: { ...newRole.draft, fee: e.target.value },
+                                  })
+                                }
+                                placeholder="Fee"
+                                inputMode="decimal"
+                              />
+
+                              <button
+                                type="button"
+                                className="btn btn--primary btn--sm"
+                                disabled={newRole.draft.craft === ''}
+                                onClick={() =>
+                                  guard(async () => {
+                                    await addRole(s.id, newRole.draft);
+                                    setNewRole(null);
+                                  })
+                                }
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                className="link-arrow link-arrow--button"
+                                onClick={() => setNewRole(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="shoot__actions">
+                              <button
+                                type="button"
+                                className="link-arrow link-arrow--button"
+                                onClick={() =>
+                                  setNewRole({ shootId: s.id, draft: { ...BLANK_ROLE } })
+                                }
+                              >
+                                Add a role
+                              </button>
+                              <button
+                                type="button"
+                                className="link-arrow link-arrow--button"
+                                onClick={() => {
+                                  setAdding(false);
+                                  setEditing(s);
+                                }}
+                              >
+                                Edit shoot
+                              </button>
+
+                              {confirmId === s.id ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="link-arrow link-arrow--button link-arrow--danger"
+                                    onClick={() =>
+                                      guard(async () => {
+                                        setConfirmId(null);
+                                        await remove(s.id);
+                                      })
+                                    }
+                                  >
+                                    Yes, delete the shoot
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="link-arrow link-arrow--button"
+                                    onClick={() => setConfirmId(null)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="link-arrow link-arrow--button link-arrow--danger"
+                                  onClick={() => setConfirmId(s.id)}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>

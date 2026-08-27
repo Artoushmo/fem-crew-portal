@@ -2226,6 +2226,167 @@ select.field__input {
   margin-left: auto;
 }
 
+/* One line per person wanted. Craft first, because that is what gets searched
+   for; the money last, where a column of figures lines up. */
+.rolelines {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.rolelines__row {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .rolelines__row {
+    grid-template-columns: 1.1fr 1.3fr 0.7fr auto;
+  }
+
+  .rolelines__row--add {
+    grid-template-columns: 1.1fr 1.3fr 0.7fr auto auto;
+  }
+}
+
+.shoot {
+  border-top: 1px solid var(--fem-border-soft);
+  padding: 16px 18px 18px;
+  background: var(--fem-page);
+}
+
+.roles {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.roles__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 11px 14px;
+  background: var(--fem-white);
+  border: 1px solid var(--fem-border);
+  border-radius: 10px;
+}
+
+.roles__craft {
+  font-size: 13.5px;
+  font-weight: 600;
+  min-width: 120px;
+}
+
+.roles__label {
+  font-size: 13px;
+  color: var(--fem-text-muted);
+  flex: 1;
+  min-width: 100px;
+}
+
+.roles__fee {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.roles__controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.shoot__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+/* --- Crew picker ------------------------------------------------------- */
+
+.picker {
+  margin: 4px 0 16px;
+  padding: 16px 18px 18px;
+  background: var(--fem-white);
+  border: 1px solid var(--fem-blue-faint);
+  border-radius: 12px;
+}
+
+.picker__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.picker__hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--fem-text-secondary);
+  max-width: 52ch;
+}
+
+.picker__list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--fem-border);
+  border-radius: 10px;
+}
+
+/* Not hidden, and not disabled: a producer books an unavailable person on
+   purpose sometimes. Dimmed enough that it is never the accidental choice. */
+.picker__row.is-blocked {
+  background: var(--fem-page);
+}
+
+.picker__row.is-blocked .picker__who {
+  opacity: 0.6;
+}
+
+.picker__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 170px;
+  flex: 1;
+}
+
+.picker__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.picker__row .btn {
+  margin-left: auto;
+}
+
+.field__hint--block {
+  display: block;
+  margin: -4px 0 12px;
+}
+
 .client {
   display: flex;
   flex-wrap: wrap;

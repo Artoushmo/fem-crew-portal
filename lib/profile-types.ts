@@ -5,7 +5,11 @@ export type Craft =
   | 'editor'
   | 'assistant'
   | 'lighting'
-  | 'audio';
+  | 'audio'
+  | 'photo-editor'
+  | 'motion-design'
+  | 'web-design'
+  | 'app-design';
 
 export const CRAFT_LABEL: Record<Craft, string> = {
   photographer: 'Photographer',
@@ -15,6 +19,10 @@ export const CRAFT_LABEL: Record<Craft, string> = {
   assistant: 'Assistant',
   lighting: 'Lighting',
   audio: 'Audio',
+  'photo-editor': 'Photo editor',
+  'motion-design': 'Motion design',
+  'web-design': 'Web design',
+  'app-design': 'App design',
 };
 
 export const CRAFTS = Object.keys(CRAFT_LABEL) as Craft[];
