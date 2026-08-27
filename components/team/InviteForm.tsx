@@ -10,12 +10,15 @@ const BLANK = { email: '', full_name: '', role: 'freelancer' as AppRole };
 export function InviteForm({
   onInvite,
 }: {
-  onInvite: (input: { email: string; full_name: string; role: AppRole }) => Promise<void>;
+  onInvite: (input: { email: string; full_name: string; role: AppRole }) => Promise<{
+    mailed: boolean;
+    mailNote: string | null;
+  }>;
 }) {
   const [form, setForm] = useState(BLANK);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [added, setAdded] = useState<string | null>(null);
+  const [added, setAdded] = useState<{ email: string; mailed: boolean; note: string | null } | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,8 +26,12 @@ export function InviteForm({
     setError(null);
     setAdded(null);
     try {
-      await onInvite(form);
-      setAdded(form.email.trim().toLowerCase());
+      const result = await onInvite(form);
+      setAdded({
+        email: form.email.trim().toLowerCase(),
+        mailed: result.mailed,
+        note: result.mailNote,
+      });
       setForm(BLANK);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add them.');
@@ -37,8 +44,8 @@ export function InviteForm({
     <form className="panel" onSubmit={submit}>
       <h2 className="panel__title">Add someone</h2>
       <p className="panel__hint">
-        Creates the account straight away. They sign in with a code sent to this address —
-        there is no password and no invitation link to chase.
+        Creates the account straight away and emails them a welcome with the portal link.
+        They sign in with a code sent to this address — there is no password to set.
       </p>
 
       <div className="invite">
@@ -93,8 +100,10 @@ export function InviteForm({
       )}
 
       {added && (
-        <p className="state state--ok" role="status">
-          {added} can sign in now.
+        <p className={added.mailed ? 'state state--ok' : 'state state--wait'} role="status">
+          {added.mailed
+            ? `${added.email} can sign in now — a welcome email is on its way.`
+            : `${added.email} can sign in now. ${added.note}`}
         </p>
       )}
 

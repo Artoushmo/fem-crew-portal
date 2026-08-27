@@ -79,14 +79,29 @@ export function useTeam() {
   }, [load]);
 
   /** Creates the account. Only the Edge Function may do this: it needs the
-      service_role key, which never reaches the browser. */
+      service_role key, which never reaches the browser.
+
+      Returns whether the welcome mail actually went out. The account exists
+      either way, so this is not an error — but the person who pressed the
+      button is the only one who can chase it, and they can only do that if we
+      say so instead of showing a flat "Invited". */
   const invite = useCallback(
-    async (input: { email: string; full_name: string; role: AppRole }) => {
-      const { error: fnError } = await requireSupabase().functions.invoke('invite-member', {
+    async (input: { email: string; full_name: string; role: AppRole }): Promise<{ mailed: boolean; mailNote: string | null }> => {
+      const { data, error: fnError } = await requireSupabase().functions.invoke('invite-member', {
         body: input,
       });
       if (fnError) throw new Error(await readFunctionError(fnError));
       await load();
+
+      const status = (data as { welcome_email?: string } | null)?.welcome_email ?? 'sent';
+      if (status === 'sent') return { mailed: true, mailNote: null };
+
+      return {
+        mailed: false,
+        mailNote: status.startsWith('skipped')
+          ? 'No welcome email was sent: the mail key is missing on the invite-member function. Send them the portal link yourself.'
+          : `The account exists, but the welcome email did not send (${status.replace(/^failed:\s*/, '')}). Send them the portal link yourself.`,
+      };
     },
     [load],
   );

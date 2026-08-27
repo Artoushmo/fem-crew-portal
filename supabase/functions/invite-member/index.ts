@@ -18,6 +18,17 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// The welcome mail is sent through Resend's API rather than Supabase's SMTP,
+// for one reason: Supabase composes its own messages and offers no Reply-To
+// field. Sending it here lets the envelope say noreply@ — so nobody expects a
+// conversation with a robot — while Reply-To points at a mailbox a person
+// actually reads. Without a key the invite still succeeds; the response says
+// the mail was skipped rather than pretending it went out.
+const RESEND_KEY = Deno.env.get('RESEND_API_KEY');
+const MAIL_FROM = Deno.env.get('MAIL_FROM') ?? 'FEM Crew Portal <noreply@mail.fastelevatemedia.com>';
+const MAIL_REPLY_TO = Deno.env.get('MAIL_REPLY_TO') ?? 'info@fastelevatemedia.com';
+const PORTAL_URL = (Deno.env.get('PORTAL_URL') ?? 'https://artoushmo.github.io/fem-crew-portal').replace(/\/+$/, '');
+
 // Set ALLOWED_ORIGIN to the portal's URL in production. '*' is fine while the
 // only caller is localhost.
 const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
@@ -37,6 +48,106 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!,
+  );
+}
+
+/** What the account is for, in the recipient's terms. A freelancer is being
+    given a place to work from; the rest are being given the keys to the desk. */
+function rolePitch(role: Role): string {
+  return role === 'freelancer'
+    ? 'Your assignments, call sheets, agreements and invoices all live here — one place, always current.'
+    : 'You can create assignments, manage clients and match crew from here.';
+}
+
+function welcomeEmail(name: string, role: Role): { subject: string; html: string; text: string } {
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+  const pitch = rolePitch(role);
+  const subject = 'Your FEM Crew Portal account is ready';
+
+  // Table layout and inline styles on purpose: Outlook still ignores most of
+  // everything else. No images are required to read it — the logo is a bonus,
+  // not the message, because most clients block it by default.
+  const html = `<!doctype html>
+<html lang="en"><body style="margin:0;padding:0;background:#f6f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f5f5;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ececec;border-radius:12px;overflow:hidden;">
+
+<tr><td style="background:#121111;padding:24px 32px;">
+<img src="${PORTAL_URL}/logo.png" width="132" alt="Fast Elevate Media" style="display:block;border:0;height:auto;max-width:132px;">
+</td></tr>
+
+<tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;color:#121111;">
+<p style="margin:0 0 20px;font-size:20px;line-height:1.35;font-weight:600;">Your account is ready</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4a4a4a;">${escapeHtml(greeting)}</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4a4a4a;">Fast Elevate Media has set up a FEM Crew Portal account for <strong style="color:#121111;">${escapeHtml(name || 'you')}</strong>. ${pitch}</p>
+<p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#4a4a4a;">There is no password. Enter your email address and we send you a sign-in code.</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="background:#4c72a9;border-radius:8px;">
+<a href="${PORTAL_URL}/" style="display:inline-block;padding:13px 26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Sign in and finish your profile</a>
+</td></tr></table>
+
+<p style="margin:28px 0 0;font-size:14px;line-height:1.6;color:#4a4a4a;">Please complete your profile before your first assignment — your gear, certifications and invoicing details are what we match on.</p>
+</td></tr>
+
+<tr><td style="padding:20px 32px;border-top:1px solid #ececec;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8b909a;">
+Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}.
+</td></tr>
+
+</table></td></tr></table></body></html>`;
+
+  const text = [
+    greeting,
+    '',
+    `Fast Elevate Media has set up a FEM Crew Portal account for ${name || 'you'}. ${pitch}`,
+    '',
+    'There is no password. Enter your email address and we send you a sign-in code.',
+    '',
+    `${PORTAL_URL}/`,
+    '',
+    'Please complete your profile before your first assignment — your gear, certifications and invoicing details are what we match on.',
+    '',
+    `Questions? Reply to this email and it reaches us at ${MAIL_REPLY_TO}.`,
+  ].join('\n');
+
+  return { subject, html, text };
+}
+
+/** Never throws: a delivered account with an undelivered mail is a smaller
+    problem than an invite that reports failure after the user already exists. */
+async function sendWelcome(to: string, name: string, role: Role): Promise<string> {
+  if (!RESEND_KEY) return 'skipped: RESEND_API_KEY is not set on this function';
+
+  const { subject, html, text } = welcomeEmail(name, role);
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${RESEND_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: MAIL_FROM,
+        to: [to],
+        reply_to: MAIL_REPLY_TO,
+        subject,
+        html,
+        text,
+      }),
+    });
+
+    if (!res.ok) return `failed: ${res.status} ${(await res.text()).slice(0, 200)}`;
+    return 'sent';
+  } catch (err) {
+    return `failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
 }
 
 async function handler(req: Request): Promise<Response> {
@@ -125,14 +236,16 @@ async function handler(req: Request): Promise<Response> {
     return json({ error: `Could not set the role: ${roleError.message}` }, 500);
   }
 
+  const welcome = await sendWelcome(email, fullName, role);
+
   await admin.from('access_log').insert({
     actor_id: profile.id,
-    action: `invited as ${role}`,
+    action: `invited as ${role} (welcome mail: ${welcome})`,
     subject_type: 'profile',
     subject_id: newId,
   });
 
-  return json({ id: newId, email, role }, 201);
+  return json({ id: newId, email, role, welcome_email: welcome }, 201);
 }
 
 // The runtime's current shape. Deliberately not using withSupabase: this needs
