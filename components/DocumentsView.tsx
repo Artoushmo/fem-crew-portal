@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { useAgreement, useProgressActions } from '@/lib/assignment-state';
+import { useAgreementDoc } from '@/lib/use-agreement-doc';
 import { Masthead } from './Masthead';
 
 const archive = [
@@ -11,6 +13,36 @@ const archive = [
 export function DocumentsView() {
   const agreement = useAgreement();
   const { signAgreement } = useProgressActions();
+  const { doc, loading, error, canManage, upload, openUrl } = useAgreementDoc(agreement.year);
+
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const open = async () => {
+    setNotice(null);
+    try {
+      window.open(await openUrl(), '_blank', 'noopener');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not open the document.');
+    }
+  };
+
+  const pick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setBusy(true);
+    setNotice(null);
+    try {
+      await upload(file);
+      setNotice('Uploaded. Freelancers can read and sign it now.');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not upload that file.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -38,24 +70,73 @@ export function DocumentsView() {
             </span>
           </div>
 
-          {!agreement.signed && (
-            <div className="facts">
+          <div className="facts">
+            {!agreement.signed && (
               <p className="prose">
                 One agreement covers every assignment this year. Until it is signed you
                 cannot accept new work.
               </p>
-            </div>
+            )}
+
+            {!loading && !doc && (
+              <p className="prose">
+                {canManage
+                  ? 'No agreement has been uploaded for this year yet. Freelancers cannot sign until there is one.'
+                  : 'FEM has not published this year\u2019s agreement yet. You will be able to read and sign it here.'}
+              </p>
+            )}
+
+            {doc && (
+              <p className="prose">
+                {doc.original_name} &middot; uploaded{' '}
+                {new Date(doc.uploaded_at).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+              </p>
+            )}
+          </div>
+
+          {error && (
+            <p className="auth__error" role="alert">
+              {error}
+            </p>
+          )}
+
+          {notice && (
+            <p className="state state--ok" role="status">
+              {notice}
+            </p>
           )}
 
           <div className="card__actions">
-            {agreement.signed ? (
-              <button type="button" className="btn btn--outline">
-                Download PDF
+            {doc && (
+              <button type="button" className="btn btn--outline" onClick={open}>
+                Read the agreement
               </button>
-            ) : (
+            )}
+
+            {/* Signing is only offered once there is something to read. A
+                signature against a heading is a checkbox, and the database
+                refuses it too. */}
+            {!canManage && !agreement.signed && doc && (
               <button type="button" className="btn btn--primary" onClick={signAgreement}>
-                Sign agreement
+                I agree, sign it
               </button>
+            )}
+
+            {canManage && (
+              <label className={`btn btn--primary ${busy ? 'is-busy' : ''}`}>
+                {busy ? 'Uploading\u2026' : doc ? 'Replace with a new version' : 'Upload the agreement'}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  className="sr-only"
+                  disabled={busy}
+                  onChange={pick}
+                />
+              </label>
             )}
           </div>
         </article>

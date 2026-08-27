@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useAssignment } from '@/lib/assignment-state';
+import { useAssignment, useProgressActions } from '@/lib/assignment-state';
 import {
   PAYMENT_LABEL,
   VAT_RATE,
@@ -10,6 +10,7 @@ import {
   type Assignment,
 } from '@/lib/assignments';
 import { AddToCalendar } from './AddToCalendar';
+import { BrandLoader } from './BrandLoader';
 import { Checklist } from './Checklist';
 import { Masthead } from './Masthead';
 import { StageAction } from './StageAction';
@@ -19,7 +20,43 @@ import { Tabs } from './Tabs';
 
 export function AssignmentDetail({ id }: { id: string }) {
   const a = useAssignment(id);
-  if (!a) return null;
+  const { ready } = useProgressActions();
+
+  // Returning null for both cases made a slow load look identical to a missing
+  // assignment: a blank page either way, with nothing to act on.
+  if (!ready) {
+    return (
+      <>
+        <Masthead>
+          <Link href="/assignments" className="hero__back">
+            &larr; All assignments
+          </Link>
+        </Masthead>
+        <main className="content">
+          <BrandLoader label="Opening your assignment" />
+        </main>
+      </>
+    );
+  }
+
+  if (!a) {
+    return (
+      <>
+        <Masthead>
+          <Link href="/assignments" className="hero__back">
+            &larr; All assignments
+          </Link>
+          <h1 className="hero__title">Not your assignment</h1>
+        </Masthead>
+        <main className="content">
+          <p className="state state--idle">
+            This assignment is not on your list. It may have been given to someone else, or
+            the link is from a different account.
+          </p>
+        </main>
+      </>
+    );
+  }
 
   return (
     <>
