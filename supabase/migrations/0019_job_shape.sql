@@ -13,6 +13,22 @@
 -- derived from what is actually filled in rather than chosen up front. Nothing
 -- reads it to decide what a job is any more.
 
+-- ---------------------------------------------------------------------------
+-- A trigger that should have gone in 0009
+-- ---------------------------------------------------------------------------
+
+-- 0009 moved stage onto assignment_roles and tried to drop the old guard with
+-- "drop trigger if exists guard_assignment_update". The trigger is called
+-- assignments_guard_update -- the function is what is called
+-- guard_assignment_update -- so the IF EXISTS quietly matched nothing and left
+-- it attached to a table whose stage column had just been removed.
+--
+-- Staff never hit it: the guard returns early for them, which is why editing a
+-- job kept working. Anything else touching this table fails on a column that no
+-- longer exists, which is how this surfaced -- on the backfill below.
+drop trigger if exists assignments_guard_update on public.assignments;
+drop function if exists app.guard_assignment_update();
+
 alter table public.assignments
   drop constraint if exists assignments_kind_shape;
 
