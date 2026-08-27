@@ -26,7 +26,9 @@ const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 // the mail was skipped rather than pretending it went out.
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY');
 const MAIL_FROM = Deno.env.get('MAIL_FROM') ?? 'FEM Crew Portal <noreply@mail.fastelevatemedia.com>';
-const MAIL_REPLY_TO = Deno.env.get('MAIL_REPLY_TO') ?? 'info@fastelevatemedia.com';
+// Set MAIL_REPLY_TO to an empty string to drop the header entirely and let the
+// mail be as one-directional as the address suggests.
+const MAIL_REPLY_TO = (Deno.env.get('MAIL_REPLY_TO') ?? 'info@fastelevatemedia.com').trim();
 const PORTAL_URL = (Deno.env.get('PORTAL_URL') ?? 'https://artoushmo.github.io/fem-crew-portal').replace(/\/+$/, '');
 
 // Set ALLOWED_ORIGIN to the portal's URL in production. '*' is fine while the
@@ -69,6 +71,14 @@ function welcomeEmail(name: string, role: Role): { subject: string; html: string
   const pitch = rolePitch(role);
   const subject = 'Your FEM Crew Portal account is ready';
 
+  // Only promise a reply when something is listening for one.
+  const contact = MAIL_REPLY_TO
+    ? `Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}.`
+    : 'Fast Elevate Media &middot; This mailbox is not monitored.';
+  const contactText = MAIL_REPLY_TO
+    ? `Questions? Reply to this email and it reaches us at ${MAIL_REPLY_TO}.`
+    : 'Fast Elevate Media - This mailbox is not monitored.';
+
   // Table layout and inline styles on purpose: Outlook still ignores most of
   // everything else. No images are required to read it — the logo is a bonus,
   // not the message, because most clients block it by default.
@@ -97,7 +107,7 @@ function welcomeEmail(name: string, role: Role): { subject: string; html: string
 </td></tr>
 
 <tr><td style="padding:20px 32px;border-top:1px solid #ececec;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8b909a;">
-Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}.
+${contact}
 </td></tr>
 
 </table></td></tr></table></body></html>`;
@@ -113,7 +123,7 @@ Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}
     '',
     'Please complete your profile before your first assignment — your gear, certifications and invoicing details are what we match on.',
     '',
-    `Questions? Reply to this email and it reaches us at ${MAIL_REPLY_TO}.`,
+    contactText,
   ].join('\n');
 
   return { subject, html, text };
@@ -136,7 +146,7 @@ async function sendWelcome(to: string, name: string, role: Role): Promise<string
       body: JSON.stringify({
         from: MAIL_FROM,
         to: [to],
-        reply_to: MAIL_REPLY_TO,
+        ...(MAIL_REPLY_TO ? { reply_to: MAIL_REPLY_TO } : {}),
         subject,
         html,
         text,
