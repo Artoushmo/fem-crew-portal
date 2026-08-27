@@ -1,5 +1,5 @@
-import { AssignmentsView } from '@/components/AssignmentsView';
+import { AssignmentsRouter } from '@/components/assignments/AssignmentsRouter';
 
 export default function AssignmentsPage() {
-  return <AssignmentsView />;
+  return <AssignmentsRouter />;
 }

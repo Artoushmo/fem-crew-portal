@@ -2082,6 +2082,12 @@ select.field__input {
   .form-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  /* Date and three times sit on one line, because that is how a call sheet
+     reads them. */
+  .form-grid--four {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 @media (min-width: 720px) {
@@ -2105,6 +2111,119 @@ select.field__input {
 
 .toolbar .btn {
   flex: none;
+}
+
+/* Three buckets a producer thinks in, with how many are in each. */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--fem-track);
+  border-radius: 99px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.segmented__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  border: 0;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--fem-text-secondary);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.segmented__item:hover {
+  color: var(--fem-text);
+}
+
+.segmented__item.is-on {
+  background: var(--fem-white);
+  color: var(--fem-text);
+  box-shadow: 0 1px 2px rgba(18, 17, 17, 0.08);
+}
+
+.segmented__count {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fem-text-muted);
+}
+
+.segmented__item.is-on .segmented__count {
+  color: var(--fem-blue);
+}
+
+.job {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 16px 18px;
+}
+
+/* The date leads: a producer scans by day, not by title. */
+.job__when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 130px;
+}
+
+.job__date {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.job__time {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fem-text-muted);
+}
+
+.job__what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.job__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.job__meta {
+  font-size: 13px;
+  color: var(--fem-text-muted);
+}
+
+.job__who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.job__fee {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.job__controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
 }
 
 .client {
