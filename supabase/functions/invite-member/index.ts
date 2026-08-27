@@ -229,6 +229,258 @@ async function sendMail(
   }
 }
 
+interface Job {
+  role_id?: string;
+  title?: string;
+  client?: string;
+  role_label?: string;
+  starts_at?: string;
+  due_on?: string | null;
+  on_site?: string | null;
+  wrapped?: string | null;
+  city?: string | null;
+  venue?: string | null;
+  fee_cents?: number;
+  freelancer?: string | null;
+  reason?: string;
+  changed?: string;
+  link?: string | null;
+  invoice?: string | null;
+  returned_copy?: boolean;
+}
+
+function euro(cents: number | undefined): string {
+  if (cents === undefined) return '';
+  return new Intl.NumberFormat('nl-NL', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+  }).format(cents / 100);
+}
+
+function whenLine(job: Job): string {
+  const parts: string[] = [];
+
+  if (job.starts_at && job.on_site) {
+    const d = new Date(job.starts_at).toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    parts.push(
+      `${d}, ${job.on_site.slice(0, 5)}${job.wrapped ? `-${job.wrapped.slice(0, 5)}` : ''}`,
+    );
+  }
+
+  if (job.due_on) {
+    parts.push(
+      `Deadline ${new Date(job.due_on).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })}`,
+    );
+  }
+
+  const place = [job.venue, job.city].filter(Boolean).join(', ');
+  if (place) parts.push(place);
+
+  return parts.join(' &middot; ');
+}
+
+/** What each kind of message says. One place, so the tone stays the same and a
+    new kind cannot quietly ship without wording. */
+function compose(kind: string, job: Job): { subject: string; heading: string; body: string; cta: string } | null {
+  const name = job.title ?? 'an assignment';
+  const client = job.client ? ` for ${job.client}` : '';
+
+  switch (kind) {
+    case 'booked':
+      return {
+        subject: `You have been booked: ${name}`,
+        heading: 'You have been booked',
+        body: `Fast Elevate Media has put you down as ${job.role_label ?? 'crew'} on <strong>${name}</strong>${client}, at ${euro(job.fee_cents)}. Open it to read the briefing and accept.`,
+        cta: 'View and accept',
+      };
+    case 'unbooked':
+      return {
+        subject: `No longer needed: ${name}`,
+        heading: 'This one is off',
+        body: `You are no longer booked on <strong>${name}</strong>${client}. If you had kept the day free, it is yours again.`,
+        cta: 'Open the portal',
+      };
+    case 'contract-changed':
+      return {
+        subject: `New contract to sign: ${name}`,
+        heading: 'The paperwork changed',
+        body: `${job.reason ?? 'The contract for this job was replaced.'} Until it is signed, the job cannot move on.`,
+        cta: 'Read and sign',
+      };
+    case 'job-changed':
+      return {
+        subject: `Changed: ${name}`,
+        heading: 'Something changed on this job',
+        body: `Fast Elevate Media changed ${job.changed ?? 'the details'} on <strong>${name}</strong>${client}. Check it before the day.`,
+        cta: 'See what changed',
+      };
+    case 'paid':
+      return {
+        subject: `Paid: ${name}`,
+        heading: 'Your invoice is paid',
+        body: `Fast Elevate Media has confirmed payment of ${euro(job.fee_cents)} for <strong>${name}</strong>${client}.`,
+        cta: 'Open the portal',
+      };
+    case 'accepted':
+      return {
+        subject: `Accepted: ${name}`,
+        heading: `${job.freelancer ?? 'Your crew'} accepted`,
+        body: `${job.freelancer ?? 'They'} accepted ${job.role_label ? `the ${job.role_label.toLowerCase()} role` : 'the role'} on <strong>${name}</strong>${client}. You can stop looking.`,
+        cta: 'Open the assignment',
+      };
+    case 'contract-signed':
+      return {
+        subject: `Signed: ${name}`,
+        heading: `${job.freelancer ?? 'Your crew'} signed`,
+        body: job.returned_copy
+          ? `${job.freelancer ?? 'They'} returned a signed copy for <strong>${name}</strong>${client}. It is on the role, ready to file.`
+          : `${job.freelancer ?? 'They'} signed the paperwork for <strong>${name}</strong>${client}.`,
+        cta: 'Open the assignment',
+      };
+    case 'delivered':
+      return {
+        subject: `Delivered: ${name}`,
+        heading: `${job.freelancer ?? 'Your crew'} delivered`,
+        body: `The work for <strong>${name}</strong>${client} has been handed over.${job.link ? ` It is at <a href="${job.link}">${job.link}</a>.` : ''}`,
+        cta: 'Open the assignment',
+      };
+    case 'invoiced':
+      return {
+        subject: `Invoice in: ${name}`,
+        heading: 'An invoice is waiting',
+        body: `${job.freelancer ?? 'Your crew'} invoiced ${euro(job.fee_cents)} for <strong>${name}</strong>${client}${job.invoice ? `, reference ${job.invoice}` : ''}. Mark it paid once it has gone out.`,
+        cta: 'Open the assignment',
+      };
+    default:
+      return null;
+  }
+}
+
+function notificationEmail(
+  kind: string,
+  job: Job,
+): { subject: string; html: string; text: string } | null {
+  const copy = compose(kind, job);
+  if (!copy) return null;
+
+  const when = whenLine(job);
+  const link = job.role_id ? `${PORTAL_URL}/assignments/${job.role_id}` : `${PORTAL_URL}/`;
+
+  const contact = MAIL_REPLY_TO
+    ? `Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}.`
+    : 'Fast Elevate Media &middot; This mailbox is not monitored.';
+
+  const html = `<!doctype html>
+<html lang="en"><body style="margin:0;padding:0;background:#f6f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f5f5;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ececec;border-radius:12px;overflow:hidden;">
+
+<tr><td style="background:#121111;padding:24px 32px;">
+<img src="${PORTAL_URL}/logo.png" width="132" alt="Fast Elevate Media" style="display:block;border:0;height:auto;max-width:132px;">
+</td></tr>
+
+<tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;color:#121111;">
+<p style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;">${escapeHtml(copy.heading)}</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4a4a4a;">${copy.body}</p>
+${when ? `<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#121111;font-weight:600;">${when}</p>` : ''}
+
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="background:#4c72a9;border-radius:8px;">
+<a href="${link}" style="display:inline-block;padding:13px 26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${escapeHtml(copy.cta)}</a>
+</td></tr></table>
+</td></tr>
+
+<tr><td style="padding:20px 32px;border-top:1px solid #ececec;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8b909a;">
+${contact}
+</td></tr>
+
+</table></td></tr></table></body></html>`;
+
+  const text = [
+    copy.heading,
+    '',
+    copy.body.replace(/<[^>]+>/g, ''),
+    when ? when.replace(/&middot;/g, '-') : '',
+    '',
+    link,
+  ]
+    .filter((l) => l !== '')
+    .join('\n');
+
+  return { subject: copy.subject, html, text };
+}
+
+/** Sends whatever is waiting. Called by the portal rather than a scheduler, so
+    a message goes out within seconds of the change that caused it -- and any
+    later call picks up whatever an interrupted one left behind.
+
+    Marked sent before the attempt would risk losing messages; marked after
+    risks sending twice. Sending twice is the better failure for a booking
+    notice, so the row is only cleared once Resend has accepted it. */
+async function drainNotifications(): Promise<Response> {
+  if (!RESEND_KEY) return json({ sent: 0, skipped: 'RESEND_API_KEY is not set' });
+
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data: pending, error } = await admin
+    .from('notifications')
+    .select('id, recipient_email, kind, payload, attempts')
+    .is('sent_at', null)
+    .lt('attempts', 5)
+    .order('created_at')
+    .limit(25);
+
+  if (error) return json({ error: error.message }, 500);
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const row of pending ?? []) {
+    const mail = notificationEmail(row.kind as string, (row.payload ?? {}) as Job);
+
+    if (!mail) {
+      // An unknown kind is a bug, not a retry. Park it so the queue keeps
+      // moving and the row stays visible.
+      await admin
+        .from('notifications')
+        .update({ attempts: 5, last_error: `No wording for "${row.kind}"` })
+        .eq('id', row.id);
+      continue;
+    }
+
+    const result = await sendMail(row.recipient_email as string, mail);
+
+    if (result === 'sent') {
+      await admin
+        .from('notifications')
+        .update({ sent_at: new Date().toISOString(), last_error: null })
+        .eq('id', row.id);
+      sent += 1;
+    } else {
+      await admin
+        .from('notifications')
+        .update({ attempts: (row.attempts as number) + 1, last_error: result })
+        .eq('id', row.id);
+      failed += 1;
+    }
+  }
+
+  return json({ sent, failed, pending: (pending ?? []).length });
+}
+
 async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
@@ -250,13 +502,21 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const action = payload.action ?? 'invite';
-  if (!['invite', 'revoke', 'restore', 'set-role'].includes(action)) {
+  if (!['invite', 'revoke', 'restore', 'set-role', 'notify'].includes(action)) {
     return json({ error: 'Unknown action.' }, 400);
   }
 
   const email = (payload.email ?? '').trim().toLowerCase();
   const fullName = (payload.full_name ?? '').trim();
   const role = (payload.role ?? 'freelancer') as Role;
+
+  // Draining the queue is not a privileged act -- it sends messages the database
+  // already decided to send, to addresses it already chose. Any signed-in
+  // account may kick it, which is what lets the portal drain it on load without
+  // anyone waiting for a scheduler.
+  if (action === 'notify') {
+    return await drainNotifications();
+  }
 
   if (action === 'invite') {
     if (!email || !email.includes('@')) return json({ error: 'Give a valid email address.' }, 400);

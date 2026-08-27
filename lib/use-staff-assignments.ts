@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from './auth';
 import type { Craft } from './profile-types';
+import { drainNotifications } from './notify';
 import { sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
@@ -353,6 +354,7 @@ export function useShoots() {
         .eq('id', id);
 
       if (writeError) throw new Error(writeError.message);
+      drainNotifications();
       await load();
     },
     [load, profile?.id],
@@ -419,6 +421,7 @@ export function useShoots() {
             : writeError.message,
         );
       }
+      drainNotifications();
       await load();
     },
     [load],
@@ -437,6 +440,7 @@ export function useShoots() {
         })
         .eq('id', roleId);
       if (writeError) throw new Error(writeError.message);
+      drainNotifications();
       await load();
     },
     [load],
@@ -500,6 +504,7 @@ export function useShoots() {
         role_id: roleId,
       });
       if (rpcError) throw new Error(rpcError.message);
+      drainNotifications();
       await load();
     },
     [load],

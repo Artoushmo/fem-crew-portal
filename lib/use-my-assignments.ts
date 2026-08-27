@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
 import type { Assignment, PaymentState, Status } from './assignments';
+import { drainNotifications } from './notify';
 import { recordSignature, sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
@@ -291,6 +292,9 @@ export function useMyAssignments() {
 
   useEffect(() => {
     load();
+    // Opening the portal is as good a moment as any to push out whatever is
+    // waiting, including messages meant for other people.
+    drainNotifications();
   }, [load]);
 
   // FEM can change the paperwork while a freelancer has the page open, and the
@@ -353,6 +357,7 @@ export function useMyAssignments() {
         return;
       }
 
+      drainNotifications();
       await load();
     },
     [assignments, load],
