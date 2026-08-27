@@ -11,6 +11,8 @@ export interface Member {
   role: AppRole;
   avatar_path: string | null;
   base_city: string | null;
+  status: 'active' | 'revoked';
+  revoked_at: string | null;
   mfa_enrolled: boolean;
   last_sign_in: string | null;
   invited_at: string | null;
@@ -64,8 +66,8 @@ export function useTeam() {
 
     if (rpcError) {
       setError(
-        rpcError.message.includes('does not exist')
-          ? 'The team functions are missing. Run migrations 0003 and 0004 in Supabase.'
+        rpcError.message.includes('does not exist') || rpcError.message.includes('status')
+          ? 'The team functions are out of date. Run migration 0006 in Supabase.'
           : rpcError.message,
       );
     }
@@ -118,16 +120,21 @@ export function useTeam() {
     [load],
   );
 
-  const revoke = useCallback(
-    async (targetId: string) => {
-      const { error: rpcError } = await requireSupabase().rpc('revoke_member_access', {
-        target_id: targetId,
+  /** Ends or restores access. This has to go through the Edge Function rather
+      than an RPC: the database can mark the profile, but only the admin API can
+      ban the auth user, and a status that says revoked over an account that
+      still signs in is worse than no button at all. */
+  const setAccess = useCallback(
+    async (targetId: string, action: 'revoke' | 'restore'): Promise<string | null> => {
+      const { data, error: fnError } = await requireSupabase().functions.invoke('invite-member', {
+        body: { action, target_id: targetId },
       });
-      if (rpcError) throw new Error(rpcError.message);
+      if (fnError) throw new Error(await readFunctionError(fnError));
       await load();
+      return (data as { note?: string | null } | null)?.note ?? null;
     },
     [load],
   );
 
-  return { members, loading, error, canManage, reload: load, invite, setRole, revoke };
+  return { members, loading, error, canManage, reload: load, invite, setRole, setAccess };
 }

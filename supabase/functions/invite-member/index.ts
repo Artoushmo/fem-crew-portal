@@ -167,19 +167,34 @@ async function handler(req: Request): Promise<Response> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json({ error: 'Not signed in.' }, 401);
 
-  let payload: { email?: string; full_name?: string; role?: string };
+  let payload: {
+    action?: string;
+    email?: string;
+    full_name?: string;
+    role?: string;
+    target_id?: string;
+  };
   try {
     payload = await req.json();
   } catch {
     return json({ error: 'Expected a JSON body.' }, 400);
   }
 
+  const action = payload.action ?? 'invite';
+  if (!['invite', 'revoke', 'restore'].includes(action)) {
+    return json({ error: 'Unknown action.' }, 400);
+  }
+
   const email = (payload.email ?? '').trim().toLowerCase();
   const fullName = (payload.full_name ?? '').trim();
   const role = (payload.role ?? 'freelancer') as Role;
 
-  if (!email || !email.includes('@')) return json({ error: 'Give a valid email address.' }, 400);
-  if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
+  if (action === 'invite') {
+    if (!email || !email.includes('@')) return json({ error: 'Give a valid email address.' }, 400);
+    if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
+  } else if (!payload.target_id) {
+    return json({ error: 'Say whose access to change.' }, 400);
+  }
 
   // --- Step 1: who is asking, and are they allowed? -------------------------
 
@@ -214,6 +229,83 @@ async function handler(req: Request): Promise<Response> {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // --- Ending and restoring access -----------------------------------------
+
+  if (action === 'revoke' || action === 'restore') {
+    const targetId = payload.target_id!;
+
+    if (targetId === profile.id) {
+      return json({ error: 'You cannot end your own access.' }, 400);
+    }
+
+    const { data: target } = await admin
+      .from('profiles')
+      .select('id, role, status, full_name, email')
+      .eq('id', targetId)
+      .maybeSingle();
+
+    if (!target) return json({ error: 'No such member.' }, 404);
+
+    if (action === 'revoke' && target.role === 'superadmin') {
+      // Same rule as demotion: the last superadmin out means the only way back
+      // in is the Supabase dashboard, which is what this whole screen avoids.
+      const { count } = await admin
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('role', 'superadmin')
+        .eq('status', 'active');
+
+      if ((count ?? 0) <= 1) {
+        return json({ error: 'That is the only superadmin left.' }, 409);
+      }
+    }
+
+    const banned = action === 'revoke';
+
+    // The ban is what actually stops a sign-in: GoTrue refuses to issue or
+    // refresh a token for a banned user, so no new code gets them in.
+    const { error: banError } = await admin.auth.admin.updateUserById(targetId, {
+      ban_duration: banned ? '876000h' : 'none',
+    });
+
+    if (banError) return json({ error: `Could not change their sign-in: ${banError.message}` }, 500);
+
+    const { error: statusError } = await admin
+      .from('profiles')
+      .update(
+        banned
+          ? { status: 'revoked', revoked_at: new Date().toISOString(), revoked_by: profile.id }
+          : { status: 'active', revoked_at: null, revoked_by: null },
+      )
+      .eq('id', targetId);
+
+    if (statusError) {
+      // Put the ban back the way it was rather than leave the two disagreeing.
+      await admin.auth.admin.updateUserById(targetId, {
+        ban_duration: banned ? 'none' : '876000h',
+      });
+      return json({ error: `Could not update their status: ${statusError.message}` }, 500);
+    }
+
+    await admin.from('access_log').insert({
+      actor_id: profile.id,
+      action: banned ? 'access revoked' : 'access restored',
+      subject_type: 'profile',
+      subject_id: targetId,
+    });
+
+    return json({
+      id: targetId,
+      status: banned ? 'revoked' : 'active',
+      // An access token already in a browser stays signature-valid until it
+      // expires. Staff reach is gone at once -- is_staff() reads the status --
+      // but a revoked freelancer can still see their own rows for that long.
+      note: banned ? 'They cannot sign in again. An open session ends within the hour.' : null,
+    });
+  }
+
+  // --- Creating an account --------------------------------------------------
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,

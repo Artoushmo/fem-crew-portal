@@ -1047,6 +1047,18 @@ button {
   border-color: var(--fem-blue-faint);
 }
 
+/* Someone whose access has ended. Still readable -- you need to find them to
+   restore them -- but visibly out of the working roster. The tag carries the
+   status; this only stops the row competing with the active ones. */
+.row--muted {
+  background: var(--fem-page);
+}
+
+.row--muted .member__avatar,
+.row--muted .member__who {
+  opacity: 0.55;
+}
+
 .row__summary {
   display: grid;
   grid-template-areas:

@@ -10,16 +10,20 @@ import { InviteForm } from './InviteForm';
 
 export function TeamView() {
   const { profile } = useAuth();
-  const { members, loading, error, canManage, invite, setRole, revoke } = useTeam();
+  const { members, loading, error, canManage, invite, setRole, setAccess } = useTeam();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [rowNote, setRowNote] = useState<string | null>(null);
 
   const staff = members.filter((m) => m.role !== 'freelancer');
   const crew = members.filter((m) => m.role === 'freelancer');
+  const activeCrew = crew.filter((m) => m.status === 'active');
+  const activeStaff = staff.filter((m) => m.status === 'active');
 
   const change = async (id: string, role: AppRole) => {
     setBusyId(id);
     setRowError(null);
+    setRowNote(null);
     try {
       await setRole(id, role);
     } catch (err) {
@@ -29,13 +33,20 @@ export function TeamView() {
     }
   };
 
-  const remove = async (member: Member) => {
+  const access = async (member: Member, action: 'revoke' | 'restore') => {
     setBusyId(member.id);
     setRowError(null);
+    setRowNote(null);
     try {
-      await revoke(member.id);
+      setRowNote(await setAccess(member.id, action));
     } catch (err) {
-      setRowError(err instanceof Error ? err.message : 'Could not revoke access.');
+      setRowError(
+        err instanceof Error
+          ? err.message
+          : action === 'revoke'
+            ? 'Could not end their access.'
+            : 'Could not restore their access.',
+      );
     } finally {
       setBusyId(null);
     }
@@ -46,7 +57,7 @@ export function TeamView() {
       <Masthead>
         <h1 className="hero__greeting">Team</h1>
         <p className="hero__sub">
-          {staff.length} at FEM · {crew.length} crew
+          {activeStaff.length} at FEM &middot; {activeCrew.length} crew
         </p>
       </Masthead>
 
@@ -69,6 +80,12 @@ export function TeamView() {
               </p>
             )}
 
+            {rowNote && (
+              <p className="state state--ok" role="status">
+                {rowNote}
+              </p>
+            )}
+
             <p className="eyebrow eyebrow--spaced">Fast Elevate Media</p>
             <MemberList
               members={staff}
@@ -76,7 +93,7 @@ export function TeamView() {
               selfId={profile?.id}
               busyId={busyId}
               onRole={change}
-              onRevoke={remove}
+              onAccess={access}
               empty="No one at FEM yet."
             />
 
@@ -87,7 +104,7 @@ export function TeamView() {
               selfId={profile?.id}
               busyId={busyId}
               onRole={change}
-              onRevoke={remove}
+              onAccess={access}
               empty="No freelancers yet. Invite one above."
             />
           </>
@@ -103,7 +120,7 @@ function MemberList({
   selfId,
   busyId,
   onRole,
-  onRevoke,
+  onAccess,
   empty,
 }: {
   members: Member[];
@@ -111,9 +128,13 @@ function MemberList({
   selfId?: string;
   busyId: string | null;
   onRole: (id: string, role: AppRole) => void;
-  onRevoke: (m: Member) => void;
+  onAccess: (m: Member, action: 'revoke' | 'restore') => void;
   empty: string;
 }) {
+  // Ending someone's access is not undoable from their side, so it takes two
+  // deliberate clicks rather than a dialog that gets dismissed by habit.
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
   if (members.length === 0) return <p className="state state--idle">{empty}</p>;
 
   return (
@@ -122,10 +143,12 @@ function MemberList({
         const isSelf = m.id === selfId;
         const name = m.full_name?.trim() || m.email?.split('@')[0] || 'Unnamed';
         const avatar = avatarUrl(m.avatar_path);
-        const needsMfa = m.role !== 'freelancer' && !m.mfa_enrolled;
+        const revoked = m.status === 'revoked';
+        const needsMfa = !revoked && m.role !== 'freelancer' && !m.mfa_enrolled;
+        const confirming = confirmId === m.id;
 
         return (
-          <li key={m.id} className="row">
+          <li key={m.id} className={revoked ? 'row row--muted' : 'row'}>
             <div className="member">
               {avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -145,9 +168,15 @@ function MemberList({
               </div>
 
               <div className="member__state">
-                {!m.accepted && <span className="tag tag--wait">Not signed in yet</span>}
-                {needsMfa && <span className="tag tag--warn">No authenticator</span>}
-                {m.mfa_enrolled && <span className="tag tag--ok">2FA on</span>}
+                {revoked ? (
+                  <span className="tag tag--warn">Access ended</span>
+                ) : (
+                  <>
+                    {!m.accepted && <span className="tag tag--wait">Not signed in yet</span>}
+                    {needsMfa && <span className="tag tag--warn">No authenticator</span>}
+                    {m.mfa_enrolled && <span className="tag tag--ok">2FA on</span>}
+                  </>
+                )}
               </div>
 
               <div className="member__controls">
@@ -160,7 +189,7 @@ function MemberList({
                       id={`role-${m.id}`}
                       className="field__input member__role"
                       value={m.role}
-                      disabled={busyId === m.id}
+                      disabled={busyId === m.id || revoked}
                       onChange={(e) => onRole(m.id, e.target.value as AppRole)}
                     >
                       {ROLES.map((r) => (
@@ -170,14 +199,44 @@ function MemberList({
                       ))}
                     </select>
 
-                    {m.role !== 'freelancer' && (
+                    {revoked ? (
+                      <button
+                        type="button"
+                        className="link-arrow link-arrow--button"
+                        disabled={busyId === m.id}
+                        onClick={() => onAccess(m, 'restore')}
+                      >
+                        Restore access
+                      </button>
+                    ) : confirming ? (
+                      <>
+                        <button
+                          type="button"
+                          className="link-arrow link-arrow--button link-arrow--danger"
+                          disabled={busyId === m.id}
+                          onClick={() => {
+                            setConfirmId(null);
+                            onAccess(m, 'revoke');
+                          }}
+                        >
+                          {busyId === m.id ? 'Ending...' : 'Yes, end it'}
+                        </button>
+                        <button
+                          type="button"
+                          className="link-arrow link-arrow--button"
+                          onClick={() => setConfirmId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
                         className="link-arrow link-arrow--button link-arrow--danger"
                         disabled={busyId === m.id}
-                        onClick={() => onRevoke(m)}
+                        onClick={() => setConfirmId(m.id)}
                       >
-                        Revoke
+                        End access
                       </button>
                     )}
                   </>
@@ -186,6 +245,25 @@ function MemberList({
                 )}
               </div>
             </div>
+
+            {confirming && (
+              <p className="member__warning">
+                {name} will not be able to sign in again. Their assignments, invoices and
+                history stay exactly as they are, and you can restore access later.
+              </p>
+            )}
+
+            {revoked && m.revoked_at && (
+              <p className="member__warning">
+                Access ended on{' '}
+                {new Date(m.revoked_at).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
+                .
+              </p>
+            )}
 
             {needsMfa && (
               <p className="member__warning">
