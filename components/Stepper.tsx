@@ -32,7 +32,7 @@ export function Stepper({
       </div>
 
       <div className="stepper__scroll">
-        <ol className="stepper__track" style={{ ['--fill' as string]: `${pct}%` }}>
+        <ol className="stepper__track" style={{ ['--fill' as string]: pct.toFixed(2) }}>
           {STAGES.map((s, i) => {
             const state = i < reached ? 'done' : i === reached ? 'current' : 'upcoming';
             return (

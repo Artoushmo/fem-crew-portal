@@ -386,6 +386,31 @@ button {
   padding: 12px 0;
 }
 
+/* --- Installed to a home screen ---------------------------------------- */
+
+/* Only when the portal is running as an app. The status bar is translucent
+   there, so the page starts at the very top of the screen -- without this the
+   logo sits under the clock, and the bottom tabs under the home indicator. */
+@media (display-mode: standalone) {
+  body {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  .rail {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* No browser chrome to pull down against, so a rubber-band scroll shows the
+     page background rather than white. */
+  html {
+    background: var(--fem-obsidian);
+  }
+}
+
 .logo {
   display: block;
   width: auto;
@@ -3075,6 +3100,11 @@ select.field__input {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(78px, 1fr);
+  /* max-content, not just min-width. Seven columns of at least 78px come to
+     546px, which overflows a phone -- and the connecting line is positioned
+     against this element, so a box stuck at screen width drew a line that
+     stopped somewhere around step five. */
+  width: max-content;
   min-width: 100%;
 }
 
@@ -3092,7 +3122,10 @@ select.field__input {
 
 .stepper__track::after {
   right: auto;
-  width: calc((100% - 100% / 7) * var(--fill) / 100%);
+  /* --fill arrives as a bare number; the percentage lives here. Dividing one
+     percentage by another is not valid calc, and an invalid width silently
+     drops the whole declaration. */
+  width: calc((100% - 100% / 7) * var(--fill) / 100);
   background: var(--fem-blue);
 }
 
