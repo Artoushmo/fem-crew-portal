@@ -9,9 +9,15 @@ export type AppRole = 'freelancer' | 'staff' | 'admin' | 'superadmin';
 export interface Profile {
   id: string;
   role: AppRole;
+  status: 'active' | 'revoked';
   full_name: string | null;
   email: string | null;
   avatar_path: string | null;
+}
+
+interface Access extends Profile {
+  mfa_required: boolean;
+  mfa_enrolled: boolean;
 }
 
 /** Where the session sits in the login flow.
@@ -64,31 +70,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const [{ data: aal }, { data: factorData }, { data: profileRow }] = await Promise.all([
+    // Deliberately my_access() and not a select on profiles. That table demands
+    // aal2 from staff, so reading the role from it deadlocks the promotion it is
+    // meant to describe: no second factor, no role, no way to learn one was
+    // wanted. This function answers at aal1 and only ever about the caller.
+    const [{ data: aal }, { data: factorData }, { data: accessRows }] = await Promise.all([
       supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
       supabase.auth.mfa.listFactors(),
-      // Always filter by id. RLS decides what you may read, not how many rows
-      // come back — and staff may read everyone's, which breaks .single().
-      supabase
-        .from('profiles')
-        .select('id, role, full_name, email, avatar_path')
-        .eq('id', next.user.id)
-        .single(),
+      supabase.rpc('my_access'),
     ]);
 
+    const access = ((accessRows as Access[] | null) ?? [])[0] ?? null;
     const verified = (factorData?.all ?? []).filter((f) => f.status === 'verified');
+
     setFactors(verified);
     setAssuranceLevel((aal?.currentLevel as 'aal1' | 'aal2') ?? 'aal1');
-    setProfile((profileRow as Profile) ?? null);
+    setProfile(access);
 
     // Supabase says a second factor is expected when nextLevel outranks
-    // currentLevel. Staff and admins must hold aal2 regardless — the same rule
-    // is enforced again in RLS, so the UI cannot be the only gate.
-    const role = (profileRow as Profile | null)?.role;
-    const privileged = role === 'staff' || role === 'admin';
+    // currentLevel. The role may demand aal2 even before one is enrolled, which
+    // is the case Supabase cannot see — the same rule is enforced again in RLS,
+    // so the UI is never the only gate.
+    const privileged = access?.mfa_required ?? verified.length > 0;
     const outstanding = aal?.nextLevel === 'aal2' && aal?.currentLevel !== 'aal2';
 
-    setMfaRequired(privileged || verified.length > 0);
+    setMfaRequired(privileged);
     setStage(outstanding || (privileged && aal?.currentLevel !== 'aal2') ? 'mfa-required' : 'ready');
   }, []);
 

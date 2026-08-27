@@ -25,7 +25,7 @@ export function TeamView() {
     setRowError(null);
     setRowNote(null);
     try {
-      await setRole(id, role);
+      setRowNote(await setRole(id, role));
     } catch (err) {
       setRowError(err instanceof Error ? err.message : 'Could not change that role.');
     } finally {

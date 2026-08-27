@@ -45,6 +45,15 @@ const cors: Record<string, string> = {
 const GRANTABLE = ['freelancer', 'staff', 'admin', 'superadmin'] as const;
 type Role = (typeof GRANTABLE)[number];
 
+// Kept in step with ROLE_LABEL in lib/use-team.ts. Someone reading a mail about
+// their own role should see the same words the portal uses.
+const ROLE_LABEL: Record<Role, string> = {
+  freelancer: 'Freelancer',
+  staff: 'FEM staff',
+  admin: 'Administrator',
+  superadmin: 'Superadmin',
+};
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -64,6 +73,15 @@ function rolePitch(role: Role): string {
   return role === 'freelancer'
     ? 'Your assignments, call sheets, agreements and invoices all live here: one place, always current.'
     : 'You can create assignments, manage clients and match crew from here.';
+}
+
+/** What changes for them, in the only terms that matter: what they now have to
+    do before the portal works. Anything above freelancer is refused every read
+    until a second factor is linked, so that is the whole message. */
+function roleChangeNote(role: Role): string {
+  return role === 'freelancer'
+    ? 'You will see your own assignments, agreements and invoices, and nothing else.'
+    : 'This role requires an authenticator app. Until you link one, the portal will refuse to show you anything -- so set it up the next time you sign in, under Security on your profile.';
 }
 
 function welcomeEmail(name: string, role: Role): { subject: string; html: string; text: string } {
@@ -129,12 +147,63 @@ ${contact}
   return { subject, html, text };
 }
 
+function roleChangeEmail(
+  name: string,
+  role: Role,
+): { subject: string; html: string; text: string } {
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+  const label = ROLE_LABEL[role];
+  const subject = `Your role at Fast Elevate Media is now ${label}`;
+  const note = roleChangeNote(role);
+
+  const contact = MAIL_REPLY_TO
+    ? `Questions? Reply to this email and it reaches us at ${escapeHtml(MAIL_REPLY_TO)}.`
+    : 'Fast Elevate Media &middot; This mailbox is not monitored.';
+  const contactText = MAIL_REPLY_TO
+    ? `Questions? Reply to this email and it reaches us at ${MAIL_REPLY_TO}.`
+    : 'Fast Elevate Media - This mailbox is not monitored.';
+
+  const html = `<!doctype html>
+<html lang="en"><body style="margin:0;padding:0;background:#f6f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f5f5;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #ececec;border-radius:12px;overflow:hidden;">
+
+<tr><td style="background:#121111;padding:24px 32px;">
+<img src="${PORTAL_URL}/logo.png" width="132" alt="Fast Elevate Media" style="display:block;border:0;height:auto;max-width:132px;">
+</td></tr>
+
+<tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;color:#121111;">
+<p style="margin:0 0 20px;font-size:20px;line-height:1.35;font-weight:600;">You are now ${escapeHtml(label)}</p>
+<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4a4a4a;">${escapeHtml(greeting)}</p>
+<p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#4a4a4a;">${escapeHtml(note)}</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+<td style="background:#4c72a9;border-radius:8px;">
+<a href="${PORTAL_URL}/" style="display:inline-block;padding:13px 26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Open the portal</a>
+</td></tr></table>
+</td></tr>
+
+<tr><td style="padding:20px 32px;border-top:1px solid #ececec;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8b909a;">
+${contact}
+</td></tr>
+
+</table></td></tr></table></body></html>`;
+
+  const text = [greeting, '', note, '', `${PORTAL_URL}/`, '', contactText].join('\n');
+
+  return { subject, html, text };
+}
+
 /** Never throws: a delivered account with an undelivered mail is a smaller
     problem than an invite that reports failure after the user already exists. */
-async function sendWelcome(to: string, name: string, role: Role): Promise<string> {
+async function sendMail(
+  to: string,
+  mail: { subject: string; html: string; text: string },
+): Promise<string> {
   if (!RESEND_KEY) return 'skipped: RESEND_API_KEY is not set on this function';
 
-  const { subject, html, text } = welcomeEmail(name, role);
+  const { subject, html, text } = mail;
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -181,7 +250,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const action = payload.action ?? 'invite';
-  if (!['invite', 'revoke', 'restore'].includes(action)) {
+  if (!['invite', 'revoke', 'restore', 'set-role'].includes(action)) {
     return json({ error: 'Unknown action.' }, 400);
   }
 
@@ -192,6 +261,8 @@ async function handler(req: Request): Promise<Response> {
   if (action === 'invite') {
     if (!email || !email.includes('@')) return json({ error: 'Give a valid email address.' }, 400);
     if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
+  } else if (action === 'set-role' && !GRANTABLE.includes(role)) {
+    return json({ error: 'Unknown role.' }, 400);
   } else if (!payload.target_id) {
     return json({ error: 'Say whose access to change.' }, 400);
   }
@@ -229,6 +300,41 @@ async function handler(req: Request): Promise<Response> {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+
+  // --- Changing a role ------------------------------------------------------
+
+  if (action === 'set-role') {
+    const targetId = payload.target_id!;
+
+    // Through the caller's own client on purpose: every rule about roles lives
+    // in set_member_role, and routing around it here would mean two places
+    // deciding who may be promoted. This function only adds the email.
+    const { error: rpcError } = await asCaller.rpc('set_member_role', {
+      target_id: targetId,
+      new_role: role,
+    });
+
+    if (rpcError) return json({ error: rpcError.message }, 400);
+
+    const { data: target } = await admin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', targetId)
+      .maybeSingle();
+
+    const notified = target?.email
+      ? await sendMail(target.email, roleChangeEmail(target.full_name ?? '', role))
+      : 'skipped: no address on file';
+
+    await admin.from('access_log').insert({
+      actor_id: profile.id,
+      action: `role set to ${role} (mail: ${notified})`,
+      subject_type: 'profile',
+      subject_id: targetId,
+    });
+
+    return json({ id: targetId, role, notified });
+  }
 
   // --- Ending and restoring access -----------------------------------------
 
@@ -338,7 +444,7 @@ async function handler(req: Request): Promise<Response> {
     return json({ error: `Could not set the role: ${roleError.message}` }, 500);
   }
 
-  const welcome = await sendWelcome(email, fullName, role);
+  const welcome = await sendMail(email, welcomeEmail(fullName, role));
 
   await admin.from('access_log').insert({
     actor_id: profile.id,

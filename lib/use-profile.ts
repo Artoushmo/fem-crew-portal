@@ -47,7 +47,7 @@ export function useProfileData() {
     const uid = session.user.id;
 
     const [profile, crafts, gear, credentials] = await Promise.all([
-      supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', uid).single(),
+      supabase.from('profiles').select(PROFILE_COLUMNS).eq('id', uid).maybeSingle(),
       supabase
         .from('freelancer_crafts')
         .select('*')
@@ -71,6 +71,12 @@ export function useProfileData() {
         failure.message.includes('does not exist')
           ? 'The profile tables are missing. Run migration 0002 in Supabase.'
           : failure.message,
+      );
+    } else if (!profile.data) {
+      // maybeSingle() returns nothing when RLS refused the row, which is what a
+      // role that demands a second factor looks like from here.
+      setError(
+        'Your profile could not be read. If your role changed recently, link an authenticator under Security and sign in again.',
       );
     }
 

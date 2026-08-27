@@ -22,7 +22,7 @@ export function MfaSetup() {
   if (!configured) return null;
 
   const enrolled = factors.length > 0;
-  const privileged = profile?.role === 'staff' || profile?.role === 'admin';
+  const privileged = profile?.role !== 'freelancer';
 
   const start = async () => {
     setError(null);

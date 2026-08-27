@@ -108,14 +108,22 @@ export function useTeam() {
     [load],
   );
 
+  /** Goes through the Edge Function so the person is told. A role change is not
+      a quiet bookkeeping edit: anything above freelancer makes the database
+      refuse every read until they link an authenticator, so someone promoted
+      without warning just finds a portal that stopped working. */
   const setRole = useCallback(
-    async (targetId: string, role: AppRole) => {
-      const { error: rpcError } = await requireSupabase().rpc('set_member_role', {
-        target_id: targetId,
-        new_role: role,
+    async (targetId: string, role: AppRole): Promise<string | null> => {
+      const { data, error: fnError } = await requireSupabase().functions.invoke('invite-member', {
+        body: { action: 'set-role', target_id: targetId, role },
       });
-      if (rpcError) throw new Error(rpcError.message);
+      if (fnError) throw new Error(await readFunctionError(fnError));
       await load();
+
+      const notified = (data as { notified?: string } | null)?.notified ?? 'sent';
+      return notified === 'sent'
+        ? 'Role updated. They have been emailed about the change.'
+        : 'Role updated, but no email went out. Tell them yourself.';
     },
     [load],
   );
