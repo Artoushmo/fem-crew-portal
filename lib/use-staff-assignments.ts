@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from './auth';
 import type { Craft } from './profile-types';
+import { sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
 /** One person wanted on a shoot. Fee and progress live here rather than on the
@@ -435,6 +436,7 @@ export function useShoots() {
       if (file.type !== 'application/pdf') throw new Error('The contract has to be a PDF.');
       if (file.size > MAX_CONTRACT_BYTES) throw new Error('That file is over 10 MB.');
 
+      const digest = await hashFile(file);
       const client = requireSupabase();
       const path = `jobs/${shootId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
 
@@ -446,7 +448,7 @@ export function useShoots() {
 
       const { error: writeError } = await client
         .from('assignments')
-        .update({ contract_path: path, contract_name: file.name })
+        .update({ contract_path: path, contract_name: file.name, contract_sha256: digest })
         .eq('id', shootId);
 
       if (writeError) {
@@ -465,7 +467,7 @@ export function useShoots() {
     async (shootId: string) => {
       const { error: writeError } = await requireSupabase()
         .from('assignments')
-        .update({ contract_path: null, contract_name: null })
+        .update({ contract_path: null, contract_name: null, contract_sha256: null })
         .eq('id', shootId);
 
       if (writeError) throw new Error(writeError.message);

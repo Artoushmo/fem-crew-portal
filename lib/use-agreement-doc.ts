@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from './auth';
+import { sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
 export interface AgreementDoc {
@@ -9,6 +10,8 @@ export interface AgreementDoc {
   storage_path: string;
   original_name: string;
   uploaded_at: string;
+  sha256: string | null;
+  size_bytes: number | null;
 }
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -32,7 +35,7 @@ export function useAgreementDoc(year = new Date().getFullYear()) {
 
     const { data, error: queryError } = await supabase
       .from('agreement_documents')
-      .select('year, storage_path, original_name, uploaded_at')
+      .select('year, storage_path, original_name, uploaded_at, sha256, size_bytes')
       .eq('year', year)
       .maybeSingle();
 
@@ -73,6 +76,9 @@ export function useAgreementDoc(year = new Date().getFullYear()) {
         throw new Error('That file is over 10 MB.');
       }
 
+      // Fingerprinted before it leaves the browser, so what people sign against
+      // can be checked against what is stored.
+      const digest = await hashFile(file);
       const client = requireSupabase();
       // Versioned by upload time rather than overwritten: replacing the terms
       // under a signature that was already given would rewrite what people
@@ -89,6 +95,8 @@ export function useAgreementDoc(year = new Date().getFullYear()) {
         year,
         storage_path: path,
         original_name: file.name,
+        sha256: digest,
+        size_bytes: file.size,
         uploaded_by: profile?.id ?? null,
         uploaded_at: new Date().toISOString(),
       });

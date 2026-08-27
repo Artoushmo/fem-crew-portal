@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useAgreement, useProgressActions } from '@/lib/assignment-state';
 import { useAgreementDoc } from '@/lib/use-agreement-doc';
+import { shortHash } from '@/lib/signing';
+import { SigningReceipt } from './SigningReceipt';
 import { Masthead } from './Masthead';
 
 const archive = [
@@ -14,6 +16,7 @@ export function DocumentsView() {
   const agreement = useAgreement();
   const { signAgreement } = useProgressActions();
   const { doc, loading, error, canManage, upload, openUrl } = useAgreementDoc(agreement.year);
+  const agreementId = agreement.id;
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -94,6 +97,12 @@ export function DocumentsView() {
                   month: 'long',
                   year: 'numeric',
                 })}
+                {doc.sha256 && (
+                  <>
+                    {' '}
+                    &middot; fingerprint <code>{shortHash(doc.sha256)}</code>
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -109,6 +118,8 @@ export function DocumentsView() {
               {notice}
             </p>
           )}
+
+          {agreementId && <SigningReceipt subjectType="agreement" subjectId={agreementId} />}
 
           <div className="card__actions">
             {doc && (

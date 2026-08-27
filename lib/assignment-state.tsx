@@ -36,7 +36,7 @@ export function today() {
 
 interface Ctx {
   assignments: Assignment[];
-  agreement: { year: number; signed: boolean; signedOn: string };
+  agreement: { id: string | null; year: number; signed: boolean; signedOn: string };
   /** False until the source has answered, so the server and first client render
       agree. */
   ready: boolean;
@@ -151,6 +151,7 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const agreement = useMemo(
     () => ({
+      id: null,
       year: baseAgreement.year,
       signed: progress.agreementSigned ?? baseAgreement.signed,
       signedOn: progress.agreementSignedOn ?? baseAgreement.signedOn,

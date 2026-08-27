@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
 import type { Assignment, PaymentState, Status } from './assignments';
+import { recordSignature } from './signing';
 import { requireSupabase, supabase } from './supabase';
 
 /** The freelancer's own work, read from the database and shaped into the
@@ -203,6 +204,8 @@ function invoiceNumber(roleId: string): string {
 }
 
 export interface MyAgreement {
+  /** Null until it has been signed. The signing receipt hangs off this row. */
+  id: string | null;
   year: number;
   signed: boolean;
   signedOn: string;
@@ -212,6 +215,7 @@ export function useMyAssignments() {
   const { session, stage: authStage } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [agreement, setAgreement] = useState<MyAgreement>({
+    id: null,
     year: new Date().getFullYear(),
     signed: false,
     signedOn: '',
@@ -236,7 +240,7 @@ export function useMyAssignments() {
         .order('created_at', { ascending: false }),
       supabase
         .from('agreements')
-        .select('year, signed_on')
+        .select('id, year, signed_on')
         .eq('freelancer_id', uid)
         .eq('year', year)
         .maybeSingle(),
@@ -269,6 +273,7 @@ export function useMyAssignments() {
     );
 
     setAgreement({
+      id: (signed.data?.id as string) ?? null,
       year,
       signed: Boolean(signed.data?.signed_on),
       signedOn: signed.data?.signed_on ? shortDate(signed.data.signed_on) : '',
@@ -335,15 +340,53 @@ export function useMyAssignments() {
       is refused until the first has happened. */
   const signContract = useCallback(
     async (id: string) => {
-      const { error: writeError } = await requireSupabase()
+      const client = requireSupabase();
+
+      const { data: role } = await client
         .from('assignment_roles')
-        .update({ contract_signed_on: new Date().toISOString().slice(0, 10) })
+        .select('assignments ( contract_path, contract_name, contract_sha256 )')
+        .eq('id', id)
+        .maybeSingle();
+
+      const job = (role as {
+        assignments?: {
+          contract_path?: string | null;
+          contract_name?: string | null;
+          contract_sha256?: string | null;
+        };
+      } | null)?.assignments;
+
+      const now = new Date();
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({
+          contract_signed_on: now.toISOString().slice(0, 10),
+          contract_signed_at: now.toISOString(),
+        })
         .eq('id', id);
 
       if (writeError) {
         setError(writeError.message);
         return;
       }
+
+      try {
+        await recordSignature({
+          documentKind: 'job-contract',
+          documentName: job?.contract_name ?? 'Contract',
+          documentSha256: job?.contract_sha256 ?? null,
+          documentPath: job?.contract_path ?? null,
+          subjectType: 'assignment_role',
+          subjectId: id,
+        });
+      } catch (err) {
+        setError(
+          `Signed, but the signing record could not be written: ${
+            err instanceof Error ? err.message : 'unknown error'
+          }`,
+        );
+      }
+
       await load();
     },
     [load],
@@ -374,16 +417,50 @@ export function useMyAssignments() {
   const signAgreement = useCallback(async () => {
     if (!uid) return;
 
-    const { error: writeError } = await requireSupabase().from('agreements').insert({
-      freelancer_id: uid,
-      year: new Date().getFullYear(),
-      signed_on: new Date().toISOString().slice(0, 10),
-    });
+    const client = requireSupabase();
+    const year = new Date().getFullYear();
+
+    const { data: doc } = await client
+      .from('agreement_documents')
+      .select('storage_path, original_name, sha256')
+      .eq('year', year)
+      .maybeSingle();
+
+    const { data: row, error: writeError } = await client
+      .from('agreements')
+      .insert({
+        freelancer_id: uid,
+        year,
+        signed_on: new Date().toISOString().slice(0, 10),
+        signed_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
 
     if (writeError) {
       setError(writeError.message);
       return;
     }
+
+    try {
+      await recordSignature({
+        documentKind: 'agreement',
+        documentName: doc?.original_name ?? `Freelancer Agreement ${year}`,
+        documentSha256: doc?.sha256 ?? null,
+        documentPath: doc?.storage_path ?? null,
+        subjectType: 'agreement',
+        subjectId: (row as { id: string }).id,
+      });
+    } catch (err) {
+      // The agreement is signed either way; say so rather than pretending the
+      // evidence is there.
+      setError(
+        `Signed, but the signing record could not be written: ${
+          err instanceof Error ? err.message : 'unknown error'
+        }`,
+      );
+    }
+
     await load();
   }, [load, uid]);
 
