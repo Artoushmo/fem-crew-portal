@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useAssignment, useProgressActions } from '@/lib/assignment-state';
+import { useAssignment, useAgreement, useProgressActions } from '@/lib/assignment-state';
 import {
   PAYMENT_LABEL,
   VAT_RATE,
   formatFee,
+  stageAction,
   withVat,
   type Assignment,
 } from '@/lib/assignments';
@@ -18,9 +19,25 @@ import { StatusPill } from './StatusPill';
 import { Stepper } from './Stepper';
 import { Tabs } from './Tabs';
 
+/** The short version of why the current step cannot be taken, for under the
+    dot. The panel below gives the full sentence; this only has to stop the
+    tracker claiming "Now" about something that is weeks away. */
+function waitingLabel(a: Assignment, signed: boolean): string | null {
+  const action = stageAction(a, signed);
+  if (!action?.blocked) return null;
+
+  // A shoot day waits on a date, and that date is the useful thing to show.
+  if (a.stage === 3) {
+    return a.dateLabel.replace(/(\d+) (\w{3})\w* (\d{4})/, '$1 $2');
+  }
+
+  return 'Waiting';
+}
+
 export function AssignmentDetail({ id }: { id: string }) {
   const a = useAssignment(id);
   const { ready } = useProgressActions();
+  const { signed } = useAgreement();
 
   // Returning null for both cases made a slow load look identical to a missing
   // assignment: a blank page either way, with nothing to act on.
@@ -81,6 +98,7 @@ export function AssignmentDetail({ id }: { id: string }) {
           stage={a.stage}
           dates={a.stageDates}
           complete={a.stage >= 6 && a.payment.state === 'paid'}
+          waitingUntil={waitingLabel(a, signed)}
         />
 
         <StageAction assignment={a} />
