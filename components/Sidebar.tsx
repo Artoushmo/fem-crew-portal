@@ -9,6 +9,7 @@ import {
   FeeIcon,
   PanelIcon,
   ProfileIcon,
+  ClientsIcon,
   TeamIcon,
 } from './Icons';
 import { useAuth } from '@/lib/auth';
@@ -23,6 +24,7 @@ export const NAV = [
   { href: '/assignments', label: 'Assignments', short: 'Jobs', Icon: AssignmentsIcon },
   { href: '/payments', label: 'Payments', short: 'Pay', Icon: FeeIcon },
   { href: '/documents', label: 'Documents', short: 'Docs', Icon: DocumentsIcon },
+  { href: '/clients', label: 'Clients', short: 'Clients', Icon: ClientsIcon, staffOnly: true },
   { href: '/team', label: 'Team', short: 'Team', Icon: TeamIcon, staffOnly: true },
   { href: '/profile', label: 'Profile', short: 'Profile', Icon: ProfileIcon },
 ];

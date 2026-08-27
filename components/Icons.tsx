@@ -118,6 +118,16 @@ export function TeamIcon({ size = 18 }: IconProps) {
   );
 }
 
+export function ClientsIcon({ size = 18 }: IconProps) {
+  return (
+    <svg width={size} height={size} {...base}>
+      <path strokeLinejoin="round" d="M3.5 20V6.2c0-.5.3-.9.8-1L11 3.2c.6-.2 1.2.3 1.2.9V20" />
+      <path strokeLinejoin="round" d="M12.2 9.5h5.5c.5 0 .8.4.8.9V20" />
+      <path strokeLinecap="round" d="M2 20h20M6.4 8.4h2.4M6.4 12h2.4M6.4 15.6h2.4M15 13.5h1.2M15 16.8h1.2" />
+    </svg>
+  );
+}
+
 /** Collapse / expand control for the sidebar rail. */
 export function PanelIcon({ size = 18 }: IconProps) {
   return (
