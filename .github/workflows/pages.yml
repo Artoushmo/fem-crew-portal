@@ -28,11 +28,20 @@ jobs:
       - run: npm ci
 
       # A project site lives at /<repo>/, so the build needs that prefix.
+      #
+      # The Supabase values come from repository *variables*, not secrets: both
+      # end up in the JavaScript bundle by design. The project URL identifies
+      # the project and the publishable key grants nothing — row level security
+      # is what protects the data. Leave them unset and the site falls back to
+      # the unauthenticated demo, which is what it did until now.
       - name: Build static site
         env:
           NEXT_STATIC_EXPORT: '1'
           NEXT_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_OTP_LENGTH: ${{ vars.NEXT_PUBLIC_OTP_LENGTH }}
         run: npm run build
 
       # Stops Pages running the output through Jekyll, which drops _next/.
