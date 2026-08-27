@@ -8,6 +8,8 @@ import {
   type Assignment,
   type PaymentState,
 } from './assignments';
+import { isAuthConfigured } from './supabase';
+import { useMyAssignments } from './use-my-assignments';
 
 /** Everything the freelancer has changed, on top of the seed data. There is no
     backend yet, so progress lives in localStorage — enough to click the whole
@@ -35,9 +37,13 @@ export function today() {
 interface Ctx {
   assignments: Assignment[];
   agreement: { year: number; signed: boolean; signedOn: string };
-  /** False until localStorage has been read, so the server and first client
-      render agree. */
+  /** False until the source has answered, so the server and first client render
+      agree. */
   ready: boolean;
+  /** Only ever set on the live path. Demo has nothing to fail at. */
+  error: string | null;
+  /** True when this is real work rather than the sample set. */
+  live: boolean;
   advance: (id: string) => void;
   signAgreement: () => void;
   unsignAgreement: () => void;
@@ -46,7 +52,48 @@ interface Ctx {
 
 const AssignmentContext = createContext<Ctx | null>(null);
 
+/** Two sources, one shape. Signed in, the freelancer's work comes from the
+    database; without Supabase configured the portal still opens on the sample
+    set so the whole workflow can be clicked through.
+
+    Both hooks run on every render because hooks must -- the unused one just
+    returns nothing and costs a state slot. Branching the tree instead would
+    remount every screen the moment a session resolved. */
 export function AssignmentProvider({ children }: { children: React.ReactNode }) {
+  const live = useMyAssignments();
+
+  if (isAuthConfigured) return <LiveProvider live={live}>{children}</LiveProvider>;
+  return <DemoProvider>{children}</DemoProvider>;
+}
+
+function LiveProvider({
+  live,
+  children,
+}: {
+  live: ReturnType<typeof useMyAssignments>;
+  children: React.ReactNode;
+}) {
+  const value = useMemo(
+    () => ({
+      assignments: live.assignments,
+      agreement: live.agreement,
+      ready: live.ready,
+      error: live.error,
+      live: true,
+      advance: live.advance,
+      signAgreement: live.signAgreement,
+      // Nothing to undo against a database: an agreement you can withdraw from
+      // the screen that signed it is not an agreement.
+      unsignAgreement: () => {},
+      reset: () => {},
+    }),
+    [live],
+  );
+
+  return <AssignmentContext.Provider value={value}>{children}</AssignmentContext.Provider>;
+}
+
+function DemoProvider({ children }: { children: React.ReactNode }) {
   const [progress, setProgress] = useState<Progress>(EMPTY);
   const [ready, setReady] = useState(false);
 
@@ -152,7 +199,17 @@ export function AssignmentProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const value = useMemo(
-    () => ({ assignments, agreement, ready, advance, signAgreement, unsignAgreement, reset }),
+    () => ({
+      assignments,
+      agreement,
+      ready,
+      error: null,
+      live: false,
+      advance,
+      signAgreement,
+      unsignAgreement,
+      reset,
+    }),
     [assignments, agreement, ready, advance, signAgreement, unsignAgreement, reset],
   );
 
@@ -178,8 +235,8 @@ export function useAgreement() {
 }
 
 export function useProgressActions() {
-  const { advance, signAgreement, unsignAgreement, reset, ready } = useCtx();
-  return { advance, signAgreement, unsignAgreement, reset, ready };
+  const { advance, signAgreement, unsignAgreement, reset, ready, error, live } = useCtx();
+  return { advance, signAgreement, unsignAgreement, reset, ready, error, live };
 }
 
 export function useActionQueue() {
