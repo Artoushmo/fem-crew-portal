@@ -5,7 +5,7 @@
 // happens before that key is touched:
 //
 //   1. The caller's own token is used to read their profile. That read is
-//      subject to RLS, which for staff demands aal2 — so a session without a
+//      subject to RLS, which for staff demands aal2 -- so a session without a
 //      verified second factor cannot get past this line at all.
 //   2. The row that comes back has to say 'superadmin'.
 //
@@ -20,8 +20,8 @@ const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 // The welcome mail is sent through Resend's API rather than Supabase's SMTP,
 // for one reason: Supabase composes its own messages and offers no Reply-To
-// field. Sending it here lets the envelope say noreply@ — so nobody expects a
-// conversation with a robot — while Reply-To points at a mailbox a person
+// field. Sending it here lets the envelope say noreply@ -- so nobody expects a
+// conversation with a robot -- while Reply-To points at a mailbox a person
 // actually reads. Without a key the invite still succeeds; the response says
 // the mail was skipped rather than pretending it went out.
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY');
@@ -62,7 +62,7 @@ function escapeHtml(value: string): string {
     given a place to work from; the rest are being given the keys to the desk. */
 function rolePitch(role: Role): string {
   return role === 'freelancer'
-    ? 'Your assignments, call sheets, agreements and invoices all live here — one place, always current.'
+    ? 'Your assignments, call sheets, agreements and invoices all live here: one place, always current.'
     : 'You can create assignments, manage clients and match crew from here.';
 }
 
@@ -80,7 +80,7 @@ function welcomeEmail(name: string, role: Role): { subject: string; html: string
     : 'Fast Elevate Media - This mailbox is not monitored.';
 
   // Table layout and inline styles on purpose: Outlook still ignores most of
-  // everything else. No images are required to read it — the logo is a bonus,
+  // everything else. No images are required to read it -- the logo is a bonus,
   // not the message, because most clients block it by default.
   const html = `<!doctype html>
 <html lang="en"><body style="margin:0;padding:0;background:#f6f5f5;">
@@ -103,7 +103,7 @@ function welcomeEmail(name: string, role: Role): { subject: string; html: string
 <a href="${PORTAL_URL}/" style="display:inline-block;padding:13px 26px;font-family:Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Sign in and finish your profile</a>
 </td></tr></table>
 
-<p style="margin:28px 0 0;font-size:14px;line-height:1.6;color:#4a4a4a;">Please complete your profile before your first assignment — your gear, certifications and invoicing details are what we match on.</p>
+<p style="margin:28px 0 0;font-size:14px;line-height:1.6;color:#4a4a4a;">Please complete your profile before your first assignment. Your gear, certifications and invoicing details are what we match on.</p>
 </td></tr>
 
 <tr><td style="padding:20px 32px;border-top:1px solid #ececec;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.6;color:#8b909a;">
@@ -121,7 +121,7 @@ ${contact}
     '',
     `${PORTAL_URL}/`,
     '',
-    'Please complete your profile before your first assignment — your gear, certifications and invoicing details are what we match on.',
+    'Please complete your profile before your first assignment. Your gear, certifications and invoicing details are what we match on.',
     '',
     contactText,
   ].join('\n');
@@ -259,6 +259,6 @@ async function handler(req: Request): Promise<Response> {
 }
 
 // The runtime's current shape. Deliberately not using withSupabase: this needs
-// two distinct clients — the caller's, so RLS applies, and the privileged one —
+// two distinct clients -- the caller's, so RLS applies, and the privileged one --
 // and building them by hand keeps that boundary visible.
 export default { fetch: handler };
