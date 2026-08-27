@@ -195,7 +195,9 @@ export function StaffAssignmentsView() {
                           <span className="job__when">
                             <span className="job__date">{dateLabel(s.starts_at)}</span>
                             <span className="job__time">
-                              {s.on_site.slice(0, 5)}&ndash;{s.wrapped.slice(0, 5)}
+                              {s.kind === 'shoot' && s.on_site && s.wrapped
+                                ? `${s.on_site.slice(0, 5)}-${s.wrapped.slice(0, 5)}`
+                                : 'Deadline'}
                             </span>
                           </span>
 

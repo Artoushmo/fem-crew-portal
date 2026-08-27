@@ -24,18 +24,30 @@ export interface Role {
   accepted_at: string | null;
 }
 
-/** The shoot: everything the whole crew shares. */
+export type JobKind = 'shoot' | 'project';
+
+export const KIND_LABEL: Record<JobKind, string> = {
+  shoot: 'Shoot',
+  project: 'Project',
+};
+
+/** The job: everything the whole crew shares. A shoot has a call time and a
+    venue; a project has a deadline. Forcing a web build into the shoot shape
+    meant inventing an on-site time nobody would keep, and an invented 12:30
+    cannot be told from a real one. */
 export interface Shoot {
   id: string;
+  kind: JobKind;
   title: string;
   client_id: string | null;
   client_name: string | null;
   starts_at: string;
-  on_site: string;
-  camera_ready: string;
-  wrapped: string;
-  city: string;
-  venue: string;
+  due_on: string | null;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  city: string | null;
+  venue: string | null;
   maps_url: string | null;
   travel: string | null;
   parking: string | null;
@@ -70,9 +82,11 @@ export interface RoleDraft {
 }
 
 export interface ShootDraft {
+  kind: JobKind;
   title: string;
   client_id: string;
   date: string;
+  due_on: string;
   on_site: string;
   camera_ready: string;
   wrapped: string;
@@ -96,9 +110,11 @@ export interface ShootDraft {
 export const BLANK_ROLE: RoleDraft = { craft: '', role_label: '', fee: '' };
 
 export const BLANK_SHOOT: ShootDraft = {
+  kind: 'shoot',
   title: '',
   client_id: '',
   date: '',
+  due_on: '',
   on_site: '12:30',
   camera_ready: '13:00',
   wrapped: '18:00',
@@ -118,7 +134,7 @@ export const BLANK_SHOOT: ShootDraft = {
 };
 
 const SHOOT_COLUMNS = `
-  id, title, client_id, starts_at, on_site, camera_ready, wrapped,
+  id, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
   equipment, dresscode, client_notes, delivery,
   clients ( name ),
@@ -207,18 +223,25 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     return t === '' ? null : t;
   };
 
+  const isShoot = draft.kind === 'shoot';
+
   return {
+    kind: draft.kind,
     title: draft.title.trim(),
     client_id: draft.client_id,
     producer_id: producerId,
-    // Date and on-site time are one moment, so a shoot cannot end up on two
-    // different days.
-    starts_at: new Date(`${draft.date}T${draft.on_site}`).toISOString(),
-    on_site: draft.on_site,
-    camera_ready: draft.camera_ready,
-    wrapped: draft.wrapped,
-    city: draft.city.trim(),
-    venue: draft.venue.trim(),
+    // For a shoot the date and the on-site time are one moment, so it cannot
+    // end up on two days. A project has no call time, so it starts at the top
+    // of its deadline day and sorts alongside everything else.
+    starts_at: isShoot
+      ? new Date(`${draft.date}T${draft.on_site}`).toISOString()
+      : new Date(`${draft.due_on}T09:00`).toISOString(),
+    due_on: isShoot ? null : draft.due_on,
+    on_site: isShoot ? draft.on_site : null,
+    camera_ready: isShoot ? draft.camera_ready : null,
+    wrapped: isShoot ? draft.wrapped : null,
+    city: isShoot ? draft.city.trim() : tidy(draft.city),
+    venue: isShoot ? draft.venue.trim() : null,
     maps_url: tidy(draft.maps_url),
     travel: tidy(draft.travel),
     parking: tidy(draft.parking),

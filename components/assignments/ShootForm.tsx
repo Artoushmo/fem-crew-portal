@@ -9,6 +9,7 @@ import {
   centsToInput,
   fromLines,
   type RoleDraft,
+  type JobKind,
   type Shoot,
   type ShootDraft,
 } from '@/lib/use-staff-assignments';
@@ -18,12 +19,14 @@ export function toDraft(s: Shoot): ShootDraft {
   return {
     title: s.title,
     client_id: s.client_id ?? '',
+    kind: s.kind,
     date: s.starts_at.slice(0, 10),
-    on_site: s.on_site.slice(0, 5),
-    camera_ready: s.camera_ready.slice(0, 5),
-    wrapped: s.wrapped.slice(0, 5),
-    city: s.city,
-    venue: s.venue,
+    due_on: s.due_on ?? '',
+    on_site: s.on_site?.slice(0, 5) ?? '12:30',
+    camera_ready: s.camera_ready?.slice(0, 5) ?? '13:00',
+    wrapped: s.wrapped?.slice(0, 5) ?? '18:00',
+    city: s.city ?? '',
+    venue: s.venue ?? '',
     maps_url: s.maps_url ?? '',
     travel: s.travel ?? '',
     parking: s.parking ?? '',
@@ -80,14 +83,17 @@ export function ShootForm({
   const dropRole = (i: number) =>
     setForm((f) => ({ ...f, roles: f.roles.filter((_, n) => n !== i) }));
 
-  // Everything below this is on a call sheet. Without them there is nothing to
-  // send anyone, so the button stays shut rather than saving a shell.
+  const isShoot = form.kind === 'shoot';
+
+  // Enough to put on a call sheet, or enough to hold a deadline. Without it
+  // there is nothing to send anyone, so the button stays shut rather than
+  // saving a shell.
   const ready =
     form.title.trim() !== '' &&
     form.client_id !== '' &&
-    form.date !== '' &&
-    form.city.trim() !== '' &&
-    form.venue.trim() !== '' &&
+    (isShoot
+      ? form.date !== '' && form.city.trim() !== '' && form.venue.trim() !== ''
+      : form.due_on !== '') &&
     (editing || form.roles.some((r) => r.craft !== ''));
 
   const submit = async (e: React.FormEvent) => {
@@ -97,17 +103,40 @@ export function ShootForm({
     try {
       await onSave(form);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save this shoot.');
+      setError(err instanceof Error ? err.message : 'Could not save this job.');
       setBusy(false);
     }
   };
 
   return (
     <form className="panel" onSubmit={submit}>
-      <h2 className="panel__title">{editing ? 'Edit shoot' : 'New shoot'}</h2>
+      <h2 className="panel__title">
+        {editing ? 'Edit job' : isShoot ? 'New shoot' : 'New project'}
+      </h2>
       <p className="panel__hint">
-        Everything here is shared by the whole crew. Who fills each role is decided on the
-        shoot itself, so nobody is offered anything before you have read it back.
+        Everything here is shared by everyone on it. Who fills each role is decided on the
+        job itself, so nobody is offered anything before you have read it back.
+      </p>
+
+      <p className="eyebrow eyebrow--spaced">What kind of job</p>
+      <div className="segmented segmented--inline" role="radiogroup" aria-label="Kind of job">
+        {(['shoot', 'project'] as JobKind[]).map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={form.kind === k}
+            className={`segmented__item ${form.kind === k ? 'is-on' : ''}`}
+            onClick={() => setForm((f) => ({ ...f, kind: k }))}
+          >
+            {k === 'shoot' ? 'Shoot' : 'Project'}
+          </button>
+        ))}
+      </div>
+      <p className="field__hint field__hint--block">
+        {isShoot
+          ? 'A day on location, with call times and a venue.'
+          : 'Work with a deadline rather than a call time - a web build, an app design, an edit.'}
       </p>
 
       <p className="eyebrow eyebrow--spaced">The job</p>
@@ -204,64 +233,76 @@ export function ShootForm({
       )}
 
       <p className="eyebrow eyebrow--spaced">When</p>
-      <div className="form-grid form-grid--four">
-        <Field label="Date">
-          <input type="date" className="field__input" value={form.date} onChange={set('date')} required />
-        </Field>
-        <Field label="On site">
-          <input type="time" className="field__input" value={form.on_site} onChange={set('on_site')} required />
-        </Field>
-        <Field label="Camera ready">
-          <input
-            type="time"
-            className="field__input"
-            value={form.camera_ready}
-            onChange={set('camera_ready')}
-            required
-          />
-        </Field>
-        <Field label="Wrapped">
-          <input type="time" className="field__input" value={form.wrapped} onChange={set('wrapped')} required />
-        </Field>
-      </div>
+      {isShoot ? (
+        <div className="form-grid form-grid--four">
+          <Field label="Date">
+            <input type="date" className="field__input" value={form.date} onChange={set('date')} required />
+          </Field>
+          <Field label="On site">
+            <input type="time" className="field__input" value={form.on_site} onChange={set('on_site')} required />
+          </Field>
+          <Field label="Camera ready">
+            <input
+              type="time"
+              className="field__input"
+              value={form.camera_ready}
+              onChange={set('camera_ready')}
+              required
+            />
+          </Field>
+          <Field label="Wrapped">
+            <input type="time" className="field__input" value={form.wrapped} onChange={set('wrapped')} required />
+          </Field>
+        </div>
+      ) : (
+        <div className="form-grid">
+          <Field label="Deadline" hint="What the work is measured against.">
+            <input type="date" className="field__input" value={form.due_on} onChange={set('due_on')} required />
+          </Field>
+        </div>
+      )}
 
-      <p className="eyebrow eyebrow--spaced">Where</p>
-      <div className="form-grid">
-        <Field label="City">
-          <input className="field__input" value={form.city} onChange={set('city')} placeholder="Amsterdam" required />
-        </Field>
-        <Field label="Venue">
-          <input
-            className="field__input"
-            value={form.venue}
-            onChange={set('venue')}
-            placeholder="RAI Convention Centre"
-            required
-          />
-        </Field>
-        <Field label="Maps link" hint="Opens on their phone on the day.">
-          <input className="field__input" value={form.maps_url} onChange={set('maps_url')} placeholder="https://" />
-        </Field>
-        <Field label="Travel">
-          <input
-            className="field__input"
-            value={form.travel}
-            onChange={set('travel')}
-            placeholder="Metro 52 to Europaplein"
-          />
-        </Field>
-        <Field label="Parking">
-          <input className="field__input" value={form.parking} onChange={set('parking')} placeholder="P1, reimbursed" />
-        </Field>
-        <Field label="Dress code">
-          <input
-            className="field__input"
-            value={form.dresscode}
-            onChange={set('dresscode')}
-            placeholder="Smart casual, dark colours"
-          />
-        </Field>
-      </div>
+      {isShoot && (
+        <>
+          <p className="eyebrow eyebrow--spaced">Where</p>
+          <div className="form-grid">
+            <Field label="City">
+              <input className="field__input" value={form.city} onChange={set('city')} placeholder="Amsterdam" required />
+            </Field>
+            <Field label="Venue">
+              <input
+                className="field__input"
+                value={form.venue}
+                onChange={set('venue')}
+                placeholder="RAI Convention Centre"
+                required
+              />
+            </Field>
+            <Field label="Maps link" hint="Opens on their phone on the day.">
+              <input className="field__input" value={form.maps_url} onChange={set('maps_url')} placeholder="https://" />
+            </Field>
+            <Field label="Travel">
+              <input
+                className="field__input"
+                value={form.travel}
+                onChange={set('travel')}
+                placeholder="Metro 52 to Europaplein"
+              />
+            </Field>
+            <Field label="Parking">
+              <input className="field__input" value={form.parking} onChange={set('parking')} placeholder="P1, reimbursed" />
+            </Field>
+            <Field label="Dress code">
+              <input
+                className="field__input"
+                value={form.dresscode}
+                onChange={set('dresscode')}
+                placeholder="Smart casual, dark colours"
+              />
+            </Field>
+          </div>
+        </>
+      )}
 
       <p className="eyebrow eyebrow--spaced">Briefing</p>
       <Field label="What the shoot is" hint="Read before anyone accepts.">
@@ -278,22 +319,30 @@ export function ShootForm({
             placeholder={'Arrive 30 min early\nCheck in with the producer'}
           />
         </Field>
-        <Field label="Shot list" hint="One per line.">
+        <Field label={isShoot ? 'Shot list' : 'Deliverables'} hint="One per line.">
           <textarea
             className="field__input field__input--area"
             rows={4}
             value={form.shots}
             onChange={set('shots')}
-            placeholder={'Keynote wide\nAudience reactions\nProduct close-ups'}
+            placeholder={
+              isShoot
+                ? 'Keynote wide\nAudience reactions\nProduct close-ups'
+                : 'Homepage\nProduct page\nContact form'
+            }
           />
         </Field>
-        <Field label="Bring" hint="One per line.">
+        <Field label={isShoot ? 'Bring' : 'Tools and access'} hint="One per line.">
           <textarea
             className="field__input field__input--area"
             rows={4}
             value={form.equipment}
             onChange={set('equipment')}
-            placeholder={'Two bodies\n24-70 and 70-200\nSpare batteries'}
+            placeholder={
+              isShoot
+                ? 'Two bodies\n24-70 and 70-200\nSpare batteries'
+                : 'Figma file\nStaging access\nBrand kit'
+            }
           />
         </Field>
         <Field label="Client notes" hint="House rules, access, anything from the client.">
@@ -350,7 +399,7 @@ export function ShootForm({
 
       <div className="panel__actions">
         <button type="submit" className="btn btn--primary btn--sm" disabled={busy || !ready}>
-          {busy ? 'Saving...' : editing ? 'Save changes' : 'Create shoot'}
+          {busy ? 'Saving...' : editing ? 'Save changes' : isShoot ? 'Create shoot' : 'Create project'}
         </button>
         <button type="button" className="btn btn--outline btn--sm" onClick={onCancel} disabled={busy}>
           Cancel

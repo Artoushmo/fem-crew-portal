@@ -2226,6 +2226,177 @@ select.field__input {
   margin-left: auto;
 }
 
+/* --- Staff dashboard ---------------------------------------------------- */
+
+.list--tight {
+  gap: 8px;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.task:hover .task__title {
+  color: var(--fem-blue);
+}
+
+/* Urgency reads as position and colour together: the dot only confirms what the
+   order already said. */
+.task__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.task__dot--now { background: #c2571f; }
+.task__dot--soon { background: var(--fem-gold); }
+.task__dot--later { background: var(--fem-step-idle); }
+
+.task__what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.task__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.task__where {
+  font-size: 13px;
+  color: var(--fem-text-muted);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+@media (min-width: 720px) {
+  .tiles {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 18px;
+  background: var(--fem-white);
+  border: 1px solid var(--fem-border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile--link:hover {
+  border-color: var(--fem-blue-faint);
+}
+
+.tile__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fem-text-muted);
+}
+
+.tile__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.tile__value--wait { color: var(--fem-blue); }
+.tile__value--warn { color: #c2571f; }
+
+.tile__note {
+  font-size: 12.5px;
+  color: var(--fem-text-muted);
+}
+
+.agenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 14px 18px;
+}
+
+.agenda__when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 116px;
+}
+
+.agenda__day {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.agenda__rel {
+  font-size: 12.5px;
+  color: var(--fem-text-muted);
+}
+
+.agenda__what {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 170px;
+}
+
+.agenda__crew {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Overlapped faces: who is on the day, readable at a glance without a column
+   of names. */
+.agenda__face {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--fem-white);
+  margin-left: -10px;
+  background: var(--fem-track);
+}
+
+.agenda__face:first-child {
+  margin-left: 0;
+}
+
+.agenda__face--initials {
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--fem-text-secondary);
+}
+
+.segmented--inline {
+  flex: none;
+  display: inline-flex;
+  margin-bottom: 8px;
+}
+
 /* One line per person wanted. Craft first, because that is what gets searched
    for; the money last, where a column of figures lines up. */
 .rolelines {
