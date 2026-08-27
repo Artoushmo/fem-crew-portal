@@ -10,9 +10,12 @@ import { CheckIcon } from './Icons';
     itself rather than going quiet. */
 export function StageAction({ assignment }: { assignment: Assignment }) {
   const { signed } = useAgreement();
-  const { advance, signContract, returnSignedCopy, contractUrl } = useProgressActions();
+  const { advance, signContract, returnSignedCopy, deliver, contractUrl } = useProgressActions();
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const [link, setLink] = useState('');
+  const [note, setNote] = useState('');
   const action = stageAction(assignment, signed);
 
   // Step one with paperwork of its own: the contract has to be readable before
@@ -70,7 +73,56 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
         <p className="stage-act__hint">{action.blocked ?? action.hint}</p>
       </div>
 
-      {unsignedContract ? (
+      {/* Step five asks where the work went. The files travel the way they
+          always have -- a shoot day is tens of gigabytes and already moves by
+          WeTransfer or a client drive -- so what is missing is the pointer. */}
+      {assignment.stage === 4 && asking ? (
+        <form
+          className="deliver"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setNotice(null);
+            try {
+              await deliver(assignment.id, link, note);
+              setAsking(false);
+              setLink('');
+              setNote('');
+            } catch (err) {
+              setNotice(err instanceof Error ? err.message : 'Could not record that.');
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <input
+            className="field__input"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://we.tl/..."
+            aria-label="Delivery link"
+            autoFocus
+            required
+          />
+          <input
+            className="field__input"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Anything the producer should know (optional)"
+            aria-label="Note for the producer"
+          />
+          <button type="submit" className="btn btn--primary stage-act__btn" disabled={busy}>
+            {busy ? 'Saving...' : 'Mark delivered'}
+          </button>
+          <button
+            type="button"
+            className="link-arrow link-arrow--button"
+            onClick={() => setAsking(false)}
+          >
+            Cancel
+          </button>
+        </form>
+      ) : unsignedContract ? (
         <div className="stage-act__pair">
           <button type="button" className="btn btn--outline stage-act__btn" onClick={openContract}>
             Read it
@@ -113,7 +165,7 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
           type="button"
           className="btn btn--primary stage-act__btn"
           disabled={Boolean(action.blocked)}
-          onClick={() => advance(assignment.id)}
+          onClick={() => (assignment.stage === 4 ? setAsking(true) : advance(assignment.id))}
         >
           {action.label}
         </button>

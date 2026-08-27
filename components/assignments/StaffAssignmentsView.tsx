@@ -54,6 +54,7 @@ export function StaffAssignmentsView() {
     unbook,
     attachContract,
     removeContract,
+    confirmPayment,
     contractUrl,
   } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
@@ -271,6 +272,32 @@ export function StaffAssignmentsView() {
                                   >
                                     Open signed
                                   </button>
+                                )}
+
+                                {r.delivery_link && (
+                                  <a
+                                    href={r.delivery_link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="link-arrow"
+                                    title={r.delivery_note ?? undefined}
+                                  >
+                                    Delivery
+                                  </a>
+                                )}
+
+                                {r.payment_state === 'awaiting' && (
+                                  <button
+                                    type="button"
+                                    className="btn btn--outline btn--sm"
+                                    onClick={() => guard(() => confirmPayment(r.id))}
+                                  >
+                                    Mark paid
+                                  </button>
+                                )}
+
+                                {r.payment_state === 'paid' && (
+                                  <span className="tag tag--ok">Paid</span>
                                 )}
 
                                 <span className="roles__fee">{formatEuro(r.fee_cents)}</span>

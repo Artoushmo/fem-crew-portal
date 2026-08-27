@@ -17,7 +17,7 @@ import { requireSupabase, supabase } from './supabase';
 const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
-  contract_signed_on, reopened_reason,
+  contract_signed_on, reopened_reason, delivery_link, delivery_note,
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
@@ -40,6 +40,8 @@ interface RawRole {
   paid_on: string | null;
   contract_signed_on: string | null;
   reopened_reason: string | null;
+  delivery_link: string | null;
+  delivery_note: string | null;
   offered_at: string | null;
   accepted_at: string | null;
   assignments: {
@@ -159,6 +161,9 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
         }
       : null,
     reopened: row.reopened_reason,
+    deliveredTo: row.delivery_link
+      ? { link: row.delivery_link, note: row.delivery_note ?? '' }
+      : null,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),
@@ -475,6 +480,49 @@ export function useMyAssignments() {
     [load],
   );
 
+  /** Records where the work was delivered, and moves the step. Kept together
+      because a delivery with no destination is the state we just removed. */
+  const deliver = useCallback(
+    async (id: string, link: string, note: string) => {
+      const trimmed = link.trim();
+      if (!/^https?:\/\//i.test(trimmed)) {
+        throw new Error('That does not look like a link. It should start with https://');
+      }
+
+      const current = assignments.find((a) => a.id === id);
+      if (!current) return;
+
+      const client = requireSupabase();
+      const stamp = new Date();
+
+      const { data: existing } = await client
+        .from('assignment_roles')
+        .select('stage_dates')
+        .eq('id', id)
+        .maybeSingle();
+
+      const dates = {
+        ...((existing?.stage_dates as Record<string, string>) ?? {}),
+        [String(current.stage)]: stamp.toISOString().slice(0, 10),
+      };
+
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({
+          delivery_link: trimmed,
+          delivery_note: note.trim() || null,
+          delivered_at: stamp.toISOString(),
+          stage: Math.min(current.stage + 1, 6),
+          stage_dates: dates,
+        })
+        .eq('id', id);
+
+      if (writeError) throw new Error(writeError.message);
+      await load();
+    },
+    [assignments, load],
+  );
+
   /** A short-lived link to the job's contract. */
   const contractUrl = useCallback(async (id: string): Promise<string> => {
     const client = requireSupabase();
@@ -557,6 +605,7 @@ export function useMyAssignments() {
     signAgreement,
     signContract,
     returnSignedCopy,
+    deliver,
     contractUrl,
     reload: load,
   };

@@ -26,6 +26,8 @@ export interface Role {
   contract_signed_on: string | null;
   signed_copy_path: string | null;
   signed_copy_name: string | null;
+  delivery_link: string | null;
+  delivery_note: string | null;
 }
 
 export type JobKind = 'shoot' | 'project';
@@ -147,7 +149,7 @@ const SHOOT_COLUMNS = `
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
-    contract_signed_on, signed_copy_path, signed_copy_name,
+    contract_signed_on, signed_copy_path, signed_copy_name, delivery_link, delivery_note,
     profiles ( full_name, avatar_path )
   )
 `;
@@ -200,6 +202,8 @@ interface RawRole {
   contract_signed_on: string | null;
   signed_copy_path: string | null;
   signed_copy_name: string | null;
+  delivery_link: string | null;
+  delivery_note: string | null;
   profiles: { full_name: string | null; avatar_path: string | null } | null;
 }
 
@@ -483,6 +487,21 @@ export function useShoots() {
     [load],
   );
 
+  /** The last step of the whole process, and the only one FEM owns outright.
+      An RPC rather than an update, so the state and the date are set together
+      and can never disagree -- and so the refusal for anyone else comes from the
+      database instead of a hidden button. */
+  const confirmPayment = useCallback(
+    async (roleId: string) => {
+      const { error: rpcError } = await requireSupabase().rpc('confirm_payment', {
+        role_id: roleId,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      await load();
+    },
+    [load],
+  );
+
   const contractUrl = useCallback(async (path: string): Promise<string> => {
     const { data, error: signError } = await requireSupabase()
       .storage.from('agreements')
@@ -499,6 +518,7 @@ export function useShoots() {
     reload: load,
     attachContract,
     removeContract,
+    confirmPayment,
     contractUrl,
     create,
     update,

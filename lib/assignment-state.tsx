@@ -52,6 +52,8 @@ interface Ctx {
   /** Returns a countersigned PDF instead of clicking. Both are signatures; this
       one is for contracts that have to come back on paper. */
   returnSignedCopy: (id: string, file: File) => Promise<void>;
+  /** Records where the work went, and moves step five on. */
+  deliver: (id: string, link: string, note: string) => Promise<void>;
   /** A short-lived link to that contract. */
   contractUrl: (id: string) => Promise<string>;
   unsignAgreement: () => void;
@@ -92,6 +94,7 @@ function LiveProvider({
       signAgreement: live.signAgreement,
       signContract: live.signContract,
       returnSignedCopy: live.returnSignedCopy,
+      deliver: live.deliver,
       contractUrl: live.contractUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
@@ -223,6 +226,7 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
       returnSignedCopy: async () => {
         throw new Error('The sample assignments have no contract to return.');
       },
+      deliver: async (id: string) => advance(id),
       contractUrl: async () => {
         throw new Error('The sample assignments have no contract attached.');
       },
@@ -259,6 +263,7 @@ export function useProgressActions() {
     signAgreement,
     signContract,
     returnSignedCopy,
+    deliver,
     contractUrl,
     unsignAgreement,
     reset,
@@ -271,6 +276,7 @@ export function useProgressActions() {
     signAgreement,
     signContract,
     returnSignedCopy,
+    deliver,
     contractUrl,
     unsignAgreement,
     reset,

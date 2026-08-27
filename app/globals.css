@@ -3762,6 +3762,20 @@ select.field__input {
 /* A <label> wrapping a hidden file input is the button here, so it needs the
    disabled look the input alone cannot give it. */
 /* Read it / Sign sit together where a single action normally goes. */
+.deliver {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  flex: 1;
+  min-width: 260px;
+}
+
+.deliver .field__input {
+  flex: 1;
+  min-width: 190px;
+}
+
 .stage-act__reopened {
   flex-basis: 100%;
   margin: 0 0 12px;

@@ -67,6 +67,9 @@ export interface Assignment {
   /** Set when FEM changed the paperwork after someone had already signed, so
       the screen can say why the step came back instead of looking like a bug. */
   reopened: string | null;
+  /** Where the work went. The files travel the way they always have; this is
+      the pointer FEM needs. */
+  deliveredTo: { link: string; note: string } | null;
   status: Status;
   /** Index into STAGES: the stage currently in play. */
   stage: number;
@@ -106,6 +109,7 @@ export const assignments: Assignment[] = [
     fee: 450,
     contract: null,
     reopened: null,
+    deliveredTo: null,
     status: 'confirmed',
     stage: 2,
     stageDates: ['4 Jan 2026', '2 Sep 2026', null, null, null, null, null],
@@ -174,6 +178,7 @@ export const assignments: Assignment[] = [
     fee: 780,
     contract: null,
     reopened: null,
+    deliveredTo: null,
     status: 'action-required',
     stage: 1,
     stageDates: ['4 Jan 2026', null, null, null, null, null, null],
@@ -236,6 +241,7 @@ export const assignments: Assignment[] = [
     fee: 520,
     contract: null,
     reopened: null,
+    deliveredTo: null,
     status: 'delivered',
     stage: 5,
     stageDates: [
@@ -298,6 +304,7 @@ export const assignments: Assignment[] = [
     fee: 640,
     contract: null,
     reopened: null,
+    deliveredTo: null,
     status: 'completed',
     stage: 6,
     stageDates: [
@@ -477,9 +484,9 @@ export function stageAction(a: Assignment, signed: boolean) {
       };
     case 4:
       return {
-        label: 'Upload files',
-        hint: 'Hands your work to the producer for review.',
-        done: 'Files uploaded',
+        label: 'Add the delivery link',
+        hint: 'Where you sent the files. WeTransfer, Frame.io, a client drive -- whatever you used.',
+        done: 'Delivered',
         blocked: null,
       };
     case 5:
