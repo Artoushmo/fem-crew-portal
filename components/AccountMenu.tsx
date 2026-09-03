@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { CURRENT_VERSION } from '@/lib/changelog';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { avatarUrl } from '@/lib/use-profile';
@@ -95,6 +96,19 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
           >
             <ProfileIcon size={15} />
             Profile settings
+          </Link>
+
+          {/* Not in the rail: people read it once when something changed, not
+              every day. Here it is findable without taking a place from the
+              screens they actually work in. */}
+          <Link
+            href="/changelog"
+            role="menuitem"
+            className="account__item"
+            onClick={() => setOpen(false)}
+          >
+            <span className="account__version">v{CURRENT_VERSION}</span>
+            What&rsquo;s new
           </Link>
 
           {configured && (
