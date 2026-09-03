@@ -115,15 +115,25 @@ export function StageAction({
             }
           }}
         >
-          <input
-            className="field__input"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://we.tl/..."
-            aria-label="Delivery link"
-            autoFocus
-            required
-          />
+          {assignment.gallery ? (
+            <p className="deliver__gallery">
+              Add your files to{' '}
+              <a href={assignment.gallery.link} target="_blank" rel="noopener noreferrer">
+                the FEM gallery
+              </a>
+              {assignment.gallery.note ? ` — ${assignment.gallery.note}` : ''}, then confirm below.
+            </p>
+          ) : (
+            <input
+              className="field__input"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="https://we.tl/..."
+              aria-label="Delivery link"
+              autoFocus
+              required
+            />
+          )}
           <input
             className="field__input"
             value={note}

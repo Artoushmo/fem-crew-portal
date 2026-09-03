@@ -22,7 +22,7 @@ const COLUMNS = `
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
-    equipment, dresscode, client_notes, delivery, contract_path, contract_name,
+    equipment, dresscode, client_notes, delivery, contract_path, contract_name, gallery_link, gallery_note,
     clients ( name ),
     assignment_files ( name, kind, size_label )
   )
@@ -67,6 +67,8 @@ interface RawRole {
     client_notes: string | null;
     contract_path: string | null;
     contract_name: string | null;
+    gallery_link: string | null;
+    gallery_note: string | null;
     delivery: Record<string, string> | null;
     clients: { name: string } | null;
     assignment_files: { name: string; kind: string; size_label: string | null }[] | null;
@@ -165,6 +167,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     deliveredTo: row.delivery_link
       ? { link: row.delivery_link, note: row.delivery_note ?? '' }
       : null,
+    gallery: s.gallery_link ? { link: s.gallery_link, note: s.gallery_note ?? '' } : null,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),
@@ -489,13 +492,17 @@ export function useMyAssignments() {
       because a delivery with no destination is the state we just removed. */
   const deliver = useCallback(
     async (id: string, link: string, note: string) => {
-      const trimmed = link.trim();
-      if (!/^https?:\/\//i.test(trimmed)) {
-        throw new Error('That does not look like a link. It should start with https://');
-      }
-
       const current = assignments.find((a) => a.id === id);
       if (!current) return;
+
+      const trimmed = link.trim();
+
+      // With a gallery on the job the destination was set by FEM, so there is
+      // nothing to paste back. Without one, a delivery with no destination is
+      // the state this step exists to prevent.
+      if (!current.gallery && !/^https?:\/\//i.test(trimmed)) {
+        throw new Error('That does not look like a link. It should start with https://');
+      }
 
       const client = requireSupabase();
       const stamp = new Date();
@@ -514,8 +521,8 @@ export function useMyAssignments() {
       const { error: writeError } = await client
         .from('assignment_roles')
         .update({
-          delivery_link: trimmed,
-          delivery_note: note.trim() || null,
+          delivery_link: trimmed || current.gallery?.link || null,
+          delivery_note: note.trim() || (current.gallery ? 'Added to the FEM gallery' : null),
           delivered_at: stamp.toISOString(),
           stage: Math.min(current.stage + 1, 6),
           stage_dates: dates,

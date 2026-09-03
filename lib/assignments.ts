@@ -70,6 +70,9 @@ export interface Assignment {
   /** Where the work went. The files travel the way they always have; this is
       the pointer FEM needs. */
   deliveredTo: { link: string; note: string } | null;
+  /** A gallery FEM already made. When there is one, delivering means adding to
+      it rather than sending a link back. */
+  gallery: { link: string; note: string } | null;
   status: Status;
   /** Index into STAGES: the stage currently in play. */
   stage: number;
@@ -110,6 +113,7 @@ export const assignments: Assignment[] = [
     contract: null,
     reopened: null,
     deliveredTo: null,
+    gallery: null,
     status: 'confirmed',
     stage: 2,
     stageDates: ['4 Jan 2026', '2 Sep 2026', null, null, null, null, null],
@@ -179,6 +183,7 @@ export const assignments: Assignment[] = [
     contract: null,
     reopened: null,
     deliveredTo: null,
+    gallery: null,
     status: 'action-required',
     stage: 1,
     stageDates: ['4 Jan 2026', null, null, null, null, null, null],
@@ -242,6 +247,7 @@ export const assignments: Assignment[] = [
     contract: null,
     reopened: null,
     deliveredTo: null,
+    gallery: null,
     status: 'delivered',
     stage: 5,
     stageDates: [
@@ -305,6 +311,7 @@ export const assignments: Assignment[] = [
     contract: null,
     reopened: null,
     deliveredTo: null,
+    gallery: null,
     status: 'completed',
     stage: 6,
     stageDates: [
@@ -483,12 +490,19 @@ export function stageAction(a: Assignment, signed: boolean) {
             : null,
       };
     case 4:
-      return {
-        label: 'Add the delivery link',
-        hint: 'Where you sent the files. WeTransfer, Frame.io, a client drive -- whatever you used.',
-        done: 'Delivered',
-        blocked: null,
-      };
+      return a.gallery
+        ? {
+            label: 'Mark as delivered',
+            hint: `Add your files to the FEM gallery, then confirm.${a.gallery.note ? ` ${a.gallery.note}` : ''}`,
+            done: 'Delivered',
+            blocked: null,
+          }
+        : {
+            label: 'Add the delivery link',
+            hint: 'Where you sent the files. WeTransfer, Frame.io, a client drive -- whatever you used.',
+            done: 'Delivered',
+            blocked: null,
+          };
     case 5:
       return {
         label: 'Send invoice',

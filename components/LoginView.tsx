@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
+import { CodeInput } from './CodeInput';
 import { Logo } from './Logo';
 
 type Step = 'email' | 'code' | 'mfa';
@@ -124,24 +125,14 @@ export function LoginView() {
                 />
               </label>
             ) : (
-              <label className="field">
-                <span className="field__label">Code</span>
-                <input
-                  ref={codeField}
-                  type="text"
-                  name="code"
-                  className="field__input field__input--code"
-                  value={code}
-                  onChange={(e) =>
-                    setCode(e.target.value.replace(/\D/g, '').slice(0, maxCode))
-                  }
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder={'0'.repeat(step === 'mfa' ? MAX_CODE.mfa : CODE_HINT)}
-                  maxLength={maxCode}
-                  required
-                />
-              </label>
+              <CodeInput
+                ref={codeField}
+                value={code}
+                onChange={setCode}
+                length={step === 'mfa' ? MAX_CODE.mfa : CODE_HINT}
+                label={step === 'mfa' ? 'Authenticator code' : 'Code'}
+                disabled={busy}
+              />
             )}
 
             {error && (
