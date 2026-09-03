@@ -15,15 +15,21 @@ function dateLabel(iso: string): string {
 
 /** What changed, per release.
  *
- * Filtered by who it was for, because a freelancer reading about the client
- * book learns nothing except that the portal is bigger than their part of it.
- * The filter defaults to their own side and can be turned off. */
+ * A freelancer sees what touches their own work and nothing else -- not because
+ * the rest is secret, but because a changelog full of screens you cannot open
+ * is a list of things you are missing. FEM can switch to everything, since half
+ * of it is theirs and the other half is what they just changed for their crew.
+ */
 export function ChangelogView() {
   const { profile } = useAuth();
   const isStaff = profile ? profile.role !== 'freelancer' : false;
   const [mine, setMine] = useState(true);
 
   const side = isStaff ? 'fem' : 'crew';
+
+  // Only FEM gets the choice. For a freelancer "everything" would just be the
+  // parts of the portal they will never see.
+  const showAll = isStaff && !mine;
 
   return (
     <>
@@ -33,33 +39,35 @@ export function ChangelogView() {
       </Masthead>
 
       <main className="content content--wide">
-        <div className="toolbar">
-          <div className="segmented segmented--inline" role="tablist" aria-label="Which changes">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mine}
-              className={`segmented__item ${mine ? 'is-on' : ''}`}
-              onClick={() => setMine(true)}
-            >
-              For you
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!mine}
-              className={`segmented__item ${!mine ? 'is-on' : ''}`}
-              onClick={() => setMine(false)}
-            >
-              Everything
-            </button>
+        {isStaff && (
+          <div className="toolbar">
+            <div className="segmented segmented--inline" role="tablist" aria-label="Which changes">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mine}
+                className={`segmented__item ${mine ? 'is-on' : ''}`}
+                onClick={() => setMine(true)}
+              >
+                For FEM
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={!mine}
+                className={`segmented__item ${!mine ? 'is-on' : ''}`}
+                onClick={() => setMine(false)}
+              >
+                Everything
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {RELEASES.map((release, i) => {
-          const changes = mine
-            ? release.changes.filter((c) => !c.who || c.who === side)
-            : release.changes;
+          const changes = showAll
+            ? release.changes
+            : release.changes.filter((c) => !c.who || c.who === side);
 
           if (changes.length === 0) return null;
 
@@ -80,7 +88,7 @@ export function ChangelogView() {
                   <li key={c.title} className="release__item">
                     <p className="release__title">
                       {c.title}
-                      {!mine && c.who && (
+                      {showAll && c.who && (
                         <span className="release__who">{c.who === 'fem' ? 'FEM' : 'Crew'}</span>
                       )}
                     </p>

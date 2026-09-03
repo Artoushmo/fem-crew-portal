@@ -298,6 +298,8 @@ button {
 .topbar__account {
   margin-left: auto;
   flex-shrink: 0;
+  /* Above the content the menu now opens over. */
+  z-index: 50;
 }
 
 .topbar__account .account__menu {
@@ -360,10 +362,21 @@ button {
 /* ---------- Masthead: obsidian block with the chevron cut ---------- */
 
 .masthead {
-  background: var(--fem-obsidian);
+  position: relative;
   /* Content sits in a centred column, where the chevron cut is at its shallowest,
      so it needs less clearance than the full chevron depth. */
   padding-bottom: calc(var(--fem-chevron) * 0.72);
+}
+
+/* The chevron is a layer behind the content, not a clip on the element.
+   clip-path cuts descendants too, so the account menu -- which opens downwards
+   past the dark edge -- was being sliced off at the diagonal. Painting the
+   shape behind instead leaves anything that overflows intact. */
+.masthead::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--fem-obsidian);
   clip-path: polygon(
     0 0,
     100% 0,
@@ -371,6 +384,11 @@ button {
     50% calc(100% - var(--fem-chevron)),
     0 100%
   );
+}
+
+.masthead > * {
+  position: relative;
+  z-index: 1;
 }
 
 .masthead__inner {
