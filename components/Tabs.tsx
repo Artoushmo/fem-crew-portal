@@ -8,9 +8,26 @@ export interface Tab {
   content: React.ReactNode;
 }
 
-/** WAI-ARIA tabs: arrow keys move between tabs, only the active one is tabbable. */
-export function Tabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(tabs[0].id);
+/** WAI-ARIA tabs: arrow keys move between tabs, only the active one is tabbable.
+
+    Optionally controlled, so a step elsewhere on the page can send someone to
+    the tab it is talking about instead of telling them to go and find it. */
+export function Tabs({
+  tabs,
+  active: controlled,
+  onActiveChange,
+}: {
+  tabs: Tab[];
+  active?: string;
+  onActiveChange?: (id: string) => void;
+}) {
+  const [own, setOwn] = useState(tabs[0].id);
+  const active = controlled ?? own;
+
+  const setActive = (id: string) => {
+    setOwn(id);
+    onActiveChange?.(id);
+  };
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const onKeyDown = (e: React.KeyboardEvent) => {

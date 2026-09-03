@@ -547,34 +547,76 @@ export const payments = {
   count: assignments.length,
 };
 
+/** Calendars want basic-format UTC: 20260923T123000Z. The portal was handing
+    them 2026-09-23T12:30:00, which Google ignores and Apple rejects outright --
+    "no valid events found" is what an .ics with a malformed DTSTART produces.
+
+    The wall-clock time is read in the reader's own zone, which for FEM's crew is
+    the shoot's zone. An event that lands an hour out is worse than none, so this
+    is the one place worth stating: it assumes the person adding the shoot is in
+    the same country as the shoot. */
+function stamp(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+}
+
 export function calendarLinks(a: Assignment, portalUrl: string) {
-  const title = `${a.title} – ${a.client} (FEM)`;
+  const title = `${a.title} - ${a.client} (FEM)`;
   const details = [
     `On site ${a.onSite}, camera ready ${a.cameraReady}, wrap ${a.wrapped}.`,
     `Role: ${a.role}. Fee: ${formatFee(a.fee)}.`,
     `Assignment: ${portalUrl}`,
   ].join('\n');
-  const location = `${a.venue}, ${a.city}`;
+  const location = [a.venue, a.city].filter(Boolean).join(', ');
+
+  const start = stamp(a.calendar.start);
+  const end = stamp(a.calendar.end);
 
   const google =
     'https://calendar.google.com/calendar/render?action=TEMPLATE' +
     `&text=${encodeURIComponent(title)}` +
-    `&dates=${a.calendar.start}/${a.calendar.end}` +
+    `&dates=${start}/${end}` +
     `&location=${encodeURIComponent(location)}` +
     `&details=${encodeURIComponent(details)}`;
+
+  // Outlook on the web takes its own query string; handing it an .ics download
+  // works but drops people into a file picker for no reason.
+  const outlook =
+    'https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent' +
+    `&subject=${encodeURIComponent(title)}` +
+    `&startdt=${encodeURIComponent(new Date(a.calendar.start).toISOString())}` +
+    `&enddt=${encodeURIComponent(new Date(a.calendar.end).toISOString())}` +
+    `&location=${encodeURIComponent(location)}` +
+    `&body=${encodeURIComponent(details)}`;
+
+  // Long lines have to be folded and commas escaped, or the event silently
+  // loses everything after the first one.
+  const fold = (line: string) =>
+    line.length <= 74 ? line : line.match(/.{1,74}/g)!.join('\r\n ');
+
+  const escape = (v: string) => v.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
 
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
+    'PRODID:-//Fast Elevate Media//Crew Portal//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `SUMMARY:${title}`,
-    `DTSTART:${a.calendar.start}`,
-    `DTEND:${a.calendar.end}`,
-    `LOCATION:${location}`,
-    `DESCRIPTION:${details.replace(/\n/g, '\\n')}`,
+    // Without a UID and a DTSTAMP most clients treat the file as malformed and
+    // say they found nothing to add.
+    `UID:${a.id}@fastelevatemedia.com`,
+    `DTSTAMP:${stamp(new Date().toISOString())}`,
+    fold(`SUMMARY:${escape(title)}`),
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
+    fold(`LOCATION:${escape(location)}`),
+    fold(`DESCRIPTION:${escape(details)}`),
+    fold(`URL:${portalUrl}`),
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');
 
-  return { google, ics, filename: `FEM-${a.id}.ics` };
+  return { google, outlook, ics, filename: `FEM-${a.id}.ics` };
 }

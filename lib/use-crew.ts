@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
-import type { Craft } from './profile-types';
+import type { Craft, TravelScope } from './profile-types';
 import { supabase } from './supabase';
 
 export interface CrewMember {
@@ -11,7 +11,7 @@ export interface CrewMember {
   email: string | null;
   avatar_path: string | null;
   base_city: string | null;
-  travel_radius_km: number | null;
+  travel_scope: TravelScope;
   crafts: Craft[];
   primary_craft: Craft | null;
   gear_count: number;
@@ -31,7 +31,7 @@ interface Row {
   email: string | null;
   avatar_path: string | null;
   base_city: string | null;
-  travel_radius_km: number | null;
+  travel_scope: TravelScope;
   status: string;
   role: string;
   freelancer_crafts: { craft: Craft; is_primary: boolean }[];
@@ -42,7 +42,7 @@ interface Row {
 }
 
 const COLUMNS = `
-  id, full_name, email, avatar_path, base_city, travel_radius_km, status, role,
+  id, full_name, email, avatar_path, base_city, travel_scope, status, role,
   freelancer_crafts ( craft, is_primary ),
   gear ( id ),
   credentials ( label, expires_on ),
@@ -114,7 +114,7 @@ export function useCrew(shootDate: string | null) {
         email: r.email,
         avatar_path: r.avatar_path,
         base_city: r.base_city,
-        travel_radius_km: r.travel_radius_km,
+        travel_scope: r.travel_scope,
         crafts,
         primary_craft: primary,
         gear_count: (r.gear ?? []).length,

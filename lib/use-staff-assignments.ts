@@ -29,6 +29,8 @@ export interface Role {
   signed_copy_name: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
+  invoice_path: string | null;
+  invoice_name: string | null;
 }
 
 export type JobKind = 'shoot' | 'project';
@@ -66,6 +68,8 @@ export interface Shoot {
   client_notes: string | null;
   contract_path: string | null;
   contract_name: string | null;
+  gallery_link: string | null;
+  gallery_note: string | null;
   delivery: Delivery;
   roles: Role[];
 }
@@ -114,6 +118,8 @@ export interface ShootDraft {
   equipment: string;
   dresscode: string;
   client_notes: string;
+  gallery_link: string;
+  gallery_note: string;
   delivery: Delivery;
   /** Only used when creating: the crew the shoot opens with. */
   roles: RoleDraft[];
@@ -142,6 +148,8 @@ export const BLANK_SHOOT: ShootDraft = {
   equipment: '',
   dresscode: '',
   client_notes: '',
+  gallery_link: '',
+  gallery_note: '',
   delivery: BLANK_DELIVERY,
   roles: [{ ...BLANK_ROLE }],
 };
@@ -155,6 +163,7 @@ const SHOOT_COLUMNS = `
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
     contract_signed_on, signed_copy_path, signed_copy_name, delivery_link, delivery_note,
+    invoice_path, invoice_name,
     profiles ( full_name, avatar_path )
   )
 `;
@@ -209,6 +218,8 @@ interface RawRole {
   signed_copy_name: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
+  invoice_path: string | null;
+  invoice_name: string | null;
   profiles: { full_name: string | null; avatar_path: string | null } | null;
 }
 
@@ -269,6 +280,8 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     equipment: toLines(draft.equipment),
     dresscode: tidy(draft.dresscode),
     client_notes: tidy(draft.client_notes),
+    gallery_link: tidy(draft.gallery_link),
+    gallery_note: tidy(draft.gallery_note),
     delivery: draft.delivery,
   };
 }
@@ -510,6 +523,20 @@ export function useShoots() {
     [load],
   );
 
+  /** Payments bounce, get sent twice, and go to the wrong account. Confirming
+      one used to be final, which meant a wrong click became a database edit. */
+  const undoPayment = useCallback(
+    async (roleId: string, reason?: string) => {
+      const { error: rpcError } = await requireSupabase().rpc('unconfirm_payment', {
+        role_id: roleId,
+        reason: reason ?? null,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      await load();
+    },
+    [load],
+  );
+
   const contractUrl = useCallback(async (path: string): Promise<string> => {
     const { data, error: signError } = await requireSupabase()
       .storage.from('agreements')
@@ -527,6 +554,7 @@ export function useShoots() {
     attachContract,
     removeContract,
     confirmPayment,
+    undoPayment,
     contractUrl,
     create,
     update,

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { useAssignment, useAgreement, useProgressActions } from '@/lib/assignment-state';
 import {
   PAYMENT_LABEL,
@@ -38,6 +39,14 @@ export function AssignmentDetail({ id }: { id: string }) {
   const a = useAssignment(id);
   const { ready } = useProgressActions();
   const { signed } = useAgreement();
+  const [tab, setTab] = useState('day');
+  // Reset per assignment: having read one briefing says nothing about the next.
+  const [briefingSeen, setBriefingSeen] = useState(false);
+
+  useEffect(() => {
+    setBriefingSeen(false);
+    setTab('day');
+  }, [id]);
 
   // Returning null for both cases made a slow load look identical to a missing
   // assignment: a blank page either way, with nothing to act on.
@@ -101,9 +110,21 @@ export function AssignmentDetail({ id }: { id: string }) {
           waitingUntil={waitingLabel(a, signed)}
         />
 
-        <StageAction assignment={a} />
+        <StageAction
+          assignment={a}
+          briefingSeen={briefingSeen}
+          onOpenBriefing={() => {
+            setTab('briefing');
+            setBriefingSeen(true);
+          }}
+        />
 
         <Tabs
+          active={tab}
+          onActiveChange={(id) => {
+            setTab(id);
+            if (id === 'briefing') setBriefingSeen(true);
+          }}
           tabs={[
             { id: 'day', label: 'The day', content: <DayTab a={a} /> },
             { id: 'briefing', label: 'Briefing', content: <BriefingTab a={a} /> },
@@ -171,12 +192,21 @@ function DayTab({ a }: { a: Assignment }) {
       </section>
 
       <section className="panel">
-        <h2 className="panel__title">Who else is on it</h2>
-        <ul className="people">
-          {a.crew.map((p) => (
-            <li key={p}>{p}</li>
-          ))}
-        </ul>
+        {/* Only worth a heading when somebody else is actually on it. A list of
+            one, naming the producer whose details are right underneath, answers
+            a question nobody asked. */}
+        {a.crew.length > 0 && (
+          <>
+            <h2 className="panel__title">Who else is on it</h2>
+            <ul className="people">
+              {a.crew.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {a.crew.length === 0 && <h2 className="panel__title">Your producer</h2>}
 
         <div className="contact">
           <div>
@@ -220,6 +250,10 @@ function BriefingTab({ a }: { a: Assignment }) {
           {a.expectations.map((e) => (
             <li key={e}>{e}</li>
           ))}
+          <li>
+            Nothing from this job goes on social media without agreeing it with Fast
+            Elevate Media first. That includes stills, behind the scenes and stories.
+          </li>
         </ul>
       </section>
 

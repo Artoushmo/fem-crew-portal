@@ -12,7 +12,7 @@ import type {
 
 const PROFILE_COLUMNS =
   'id, role, full_name, email, phone, avatar_path, base_city, country, bio,' +
-  ' travel_radius_km, notice_hours, company_name, coc_number, vat_number, iban';
+  ' travel_radius_km, travel_scope, notice_hours, company_name, coc_number, vat_number, iban';
 
 export interface ProfileBundle {
   profile: ProfileRow | null;

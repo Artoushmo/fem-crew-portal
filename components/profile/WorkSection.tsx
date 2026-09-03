@@ -2,7 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { requireSupabase } from '@/lib/supabase';
-import { CRAFTS, CRAFT_LABEL, type CraftRow, type Craft, type ProfileRow } from '@/lib/profile-types';
+import {
+  CRAFTS,
+  CRAFT_LABEL,
+  TRAVEL_SCOPES,
+  TRAVEL_SCOPE_LABEL,
+  type CraftRow,
+  type Craft,
+  type ProfileRow,
+  type TravelScope,
+} from '@/lib/profile-types';
 import { Field, SectionForm } from './SectionForm';
 
 export function WorkSection({
@@ -17,7 +26,7 @@ export function WorkSection({
   const [selected, setSelected] = useState<Craft[]>([]);
   const [primary, setPrimary] = useState<Craft | null>(null);
   const [years, setYears] = useState<Record<string, string>>({});
-  const [reach, setReach] = useState({ travel_radius_km: '', notice_hours: '' });
+  const [reach, setReach] = useState({ travel_scope: 'nl' as TravelScope, notice_hours: '' });
   const [snapshot, setSnapshot] = useState('');
 
   useEffect(() => {
@@ -28,12 +37,15 @@ export function WorkSection({
       Object.fromEntries(crafts.map((c) => [c.craft, c.years_experience?.toString() ?? ''])),
     );
     const next = {
-      travel_radius_km: profile?.travel_radius_km?.toString() ?? '',
+      travel_scope: (profile?.travel_scope ?? 'nl') as TravelScope,
       notice_hours: profile?.notice_hours?.toString() ?? '',
     };
     setReach(next);
     setSnapshot(JSON.stringify({ picked, primary: crafts.find((c) => c.is_primary)?.craft ?? null, years: Object.fromEntries(crafts.map((c) => [c.craft, c.years_experience?.toString() ?? ''])), next }));
-  }, [crafts, profile]);
+    // Only while nothing has been typed. Saving another section reloads the
+    // profile, and reseeding here threw away half-made craft selections.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id, crafts.length]);
 
   const current = JSON.stringify({ picked: selected, primary, years, next: reach });
   const dirty = snapshot !== '' && current !== snapshot;
@@ -74,7 +86,7 @@ export function WorkSection({
     const { error: profileError } = await client
       .from('profiles')
       .update({
-        travel_radius_km: reach.travel_radius_km ? Number(reach.travel_radius_km) : null,
+        travel_scope: reach.travel_scope,
         notice_hours: reach.notice_hours ? Number(reach.notice_hours) : null,
       })
       .eq('id', profile.id);
@@ -142,19 +154,20 @@ export function WorkSection({
       </ul>
 
       <div className="grid-2 grid-2--spaced">
-        <Field label="Travel radius" hint="How far from home you take work, in kilometres.">
-          <input
+        <Field label="How far you travel" hint="What a producer checks before offering you a day.">
+          <select
             className="field__input"
-            value={reach.travel_radius_km}
+            value={reach.travel_scope}
             onChange={(e) =>
-              setReach((r) => ({
-                ...r,
-                travel_radius_km: e.target.value.replace(/\D/g, '').slice(0, 4),
-              }))
+              setReach((r) => ({ ...r, travel_scope: e.target.value as TravelScope }))
             }
-            inputMode="numeric"
-            placeholder="75"
-          />
+          >
+            {TRAVEL_SCOPES.map((v) => (
+              <option key={v} value={v}>
+                {TRAVEL_SCOPE_LABEL[v]}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Notice needed" hint="Hours of warning before a shoot.">

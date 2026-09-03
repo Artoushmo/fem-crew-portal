@@ -75,7 +75,15 @@ export function AddToCalendar({
           <button type="button" role="menuitem" className="calendar__item" onClick={downloadIcs}>
             Apple Calendar
           </button>
-          <button type="button" role="menuitem" className="calendar__item" onClick={downloadIcs}>
+          <button
+            type="button"
+            role="menuitem"
+            className="calendar__item"
+            onClick={() => {
+              window.open(links().outlook, '_blank', 'noopener');
+              setOpen(false);
+            }}
+          >
             Outlook
           </button>
         </div>

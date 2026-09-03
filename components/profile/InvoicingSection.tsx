@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSeededForm } from '@/lib/use-seeded-form';
 import { requireSupabase } from '@/lib/supabase';
 import type { ProfileRow } from '@/lib/profile-types';
 import { Field, SectionForm } from './SectionForm';
@@ -12,27 +12,16 @@ export function InvoicingSection({
   profile: ProfileRow | null;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState({
-    company_name: '',
-    coc_number: '',
-    vat_number: '',
-    iban: '',
-  });
-  const [initial, setInitial] = useState(form);
+  const { form, setForm, dirty, commit, reset } = useSeededForm(
+    {
+      company_name: profile?.company_name ?? '',
+      coc_number: profile?.coc_number ?? '',
+      vat_number: profile?.vat_number ?? '',
+      iban: profile?.iban ?? '',
+    },
+    profile?.id,
+  );
 
-  useEffect(() => {
-    if (!profile) return;
-    const next = {
-      company_name: profile.company_name ?? '',
-      coc_number: profile.coc_number ?? '',
-      vat_number: profile.vat_number ?? '',
-      iban: profile.iban ?? '',
-    };
-    setForm(next);
-    setInitial(next);
-  }, [profile]);
-
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -48,7 +37,7 @@ export function InvoicingSection({
       .eq('id', profile!.id);
 
     if (error) throw new Error(error.message);
-    setInitial(form);
+    commit();
     onSaved();
   };
 
@@ -58,7 +47,7 @@ export function InvoicingSection({
       hint="Used on the invoices you send FEM. Only you and FEM's finance staff can read this."
       onSave={save}
       dirty={dirty}
-      onReset={() => setForm(initial)}
+      onReset={reset}
     >
       <div className="grid-2">
         <Field label="Trading name">

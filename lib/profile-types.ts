@@ -70,6 +70,7 @@ export interface ProfileRow {
   country: string | null;
   bio: string | null;
   travel_radius_km: number | null;
+  travel_scope: TravelScope;
   notice_hours: number | null;
   company_name: string | null;
   coc_number: string | null;
@@ -106,11 +107,24 @@ export interface CredentialRow {
 }
 
 /** Fields FEM needs before a freelancer can sensibly be matched to a job. */
+/** How far someone will go. A radius in kilometres read precisely and matched
+    nothing -- what decides a booking is whether they leave their region, the
+    country, or neither. */
+export type TravelScope = 'region' | 'nl' | 'international';
+
+export const TRAVEL_SCOPE_LABEL: Record<TravelScope, string> = {
+  region: 'My own region',
+  nl: 'Anywhere in the Netherlands',
+  international: 'Netherlands and abroad',
+};
+
+export const TRAVEL_SCOPES = Object.keys(TRAVEL_SCOPE_LABEL) as TravelScope[];
+
 export const REQUIRED_FOR_MATCHING = [
   'full_name',
   'phone',
   'base_city',
-  'travel_radius_km',
+  'travel_scope',
 ] as const;
 
 export function profileCompleteness(
@@ -120,7 +134,7 @@ export function profileCompleteness(
 ) {
   const checks = [
     { key: 'Name and contact', done: Boolean(profile?.full_name && profile?.phone) },
-    { key: 'Where you work', done: Boolean(profile?.base_city && profile?.travel_radius_km) },
+    { key: 'Where you work', done: Boolean(profile?.base_city && profile?.travel_scope) },
     { key: 'What you do', done: crafts.length > 0 },
     { key: 'Your kit', done: gear.length > 0 },
     { key: 'Invoicing details', done: Boolean(profile?.iban && profile?.vat_number) },

@@ -36,6 +36,8 @@ export function toDraft(s: Shoot): ShootDraft {
     equipment: fromLines(s.equipment),
     dresscode: s.dresscode ?? '',
     client_notes: s.client_notes ?? '',
+    gallery_link: s.gallery_link ?? '',
+    gallery_note: s.gallery_note ?? '',
     delivery: s.delivery,
     // Roles are edited on the shoot itself, where you can also see who is on
     // them. Editing them here would mean two places to book from.
@@ -69,7 +71,8 @@ export function ShootForm({
       setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const setDelivery =
-    (key: keyof ShootDraft['delivery']) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    (key: keyof ShootDraft['delivery']) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, delivery: { ...f.delivery, [key]: e.target.value } }));
 
   const setRole = (i: number, patch: Partial<RoleDraft>) =>
@@ -177,7 +180,8 @@ export function ShootForm({
           <p className="eyebrow eyebrow--spaced">Who you need</p>
           <p className="field__hint field__hint--block">
             One line per person. A launch with a photographer, a videographer and a drone
-            operator is one shoot with three roles, not three shoots.
+            operator is one assignment with three roles, not three assignments. Fees are
+            <strong> excluding VAT</strong> &mdash; the freelancer adds it on their invoice.
           </p>
 
           <ul className="rolelines">
@@ -216,9 +220,9 @@ export function ShootForm({
                 <input
                   className="field__input"
                   value={r.fee}
-                  aria-label={`Fee for role ${i + 1}`}
+                  aria-label={`Fee excluding VAT for role ${i + 1}`}
                   onChange={(e) => setRole(i, { fee: e.target.value })}
-                  placeholder="Fee"
+                  placeholder="Fee ex. VAT"
                   inputMode="decimal"
                 />
 
@@ -295,14 +299,6 @@ export function ShootForm({
             </Field>
             <Field label="Maps link" hint="Opens on their phone on the day.">
               <input className="field__input" value={form.maps_url} onChange={set('maps_url')} placeholder="https://" />
-            </Field>
-            <Field label="Travel">
-              <input
-                className="field__input"
-                value={form.travel}
-                onChange={set('travel')}
-                placeholder="Metro 52 to Europaplein"
-              />
             </Field>
             <Field label="Parking">
               <input className="field__input" value={form.parking} onChange={set('parking')} placeholder="P1, reimbursed" />
@@ -388,14 +384,36 @@ export function ShootForm({
             placeholder="Within 10 working days"
           />
         </Field>
-        <Field label="Format">
-          <input
-            className="field__input"
+        <Field label="Format" hint="One per line.">
+          <textarea
+            className="field__input field__input--area"
+            rows={4}
             value={form.delivery.format}
             onChange={setDelivery('format')}
-            placeholder="JPEG, sRGB, full resolution"
+            placeholder={'JPEG, sRGB, full resolution\nWeb exports at 2048px long edge\nFilenames: FEM_client_date_001'}
           />
         </Field>
+        <Field
+          label="Gallery link"
+          hint="A Pixieset or similar gallery we already made. Set this and delivery means adding to it."
+        >
+          <input
+            className="field__input"
+            value={form.gallery_link}
+            onChange={set('gallery_link')}
+            placeholder="https://..."
+          />
+        </Field>
+
+        <Field label="How to add to it" hint="Login, folder, naming - whatever they need.">
+          <input
+            className="field__input"
+            value={form.gallery_note}
+            onChange={set('gallery_note')}
+            placeholder="Upload into the Selects folder"
+          />
+        </Field>
+
         <Field label="Retention">
           <input
             className="field__input"

@@ -3843,6 +3843,20 @@ select.field__input {
   color: var(--fem-text);
 }
 
+/* Quiet, and present. A misclick you cannot take back becomes a message to FEM,
+   and the move is written to the ledger either way. */
+.stage-act__undo {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--fem-on-dark-muted);
+}
+
+.stage-act__undo .link-arrow--button {
+  font-size: 12.5px;
+  color: var(--fem-on-dark);
+}
+
 .deliver {
   display: flex;
   flex-wrap: wrap;

@@ -19,20 +19,30 @@ import { Logo } from './Logo';
 /** `short` is what the mobile tab bar uses — full labels do not fit at 375px.
     `staffOnly` items stay hidden from freelancers, who would only get a page
     the database refuses to answer anyway. */
-export const NAV = [
-  { href: '/', label: 'Dashboard', short: 'Home', Icon: DashboardIcon },
-  { href: '/assignments', label: 'Assignments', short: 'Jobs', Icon: AssignmentsIcon },
-  { href: '/payments', label: 'Payments', short: 'Pay', Icon: FeeIcon },
-  { href: '/documents', label: 'Documents', short: 'Docs', Icon: DocumentsIcon },
-  { href: '/clients', label: 'Clients', short: 'Clients', Icon: ClientsIcon, staffOnly: true },
-  { href: '/team', label: 'Team', short: 'Team', Icon: TeamIcon, staffOnly: true },
-  { href: '/profile', label: 'Profile', short: 'Profile', Icon: ProfileIcon },
-];
+const DASHBOARD = { href: '/', label: 'Dashboard', short: 'Home', Icon: DashboardIcon };
+const CLIENTS = { href: '/clients', label: 'Clients', short: 'Clients', Icon: ClientsIcon };
+const TEAM = { href: '/team', label: 'Team', short: 'Team', Icon: TeamIcon };
+const ASSIGNMENTS = { href: '/assignments', label: 'Assignments', short: 'Jobs', Icon: AssignmentsIcon };
+const PAYMENTS = { href: '/payments', label: 'Payments', short: 'Pay', Icon: FeeIcon };
+const DOCUMENTS = { href: '/documents', label: 'Documents', short: 'Docs', Icon: DocumentsIcon };
+const PROFILE = { href: '/profile', label: 'Profile', short: 'Profile', Icon: ProfileIcon };
 
-/** The rail and the tab bar both need the same filtered list. */
+/** FEM's order follows the work: a client to book for, crew to book, then the
+    assignment that joins them. Someone setting up their first job walks down
+    the rail in the order they need it, rather than starting at the screen that
+    refuses to do anything until the other two exist.
+
+    A freelancer never creates any of that, so theirs stays as it was: what is
+    coming up, what is owed, what to sign. */
+const STAFF_NAV = [DASHBOARD, CLIENTS, TEAM, ASSIGNMENTS, PAYMENTS, DOCUMENTS, PROFILE];
+const CREW_NAV = [DASHBOARD, ASSIGNMENTS, PAYMENTS, DOCUMENTS, PROFILE];
+
+export const NAV = STAFF_NAV;
+
+/** The rail and the tab bar both need the same list. */
 export function visibleNav(role: string | undefined) {
   const isStaff = role === 'staff' || role === 'admin' || role === 'superadmin';
-  return NAV.filter((item) => !item.staffOnly || isStaff);
+  return isStaff ? STAFF_NAV : CREW_NAV;
 }
 
 export function isActive(pathname: string, href: string) {

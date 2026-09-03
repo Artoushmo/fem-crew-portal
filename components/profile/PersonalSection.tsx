@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSeededForm } from '@/lib/use-seeded-form';
 import { requireSupabase } from '@/lib/supabase';
 import { avatarUrl } from '@/lib/use-profile';
 import type { ProfileRow } from '@/lib/profile-types';
@@ -15,34 +16,26 @@ export function PersonalSection({
   profile: ProfileRow | null;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState({
-    full_name: '',
-    phone: '',
-    base_city: '',
-    country: 'NL',
-    bio: '',
-  });
-  const [initial, setInitial] = useState(form);
+  const { form, setForm, dirty, commit, reset } = useSeededForm(
+    {
+      full_name: profile?.full_name ?? '',
+      phone: profile?.phone ?? '',
+      base_city: profile?.base_city ?? '',
+      country: profile?.country ?? 'NL',
+      bio: profile?.bio ?? '',
+    },
+    profile?.id,
+  );
   const [avatar, setAvatar] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const filePicker = useRef<HTMLInputElement>(null);
 
+  // The picture is not part of the form: it is already saved by the time it
+  // shows, so a reload should always bring the current one.
   useEffect(() => {
-    if (!profile) return;
-    const next = {
-      full_name: profile.full_name ?? '',
-      phone: profile.phone ?? '',
-      base_city: profile.base_city ?? '',
-      country: profile.country ?? 'NL',
-      bio: profile.bio ?? '',
-    };
-    setForm(next);
-    setInitial(next);
-    setAvatar(avatarUrl(profile.avatar_path));
+    if (profile) setAvatar(avatarUrl(profile.avatar_path));
   }, [profile]);
-
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -59,7 +52,7 @@ export function PersonalSection({
       .eq('id', profile!.id);
 
     if (error) throw new Error(error.message);
-    setInitial(form);
+    commit();
     onSaved();
   };
 
@@ -166,7 +159,7 @@ export function PersonalSection({
         title="Details"
         onSave={save}
         dirty={dirty}
-        onReset={() => setForm(initial)}
+        onReset={reset}
       >
         <div className="grid-2">
           <Field label="Full name">

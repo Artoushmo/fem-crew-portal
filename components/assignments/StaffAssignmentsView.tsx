@@ -55,6 +55,7 @@ export function StaffAssignmentsView() {
     attachContract,
     removeContract,
     confirmPayment,
+    undoPayment,
     contractUrl,
   } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
@@ -298,8 +299,35 @@ export function StaffAssignmentsView() {
                                   </button>
                                 )}
 
+                                {r.invoice_path && (
+                                  <button
+                                    type="button"
+                                    className="link-arrow link-arrow--button"
+                                    onClick={() =>
+                                      guard(async () => {
+                                        window.open(
+                                          await contractUrl(r.invoice_path!),
+                                          '_blank',
+                                          'noopener',
+                                        );
+                                      })
+                                    }
+                                  >
+                                    Invoice
+                                  </button>
+                                )}
+
                                 {r.payment_state === 'paid' && (
-                                  <span className="tag tag--ok">Paid</span>
+                                  <>
+                                    <span className="tag tag--ok">Paid</span>
+                                    <button
+                                      type="button"
+                                      className="link-arrow link-arrow--button link-arrow--danger"
+                                      onClick={() => guard(() => undoPayment(r.id))}
+                                    >
+                                      Undo
+                                    </button>
+                                  </>
                                 )}
 
                                 <span className="roles__fee">{formatEuro(r.fee_cents)}</span>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CRAFT_LABEL, type Craft } from '@/lib/profile-types';
+import { CRAFT_LABEL, TRAVEL_SCOPE_LABEL, type Craft } from '@/lib/profile-types';
 import { rankForCraft, useCrew } from '@/lib/use-crew';
 import { avatarUrl } from '@/lib/use-profile';
 import { BrandLoader } from '../BrandLoader';
@@ -111,7 +111,7 @@ export function CrewPicker({
                     <span className="member__email">
                       {[
                         m.base_city,
-                        m.travel_radius_km ? `travels ${m.travel_radius_km} km` : null,
+                        TRAVEL_SCOPE_LABEL[m.travel_scope].toLowerCase(),
                         m.gear_count > 0 ? `${m.gear_count} items of kit` : 'no kit listed',
                       ]
                         .filter(Boolean)

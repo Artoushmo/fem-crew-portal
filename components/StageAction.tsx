@@ -8,9 +8,20 @@ import { CheckIcon } from './Icons';
 /** The one thing to do right now on this assignment. Renders the reason instead
     of the button when the step is not available yet, so the workflow explains
     itself rather than going quiet. */
-export function StageAction({ assignment }: { assignment: Assignment }) {
+export function StageAction({
+  assignment,
+  onOpenBriefing,
+  briefingSeen = true,
+}: {
+  assignment: Assignment;
+  /** Sends them to the briefing tab. */
+  onOpenBriefing?: () => void;
+  /** Whether they have actually opened it this visit. */
+  briefingSeen?: boolean;
+}) {
   const { signed } = useAgreement();
-  const { advance, signContract, returnSignedCopy, deliver, contractUrl } = useProgressActions();
+  const { advance, signContract, returnSignedCopy, deliver, sendInvoice, stepBack, contractUrl } =
+    useProgressActions();
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -76,7 +87,16 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
       {/* Step five asks where the work went. The files travel the way they
           always have -- a shoot day is tens of gigabytes and already moves by
           WeTransfer or a client drive -- so what is missing is the pointer. */}
-      {assignment.stage === 4 && asking ? (
+      {/* Step three is the one people click through without reading, and the
+          briefing is the thing that stops someone turning up with the wrong
+          lens. So confirming it waits until the tab has actually been opened. */}
+      {assignment.stage === 2 && !briefingSeen && onOpenBriefing ? (
+        <div className="stage-act__pair">
+          <button type="button" className="btn btn--primary stage-act__btn" onClick={onOpenBriefing}>
+            Read the briefing
+          </button>
+        </div>
+      ) : assignment.stage === 4 && asking ? (
         <form
           className="deliver"
           onSubmit={async (e) => {
@@ -122,6 +142,31 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
             Cancel
           </button>
         </form>
+      ) : assignment.stage === 5 ? (
+        <div className="stage-act__pair">
+          <label className={`btn btn--primary stage-act__btn ${busy ? 'is-busy' : ''}`}>
+            {busy ? 'Sending...' : 'Upload your invoice'}
+            <input
+              type="file"
+              accept="application/pdf"
+              className="sr-only"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                setBusy(true);
+                setNotice(null);
+                try {
+                  await sendInvoice(assignment.id, file);
+                } catch (err) {
+                  setNotice(err instanceof Error ? err.message : 'Could not send that.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </label>
+        </div>
       ) : unsignedContract ? (
         <div className="stage-act__pair">
           <button type="button" className="btn btn--outline stage-act__btn" onClick={openContract}>
@@ -174,6 +219,26 @@ export function StageAction({ assignment }: { assignment: Assignment }) {
       {notice && (
         <p className="auth__error" role="alert">
           {notice}
+        </p>
+      )}
+
+      {assignment.stage > 0 && assignment.payment.state !== 'paid' && (
+        <p className="stage-act__undo">
+          Clicked too soon?{' '}
+          <button
+            type="button"
+            className="link-arrow link-arrow--button"
+            onClick={async () => {
+              setNotice(null);
+              try {
+                await stepBack(assignment.id);
+              } catch (err) {
+                setNotice(err instanceof Error ? err.message : 'Could not go back.');
+              }
+            }}
+          >
+            Go back a step
+          </button>
         </p>
       )}
     </div>

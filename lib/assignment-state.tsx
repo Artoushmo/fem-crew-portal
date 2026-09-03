@@ -54,6 +54,10 @@ interface Ctx {
   returnSignedCopy: (id: string, file: File) => Promise<void>;
   /** Records where the work went, and moves step five on. */
   deliver: (id: string, link: string, note: string) => Promise<void>;
+  /** Uploads the invoice and moves step six. */
+  sendInvoice: (id: string, file: File) => Promise<void>;
+  /** One step back, recorded. */
+  stepBack: (id: string) => Promise<void>;
   /** A short-lived link to that contract. */
   contractUrl: (id: string) => Promise<string>;
   unsignAgreement: () => void;
@@ -95,6 +99,8 @@ function LiveProvider({
       signContract: live.signContract,
       returnSignedCopy: live.returnSignedCopy,
       deliver: live.deliver,
+      sendInvoice: live.sendInvoice,
+      stepBack: live.stepBack,
       contractUrl: live.contractUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
@@ -227,6 +233,10 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
         throw new Error('The sample assignments have no contract to return.');
       },
       deliver: async (id: string) => advance(id),
+      sendInvoice: async (id: string) => advance(id),
+      stepBack: async () => {
+        throw new Error('The sample assignments do not step back.');
+      },
       contractUrl: async () => {
         throw new Error('The sample assignments have no contract attached.');
       },
@@ -264,6 +274,8 @@ export function useProgressActions() {
     signContract,
     returnSignedCopy,
     deliver,
+    sendInvoice,
+    stepBack,
     contractUrl,
     unsignAgreement,
     reset,
@@ -277,6 +289,8 @@ export function useProgressActions() {
     signContract,
     returnSignedCopy,
     deliver,
+    sendInvoice,
+    stepBack,
     contractUrl,
     unsignAgreement,
     reset,

@@ -528,6 +528,94 @@ export function useMyAssignments() {
     [assignments, load],
   );
 
+  /** Sends the invoice with the step. Step six used to say "invoice sent" and
+      hold nothing, which left FEM told that money was owed and hunting through
+      email for the document to pay against. */
+  const sendInvoice = useCallback(
+    async (id: string, file: File) => {
+      if (file.type !== 'application/pdf') throw new Error('The invoice has to be a PDF.');
+      if (file.size > 10 * 1024 * 1024) throw new Error('That file is over 10 MB.');
+
+      const current = assignments.find((a) => a.id === id);
+      if (!current) return;
+
+      const client = requireSupabase();
+      const digest = await hashFile(file);
+      const path = `invoices/${id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
+
+      const { error: uploadError } = await client.storage
+        .from('agreements')
+        .upload(path, file, { contentType: 'application/pdf' });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      const stamp = new Date();
+      const { data: existing } = await client
+        .from('assignment_roles')
+        .select('stage_dates')
+        .eq('id', id)
+        .maybeSingle();
+
+      const dates = {
+        ...((existing?.stage_dates as Record<string, string>) ?? {}),
+        [String(current.stage)]: stamp.toISOString().slice(0, 10),
+      };
+
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({
+          invoice_path: path,
+          invoice_name: file.name,
+          invoice_sha256: digest,
+          invoice_number: current.payment.invoiceNumber ?? invoiceNumber(id),
+          invoiced_on: stamp.toISOString().slice(0, 10),
+          payment_state: 'awaiting',
+          stage: Math.min(current.stage + 1, 6),
+          stage_dates: dates,
+        })
+        .eq('id', id);
+
+      if (writeError) throw new Error(writeError.message);
+
+      drainNotifications();
+      await load();
+    },
+    [assignments, load],
+  );
+
+  /** One step back. People click too fast, and a workflow that only goes
+      forwards turns a misclick into a message to FEM. Every move is written to
+      role_events either way, so the tracker shows where things stand and the
+      ledger shows how they got there. */
+  const stepBack = useCallback(
+    async (id: string) => {
+      const current = assignments.find((a) => a.id === id);
+      if (!current || current.stage <= 0) return;
+
+      const client = requireSupabase();
+
+      const { data: existing } = await client
+        .from('assignment_roles')
+        .select('stage_dates')
+        .eq('id', id)
+        .maybeSingle();
+
+      // Clear the date of the step being undone, so the tracker does not claim
+      // something happened on a day it was taken back.
+      const dates = { ...((existing?.stage_dates as Record<string, string>) ?? {}) };
+      delete dates[String(current.stage - 1)];
+
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({ stage: current.stage - 1, stage_dates: dates })
+        .eq('id', id);
+
+      if (writeError) throw new Error(writeError.message);
+      await load();
+    },
+    [assignments, load],
+  );
+
   /** A short-lived link to the job's contract. */
   const contractUrl = useCallback(async (id: string): Promise<string> => {
     const client = requireSupabase();
@@ -611,6 +699,8 @@ export function useMyAssignments() {
     signContract,
     returnSignedCopy,
     deliver,
+    sendInvoice,
+    stepBack,
     contractUrl,
     reload: load,
   };
