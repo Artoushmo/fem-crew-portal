@@ -587,17 +587,23 @@ button {
 }
 
 @media (min-width: 768px) {
-  /* The logo lives in the rail on desktop, so the masthead only keeps the avatar. */
-  .topbar__brand {
+  /* The rail carries both the logo and the account on desktop, so the masthead
+     carries neither. Below this width there is no rail, and the masthead is the
+     only place identity and sign-out live. */
+  .topbar__brand,
+  .topbar__account {
     display: none;
   }
 
-  .masthead__inner {
-    padding: 0 40px;
+  /* Nothing left in it, so it stops taking room above the greeting. */
+  .topbar {
+    display: none;
   }
 
-  .topbar {
-    padding: 14px 0;
+  /* The topbar used to provide the space above the greeting; it has to come
+     from somewhere now that it is gone. */
+  .masthead__inner {
+    padding: 26px 40px 0;
   }
 
   .hero {
