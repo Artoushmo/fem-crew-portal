@@ -56,7 +56,7 @@ export function AddToCalendar({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        Add to Calendar
+        Add to calendar
       </button>
 
       {open && (

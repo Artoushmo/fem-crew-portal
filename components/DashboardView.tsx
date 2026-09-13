@@ -145,7 +145,7 @@ export function DashboardView() {
 
               <div className="card__actions">
                 <Link href={`/assignments/${job.id}`} className="btn btn--primary">
-                  View Assignment
+                  View assignment
                 </Link>
                 {job.stage >= 1 && <AddToCalendar assignment={job} />}
               </div>

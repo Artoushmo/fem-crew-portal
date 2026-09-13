@@ -123,7 +123,7 @@ export function DocumentsView() {
           <div className="card__actions">
             {doc && (
               <button type="button" className="btn btn--outline" onClick={open}>
-                Read the agreement
+                Read it
               </button>
             )}
 
@@ -132,13 +132,13 @@ export function DocumentsView() {
                 refuses it too. */}
             {!canManage && !agreement.signed && doc && (
               <button type="button" className="btn btn--primary" onClick={signAgreement}>
-                I agree, sign it
+                Sign
               </button>
             )}
 
             {canManage && (
               <label className={`btn btn--primary ${busy ? 'is-busy' : ''}`}>
-                {busy ? 'Uploading\u2026' : doc ? 'Replace with a new version' : 'Upload the agreement'}
+                {busy ? 'Uploading\u2026' : doc ? 'Replace' : 'Upload agreement'}
                 <input
                   type="file"
                   accept="application/pdf"

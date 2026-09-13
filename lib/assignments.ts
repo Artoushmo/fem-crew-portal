@@ -450,38 +450,36 @@ export function stageAction(a: Assignment, signed: boolean) {
   switch (a.stage) {
     case 0:
       return {
-        label: 'Accept assignment',
-        hint: 'Confirms you are available and locks in the fee. This one cannot be undone.',
+        label: 'Accept',
+        hint: 'Locks in the fee. Cannot be undone.',
         done: 'Accepted',
-        blocked: signed ? null : 'Sign your Freelancer Agreement first, under Documents.',
+        blocked: signed ? null : 'Sign your Freelancer Agreement first.',
       };
     case 1:
       return {
-        label: 'I have read the briefing',
-        hint: 'Confirms you know the shots, kit and dresscode.',
+        label: 'Mark as read',
+        hint: 'Shots, kit and dresscode.',
         done: 'Briefing confirmed',
         blocked: null,
       };
     case 2:
       return {
-        label: 'Confirm the shoot is done',
-        hint: 'Marks the shoot day complete so you can deliver.',
+        label: 'Mark complete',
+        hint: 'Then you can deliver.',
         done: 'Shoot complete',
         blocked: daysUntil(a.startsAt) > 0 ? `Available on ${a.dateLabel}.` : null,
       };
     case 3:
       return {
         label: 'Deliver',
-        hint: a.gallery
-          ? 'Add your files to the FEM gallery, then mark it delivered.'
-          : 'Send the files the way you normally would, then say where they went.',
+        hint: a.gallery ? 'Add your files to the FEM gallery.' : 'Where the files went.',
         done: 'Delivered',
         blocked: null,
       };
     case 4:
       return {
         label: 'Send invoice',
-        hint: `Invoices ${withVat(a.fee)} including VAT.`,
+        hint: `${withVat(a.fee)} including VAT.`,
         done: 'Invoice sent',
         blocked: null,
       };

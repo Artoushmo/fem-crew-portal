@@ -132,7 +132,7 @@ export function MfaSetup() {
           </ul>
           {privileged && (
             <p className="panel__hint panel__hint--after">
-              Two-factor is mandatory for FEM staff and admins, so it cannot be removed
+              Required for FEM staff and admins
               here.
             </p>
           )}
@@ -215,7 +215,7 @@ export function MfaSetup() {
             </p>
           )}
           <button type="button" className="btn btn--primary btn--sm" onClick={start} disabled={busy}>
-            Set up authenticator
+            Set up
           </button>
         </>
       )}

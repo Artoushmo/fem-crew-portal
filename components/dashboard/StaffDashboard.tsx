@@ -215,7 +215,7 @@ export function StaffDashboard() {
               <Tile
                 label="Unmatchable"
                 value={String(crewHealth.unmatchable.length)}
-                note="No craft listed"
+                note="Cannot be matched"
                 tone={crewHealth.unmatchable.length > 0 ? 'warn' : undefined}
                 href="/team"
               />
@@ -223,11 +223,8 @@ export function StaffDashboard() {
 
             {crewHealth.unmatchable.length > 0 && (
               <p className="state state--wait">
-                No craft listed, so they never appear in a search:{' '}
-                {crewHealth.unmatchable
-                  .map((m) => m.full_name ?? m.email ?? 'Unnamed')
-                  .join(', ')}
-                .
+                No craft listed:{' '}
+                {crewHealth.unmatchable.map((m) => m.full_name ?? m.email ?? 'Unnamed').join(', ')}
               </p>
             )}
           </>
