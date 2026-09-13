@@ -1568,13 +1568,50 @@ button {
 /* A row per job, scanned across rather than read down. Eight columns is more
    than a phone has room for, so below the breakpoint it stacks and the
    columns that only make sense in a table drop out. */
+/* Narrow: two lines, wrapped. Eight columns do not fit a phone and squeezing
+   them makes all eight unreadable rather than dropping the two that matter
+   least. Title and reference take the first line, the state of the job takes
+   the second. */
 .joblist__row {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 6px 14px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  /* .row__summary places its children into named areas. Overriding only the
+     columns left those areas in force, so anything without a name landed in
+     whatever cell was free and rows drew on top of each other. */
+  grid-template-areas: none;
+  gap: 8px 14px;
   text-align: left;
   padding: 14px 18px;
+}
+
+.joblist__row .joblist__what {
+  flex: 1 1 auto;
+}
+
+/* The bar says nothing at this width that the pill does not. */
+.joblist__row .joblist__progress {
+  display: none;
+}
+
+.joblist__row .joblist__fee {
+  margin-left: auto;
+}
+
+/* Clearing the areas is not enough: the children still carry grid-area names
+   from the old layout, and a name with no area behind it makes its own implicit
+   track. That is what pushed the status pill onto a row of its own and squeezed
+   the title to two letters. */
+.joblist__row > * {
+  grid-area: auto;
+  min-width: 0;
+}
+
+/* .row__summary .pill wins on specificity over the rule above, so it needs
+   naming directly. It sits later in the file, which is what decides it. */
+.joblist__row .pill {
+  grid-area: auto;
+  justify-self: start;
 }
 
 /* A container query, not a viewport one. The rail takes 240px on desktop, so a
@@ -1587,9 +1624,18 @@ button {
 
 @container (min-width: 820px) {
   .joblist__row {
+    display: grid;
     grid-template-columns: 18px minmax(170px, 1.5fr) 132px 124px minmax(90px, 0.8fr) 104px auto 78px;
     gap: 6px 16px;
     padding: 15px 20px;
+  }
+
+  .joblist__row .joblist__progress {
+    display: flex;
+  }
+
+  .joblist__row .joblist__fee {
+    margin-left: 0;
   }
 }
 
@@ -1598,9 +1644,18 @@ button {
 @supports not (container-type: inline-size) {
   @media (min-width: 1180px) {
     .joblist__row {
+      display: grid;
       grid-template-columns: 18px minmax(170px, 1.5fr) 132px 124px minmax(90px, 0.8fr) 104px auto 78px;
       gap: 6px 16px;
       padding: 15px 20px;
+    }
+
+    .joblist__row .joblist__progress {
+      display: flex;
+    }
+
+    .joblist__row .joblist__fee {
+      margin-left: 0;
     }
   }
 }
@@ -3475,6 +3530,12 @@ select.field__input {
 
 .content--wide {
   max-width: 780px;
+}
+
+/* A row of eight columns needs more than a reading column. Only the two screens
+   that are tables use it. */
+.content--table {
+  max-width: 1240px;
 }
 
 .hero__chips {

@@ -96,7 +96,7 @@ export function StaffPaymentsView() {
         </p>
       </Masthead>
 
-      <main className="content content--wide">
+      <main className="content content--table">
         {error && (
           <p className="auth__error" role="alert">
             {error}
