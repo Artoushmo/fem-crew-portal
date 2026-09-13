@@ -16,10 +16,10 @@ export function ViewAsBanner() {
   return (
     <div className="viewas" role="status">
       <span>
-        Viewing as <strong>{ROLE_LABEL[viewAs]}</strong>. Your own access is unchanged.
+        Viewing as <strong>{ROLE_LABEL[viewAs]}</strong>.
       </span>
       <button type="button" className="viewas__exit" onClick={() => setViewAs(null)}>
-        Back to my own view
+        Back to mine
       </button>
     </div>
   );

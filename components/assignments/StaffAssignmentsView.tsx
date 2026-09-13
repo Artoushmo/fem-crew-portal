@@ -5,13 +5,17 @@ import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
 import { useClients } from '@/lib/use-clients';
 import {
   BLANK_ROLE,
+  JOB_STATUS_LABEL,
   formatEuro,
+  jobProgress,
+  jobStatus,
   useShoots,
   type Role,
   type RoleDraft,
   type Shoot,
   type ShootDraft,
 } from '@/lib/use-staff-assignments';
+import { avatarUrl } from '@/lib/use-profile';
 import { BrandLoader } from '../BrandLoader';
 import { ChevronIcon } from '../Icons';
 import { Masthead } from '../Masthead';
@@ -27,11 +31,15 @@ const FILTER_LABEL: Record<Filter, string> = {
 };
 
 function dateLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-GB', {
+  const d = new Date(iso);
+  const thisYear = d.getFullYear() === new Date().getFullYear();
+
+  return d.toLocaleDateString('en-GB', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
-    year: 'numeric',
+    // The year only earns its place when it is not this one.
+    ...(thisYear ? {} : { year: 'numeric' }),
   });
 }
 
@@ -141,7 +149,7 @@ export function StaffAssignmentsView() {
             }}
           />
         ) : clients.length === 0 ? (
-          <p className="state state--idle">Add a client first. A shoot has to belong to one.</p>
+          <p className="state state--idle">Add a client first.</p>
         ) : (
           <>
             <div className="toolbar">
@@ -184,22 +192,20 @@ export function StaffAssignmentsView() {
                 {filter === 'unbooked'
                   ? 'Nothing waiting for crew.'
                   : filter === 'booked'
-                    ? 'Nothing fully booked yet.'
-                    : 'Nothing behind us yet.'}
+                    ? 'Nothing fully booked.'
+                    : 'Nothing finished yet.'}
               </p>
             ) : (
               <ul className="list">
                 {shown.map((s) => {
                   const open = openId === s.id;
-                  const filled = s.roles.filter((r) => r.freelancer_id).length;
-                  const total = s.roles.length;
                   const fees = s.roles.reduce((n, r) => n + r.fee_cents, 0);
 
                   return (
                     <li key={s.id} className={`row ${open ? 'row--open' : ''}`}>
                       <button
                         type="button"
-                        className="row__summary"
+                        className="row__summary joblist__row"
                         aria-expanded={open}
                         onClick={() => setOpenId(open ? null : s.id)}
                       >
@@ -207,32 +213,77 @@ export function StaffAssignmentsView() {
                           <ChevronIcon size={14} />
                         </span>
 
-                        <span className="job">
-                          <span className="job__when">
-                            <span className="job__date">{dateLabel(s.starts_at)}</span>
-                            <span className="job__time">
-                              {s.on_site && s.wrapped
-                                ? `${s.on_site.slice(0, 5)}-${s.wrapped.slice(0, 5)}${
-                                    s.due_on ? ' + deadline' : ''
-                                  }`
-                                : 'Deadline'}
-                            </span>
+                        <span className="joblist__what">
+                          <span className="joblist__title" title={s.title}>
+                            {s.title}
                           </span>
+                          <span className="joblist__ref">{s.reference ?? '—'}</span>
+                        </span>
 
-                          <span className="job__what">
-                            <span className="job__title">{s.title}</span>
-                            <span className="job__meta">
-                              {[s.client_name, s.city, s.venue].filter(Boolean).join(' · ')}
-                            </span>
+                        {/* The bar is the quick read and the number is the
+                            precise one; a bar alone cannot tell 80 from 90. */}
+                        <span className="joblist__progress">
+                          <span className="meter" aria-hidden>
+                            <span
+                              className={`meter__fill meter__fill--${jobStatus(s)}`}
+                              style={{ width: `${jobProgress(s)}%` }}
+                            />
                           </span>
+                          <span className="joblist__pct">{jobProgress(s)}%</span>
+                        </span>
 
-                          <span className="job__who">
-                            <span className={filled === total ? 'tag tag--ok' : 'tag tag--wait'}>
-                              {filled} of {total} booked
-                            </span>
-                            <span className="job__fee">{formatEuro(fees)}</span>
+                        <span className={`pill pill--${jobStatus(s)}`}>
+                          <span className="pill__dot" aria-hidden />
+                          {JOB_STATUS_LABEL[jobStatus(s)]}
+                        </span>
+
+                        <span className="joblist__client">{s.client_name ?? '—'}</span>
+
+                        <span className="joblist__when">
+                          {dateLabel(s.starts_at)}
+                          <span className="joblist__time">
+                            {s.on_site && s.wrapped
+                              ? `${s.on_site.slice(0, 5)}-${s.wrapped.slice(0, 5)}`
+                              : 'Deadline'}
                           </span>
                         </span>
+
+                        <span className="joblist__crew">
+                          {s.roles.filter((r) => r.freelancer_id).length === 0 ? (
+                            <span className="joblist__none">Nobody</span>
+                          ) : (
+                            s.roles
+                              .filter((r) => r.freelancer_id)
+                              .slice(0, 4)
+                              .map((r) => {
+                                const avatar = avatarUrl(r.freelancer_avatar);
+                                const name = r.freelancer_name ?? '?';
+                                return avatar ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    key={r.id}
+                                    src={avatar}
+                                    alt=""
+                                    title={`${name} - ${CRAFT_LABEL[r.craft]}`}
+                                    className="agenda__face"
+                                  />
+                                ) : (
+                                  <span
+                                    key={r.id}
+                                    className="agenda__face agenda__face--initials"
+                                    title={`${name} - ${CRAFT_LABEL[r.craft]}`}
+                                  >
+                                    {name.slice(0, 2).toUpperCase()}
+                                  </span>
+                                );
+                              })
+                          )}
+                          <span className="joblist__count">
+                            {s.roles.filter((r) => r.freelancer_id).length}/{s.roles.length}
+                          </span>
+                        </span>
+
+                        <span className="joblist__fee">{formatEuro(fees)}</span>
                       </button>
 
                       {open && (
@@ -412,7 +463,7 @@ export function StaffAssignmentsView() {
                             ) : (
                               <>
                                 <span className="contract__name contract__name--none">
-                                  No contract for this job
+                                  No contract
                                 </span>
                                 <label
                                   className={`link-arrow link-arrow--button ${

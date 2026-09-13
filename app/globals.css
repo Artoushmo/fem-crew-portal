@@ -1563,6 +1563,162 @@ button {
   margin-left: auto;
 }
 
+/* --- The assignments list ----------------------------------------------- */
+
+/* A row per job, scanned across rather than read down. Eight columns is more
+   than a phone has room for, so below the breakpoint it stacks and the
+   columns that only make sense in a table drop out. */
+.joblist__row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 6px 14px;
+  align-items: center;
+  text-align: left;
+  padding: 14px 18px;
+}
+
+/* A container query, not a viewport one. The rail takes 240px on desktop, so a
+   1280px screen leaves about 920px for the list -- a viewport breakpoint would
+   have measured the wrong box and stacked the table on exactly the screens it
+   was built for. */
+.list {
+  container-type: inline-size;
+}
+
+@container (min-width: 820px) {
+  .joblist__row {
+    grid-template-columns: 18px minmax(170px, 1.5fr) 132px 124px minmax(90px, 0.8fr) 104px auto 78px;
+    gap: 6px 16px;
+    padding: 15px 20px;
+  }
+}
+
+/* Where containers are not available, fall back to the widest viewport that
+   still guarantees the room. */
+@supports not (container-type: inline-size) {
+  @media (min-width: 1180px) {
+    .joblist__row {
+      grid-template-columns: 18px minmax(170px, 1.5fr) 132px 124px minmax(90px, 0.8fr) 104px auto 78px;
+      gap: 6px 16px;
+      padding: 15px 20px;
+    }
+  }
+}
+
+.joblist__what {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/* One line, cut with an ellipsis. A long title wrapping makes every row a
+   different height, and a list you cannot scan down is not a list. The full
+   title is a hover away and one click below. */
+.joblist__title {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joblist__ref {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--fem-text-muted);
+}
+
+.joblist__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meter {
+  flex: 1;
+  height: 6px;
+  min-width: 60px;
+  border-radius: 99px;
+  background: var(--fem-track);
+  overflow: hidden;
+}
+
+.meter__fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--fem-blue);
+}
+
+/* Colour says which kind of progress, not how much -- the width already says
+   how much, and two encodings of the same number drift apart. */
+.meter__fill--needs-crew { background: var(--fem-step-idle); }
+.meter__fill--offered { background: var(--fem-gold); }
+.meter__fill--paid { background: #2f7350; }
+
+.joblist__pct {
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fem-text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+.joblist__client,
+.joblist__when {
+  font-size: 13px;
+  color: var(--fem-text-secondary);
+  min-width: 0;
+}
+
+.joblist__when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.joblist__time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fem-text-muted);
+}
+
+.joblist__crew {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.joblist__none {
+  font-size: 12.5px;
+  color: var(--fem-text-muted);
+}
+
+.joblist__count {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fem-text-muted);
+  margin-left: 4px;
+}
+
+.joblist__fee {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pill--needs-crew .pill__dot { background: var(--fem-step-idle); }
+.pill--offered .pill__dot { background: var(--fem-gold); }
+.pill--booked .pill__dot,
+.pill--shooting .pill__dot { background: var(--fem-blue); }
+.pill--delivered .pill__dot,
+.pill--invoiced .pill__dot { background: #b8862b; }
+.pill--paid .pill__dot { background: #2f7350; }
+
 /* --- Viewing as someone else ------------------------------------------- */
 
 /* Gold, and in the way. A preview you can forget you are in is how somebody

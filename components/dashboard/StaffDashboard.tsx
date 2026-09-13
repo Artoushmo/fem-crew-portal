@@ -27,9 +27,9 @@ export function StaffDashboard() {
         <h1 className="hero__greeting">Hi, {firstName(profile?.full_name)}</h1>
         <p className="hero__sub">
           {loading
-            ? 'Looking things over.'
+            ? ' '
             : tasks.length === 0
-              ? 'Nothing needs you right now.'
+              ? 'Nothing needs you.'
               : `${tasks.length} thing${tasks.length === 1 ? '' : 's'} need your attention.`}
         </p>
       </Masthead>
@@ -50,10 +50,7 @@ export function StaffDashboard() {
             <p className="eyebrow">Needs you</p>
 
             {tasks.length === 0 ? (
-              <p className="state state--ok">
-                Every upcoming role is filled, everyone has accepted, and nothing is waiting
-                to be paid.
-              </p>
+              <p className="state state--ok">Nothing outstanding.</p>
             ) : (
               <ul className="list list--tight">
                 {[...now, ...soon].slice(0, 8).map((t) => (
@@ -77,7 +74,7 @@ export function StaffDashboard() {
 
             {tasks.length > 8 && (
               <p className="field__hint field__hint--block">
-                And {tasks.length - 8} more, further out.
+                {tasks.length - 8} more, further out.
               </p>
             )}
 
@@ -90,20 +87,20 @@ export function StaffDashboard() {
               <Tile
                 label="Committed"
                 value={formatEuro(money.committed)}
-                note="Booked fees, all jobs"
+                note="All booked fees"
                 href="/assignments"
               />
               <Tile
                 label="To be invoiced"
                 value={formatEuro(money.awaitingInvoice)}
-                note="Delivered, no invoice yet"
+                note="Delivered, not invoiced"
                 tone={money.awaitingInvoice > 0 ? 'wait' : undefined}
                 href="/payments?show=to-invoice"
               />
               <Tile
                 label="To pay"
                 value={formatEuro(money.awaitingPayment)}
-                note="Invoice received"
+                note="Invoice in"
                 tone={money.awaitingPayment > 0 ? 'warn' : undefined}
                 href="/payments?show=to-pay"
               />
@@ -120,7 +117,7 @@ export function StaffDashboard() {
             <p className="eyebrow eyebrow--spaced">Next two weeks</p>
 
             {upcoming.length === 0 ? (
-              <p className="state state--idle">Nothing on the calendar for the next fortnight.</p>
+              <p className="state state--idle">Nothing in the next two weeks.</p>
             ) : (
               <ul className="list list--tight">
                 {upcoming.map((s) => {
@@ -199,7 +196,7 @@ export function StaffDashboard() {
               <Tile
                 label="Open roles"
                 value={String(openRoles)}
-                note={openRoles === 0 ? 'All filled' : 'Still to book'}
+                note={openRoles === 0 ? 'All filled' : 'To book'}
                 tone={openRoles > 0 ? 'wait' : undefined}
                 href="/assignments"
               />
@@ -226,11 +223,11 @@ export function StaffDashboard() {
 
             {crewHealth.unmatchable.length > 0 && (
               <p className="state state--wait">
+                No craft listed, so they never appear in a search:{' '}
                 {crewHealth.unmatchable
-                  .map((m) => m.full_name ?? m.email ?? 'Someone')
-                  .join(', ')}{' '}
-                {crewHealth.unmatchable.length === 1 ? 'has' : 'have'} no craft on their profile,
-                so they never turn up when you look for crew. Ask them to fill in Work.
+                  .map((m) => m.full_name ?? m.email ?? 'Unnamed')
+                  .join(', ')}
+                .
               </p>
             )}
           </>

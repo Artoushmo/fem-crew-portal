@@ -39,7 +39,7 @@ export function DocumentsView() {
     setNotice(null);
     try {
       await upload(file);
-      setNotice('Uploaded. Freelancers can read and sign it now.');
+      setNotice('Uploaded.');
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Could not upload that file.');
     } finally {
@@ -76,16 +76,15 @@ export function DocumentsView() {
           <div className="facts">
             {!agreement.signed && (
               <p className="prose">
-                One agreement covers every assignment this year. Until it is signed you
-                cannot accept new work.
+                Covers every assignment this year. Needed before you can accept work.
               </p>
             )}
 
             {!loading && !doc && (
               <p className="prose">
                 {canManage
-                  ? 'No agreement has been uploaded for this year yet. Freelancers cannot sign until there is one.'
-                  : 'FEM has not published this year\u2019s agreement yet. You will be able to read and sign it here.'}
+                  ? 'No agreement uploaded yet. Nobody can sign until there is one.'
+                  : 'No agreement published yet.'}
               </p>
             )}
 

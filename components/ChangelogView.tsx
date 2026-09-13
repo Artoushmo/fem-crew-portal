@@ -35,7 +35,7 @@ export function ChangelogView() {
     <>
       <Masthead>
         <h1 className="hero__greeting">What&rsquo;s new</h1>
-        <p className="hero__sub">Every change to the portal, newest first.</p>
+        <p className="hero__sub">Newest first.</p>
       </Masthead>
 
       <main className="content content--wide">

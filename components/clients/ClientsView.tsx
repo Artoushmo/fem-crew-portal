@@ -47,7 +47,7 @@ export function ClientsView() {
         <h1 className="hero__greeting">Clients</h1>
         <p className="hero__sub">
           {clients.length === 0
-            ? 'Nobody on the books yet.'
+            ? 'None yet.'
             : `${clients.length} on the books`}
         </p>
       </Masthead>
@@ -101,7 +101,7 @@ export function ClientsView() {
             {shown.length === 0 ? (
               <p className="state state--idle">
                 {clients.length === 0
-                  ? 'No clients yet. Add the first one to book an assignment against it.'
+                  ? 'No clients yet.'
                   : 'Nothing matches that search.'}
               </p>
             ) : (

@@ -46,10 +46,7 @@ export function CrewPicker({
       <div className="picker__head">
         <div>
           <p className="eyebrow">Book a {CRAFT_LABEL[craft].toLowerCase()}</p>
-          <p className="picker__hint">
-            Booking offers the shoot straight away. They see it the next time they open the
-            portal.
-          </p>
+          <p className="picker__hint">Booking offers it straight away.</p>
         </div>
         <button type="button" className="link-arrow link-arrow--button" onClick={onCancel}>
           Close
@@ -72,7 +69,7 @@ export function CrewPicker({
       ) : error ? null : shown.length === 0 ? (
         <p className="state state--idle">
           {crew.length === 0
-            ? 'No freelancers yet. Add one under Team.'
+            ? 'No freelancers yet.'
             : `Nobody lists ${CRAFT_LABEL[craft].toLowerCase()} as a craft.`}
           {crew.length > 0 && !showAll && (
             <>

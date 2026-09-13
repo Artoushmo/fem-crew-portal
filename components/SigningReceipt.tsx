@@ -73,10 +73,8 @@ export function SigningReceipt({
           </dl>
 
           <p className="receipt__note">
-            The fingerprint is a SHA-256 of the document as it was signed. Re-hashing the
-            stored file gives the same value unless the file has changed. Identity, time
-            and address were recorded by the server from the signed-in session, not sent
-            by the browser.
+            The fingerprint identifies the exact document signed. Identity, time and
+            address were recorded by the server.
           </p>
 
           <button

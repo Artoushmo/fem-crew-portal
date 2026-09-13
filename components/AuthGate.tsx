@@ -53,10 +53,7 @@ function MfaEnrolmentRequired() {
         <div className="auth__body">
           <p className="auth__eyebrow">Crew Portal</p>
           <h1 className="auth__title">Link an authenticator</h1>
-          <p className="auth__lead">
-            Your role at Fast Elevate Media requires a second factor. Until one is
-            linked the portal has nothing to show you.
-          </p>
+          <p className="auth__lead">Your role needs an authenticator.</p>
 
           <MfaSetup />
 

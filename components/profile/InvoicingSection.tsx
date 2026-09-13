@@ -44,7 +44,7 @@ export function InvoicingSection({
   return (
     <SectionForm
       title="Invoicing"
-      hint="Used on the invoices you send FEM. Only you and FEM's finance staff can read this."
+      hint="On the invoices you send FEM."
       onSave={save}
       dirty={dirty}
       onReset={reset}

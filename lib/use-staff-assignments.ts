@@ -46,6 +46,8 @@ export const KIND_LABEL: Record<JobKind, string> = {
     cannot be told from a real one. */
 export interface Shoot {
   id: string;
+  /** FEM-2026-0001. What a job is called in a subject line. */
+  reference: string | null;
   kind: JobKind;
   title: string;
   client_id: string | null;
@@ -155,7 +157,7 @@ export const BLANK_SHOOT: ShootDraft = {
 };
 
 const SHOOT_COLUMNS = `
-  id, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
+  id, reference, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
   equipment, dresscode, client_notes, delivery, contract_path, contract_name,
   clients ( name ),
@@ -182,6 +184,61 @@ export function formatEuro(cents: number): string {
     currency: 'EUR',
     minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
   }).format(cents / 100);
+}
+
+/** Where a job stands, as one word.
+ *
+ * Read off the roles rather than stored, because it is not a fact about the job
+ * -- it is what its crew have between them done so far. Storing it would mean a
+ * column to keep in step with six others. */
+export type JobStatus =
+  | 'needs-crew'
+  | 'offered'
+  | 'booked'
+  | 'shooting'
+  | 'delivered'
+  | 'invoiced'
+  | 'paid';
+
+export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
+  'needs-crew': 'Needs crew',
+  offered: 'Awaiting reply',
+  booked: 'Booked',
+  shooting: 'In progress',
+  delivered: 'Delivered',
+  invoiced: 'Invoice in',
+  paid: 'Paid',
+};
+
+export function jobStatus(s: Shoot): JobStatus {
+  const booked = s.roles.filter((r) => r.freelancer_id);
+
+  if (booked.length === 0 || booked.length < s.roles.length) return 'needs-crew';
+  if (booked.some((r) => !r.accepted_at)) return 'offered';
+
+  // The job is only as far along as its least advanced role: one person's
+  // invoice does not make the shoot invoiced.
+  const least = Math.min(...booked.map((r) => r.stage));
+
+  if (booked.every((r) => r.payment_state === 'paid')) return 'paid';
+  if (booked.every((r) => r.payment_state === 'awaiting' || r.payment_state === 'paid'))
+    return 'invoiced';
+  if (least >= 3) return 'delivered';
+  if (least >= 2) return 'shooting';
+  return 'booked';
+}
+
+/** How far through, as a fraction. Averaged across the crew, because a shoot
+    with three people is two-thirds done when two of them have finished. */
+export function jobProgress(s: Shoot): number {
+  if (s.roles.length === 0) return 0;
+
+  const total = s.roles.reduce((sum, r) => {
+    if (!r.freelancer_id) return sum;
+    return sum + (r.payment_state === 'paid' ? 6 : r.stage + 1);
+  }, 0);
+
+  return Math.round((total / (s.roles.length * 6)) * 100);
 }
 
 export function centsToInput(cents: number): string {

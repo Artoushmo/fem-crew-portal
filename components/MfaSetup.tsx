@@ -77,7 +77,7 @@ export function MfaSetup() {
       setCode('');
       await refreshFactors();
     } catch {
-      setError('That code was not accepted. Try the current one from your app.');
+      setError('Not accepted. Try the current code.');
       setCode('');
     } finally {
       setBusy(false);
@@ -206,8 +206,8 @@ export function MfaSetup() {
         <>
           <p className="panel__hint">
             {privileged
-              ? 'Required for your role. Link an authenticator app to keep your access.'
-              : 'Adds a code from your phone on top of the emailed one. Recommended.'}
+              ? 'Required for your role.'
+              : 'A code from your phone, on top of the emailed one.'}
           </p>
           {error && (
             <p className="auth__error" role="alert">

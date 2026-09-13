@@ -44,8 +44,7 @@ export function InviteForm({
     <form className="panel" onSubmit={submit}>
       <h2 className="panel__title">Add someone</h2>
       <p className="panel__hint">
-        Creates the account straight away and emails them a welcome with the portal link.
-        They sign in with a code sent to this address — there is no password to set.
+        Creates the account and emails them the link. No password.
       </p>
 
       <div className="invite">
@@ -88,8 +87,8 @@ export function InviteForm({
 
       {form.role !== 'freelancer' && (
         <p className="state state--wait">
-          Two-factor is mandatory for this role. Tell them to link an authenticator the
-          first time they sign in, or the portal will look empty to them.
+          This role needs an authenticator. Until they link one, the portal shows them
+          nothing.
         </p>
       )}
 
@@ -102,7 +101,7 @@ export function InviteForm({
       {added && (
         <p className={added.mailed ? 'state state--ok' : 'state state--wait'} role="status">
           {added.mailed
-            ? `${added.email} can sign in now — a welcome email is on its way.`
+            ? `${added.email} can sign in. Welcome email sent.`
             : `${added.email} can sign in now. ${added.note}`}
         </p>
       )}

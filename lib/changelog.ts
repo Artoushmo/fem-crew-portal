@@ -24,67 +24,114 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '1.2',
+    date: '2026-09-13',
+    summary: 'Six steps, a list view, and shorter copy throughout.',
+    changes: [
+      {
+        title: 'Six steps, not seven',
+        body: 'Signing is a condition now, not a step. No booking and no accepting without a signed agreement.',
+      },
+      {
+        title: 'Accepting is final',
+        body: 'Every other step can go back. This one cannot.',
+      },
+      {
+        title: 'Delivering is two buttons',
+        body: 'Add a link, or mark it delivered. No link required.',
+        who: 'crew',
+      },
+      {
+        title: 'Assignments as a list',
+        body: 'Reference, progress, status, client, crew and fee on one line.',
+        who: 'fem',
+      },
+      {
+        title: 'Every job has a number',
+        body: 'FEM-2026-0001. Something to put in a subject line.',
+      },
+      {
+        title: 'Payments for FEM',
+        body: 'Split by where the money is stuck. The dashboard tiles open the right one.',
+        who: 'fem',
+      },
+      {
+        title: 'Counts on the menu',
+        body: 'Assignments and Payments show what is outstanding.',
+      },
+      {
+        title: 'View the portal as your crew',
+        body: 'Switch role from the account menu without signing out. Your own access is unchanged.',
+        who: 'fem',
+      },
+      {
+        title: 'Shorter everywhere',
+        body: 'Hints, empty states and warnings cut back to what they had to say.',
+      },
+    ],
+  },
+  {
     version: '1.1',
     date: '2026-09-03',
-    summary: 'The first round of changes after testing 1.0 end to end.',
+    summary: 'First round of changes after testing.',
     changes: [
       {
         title: 'The menu follows the work',
-        body: 'Clients, then Team, then Assignments. Setting up your first job now means working down the rail in the order you need it, rather than starting on the screen that can do nothing until the other two exist.',
+        body: 'Clients, then Team, then Assignments — the order you actually need them in.',
         who: 'fem',
       },
       {
         title: 'Your profile keeps what you type',
-        body: 'Switching tabs or changing your photo no longer clears the fields you were filling in. Every section used to reload itself from the database whenever anything on the page was saved.',
+        body: 'Switching tabs or changing your photo no longer clears what you were filling in.',
         who: 'crew',
       },
       {
         title: 'Add to Calendar works',
-        body: 'All three calendars refused the date. Google, Apple and Outlook now all take the shoot, with the call times, the venue and a link back to the assignment.',
+        body: 'Google, Apple and Outlook all take the shoot now, with times, venue and a link back.',
         who: 'crew',
       },
       {
         title: 'Fees say excluding VAT',
-        body: 'A fee meaning two different numbers to two people is how an invoice comes back wrong.',
+        body: 'So a fee means the same number to both sides.',
       },
       {
         title: 'Delivery format is a list',
-        body: 'Resolution, colour space, file naming: one line each, instead of one line for all of it.',
+        body: 'Resolution, colour space, file naming — one line each.',
         who: 'fem',
       },
       {
         title: 'A gallery on the job',
-        body: 'When FEM has already made a Pixieset or similar, the link and the instructions go on the assignment. Delivering then means adding to it and confirming, rather than pasting a link back.',
+        body: 'A Pixieset link on the assignment. Delivering means adding to it and confirming.',
       },
       {
         title: 'One standing condition on every assignment',
-        body: 'Nothing from a job goes on social media without agreeing it with Fast Elevate Media first. Stills, behind the scenes and stories included.',
+        body: 'Nothing on social media without agreeing it with FEM first.',
       },
       {
         title: 'How far you travel, not how many kilometres',
-        body: 'Your own region, anywhere in the Netherlands, or abroad as well. A radius read precisely and matched nothing.',
+        body: 'Your own region, the Netherlands, or abroad as well.',
         who: 'crew',
       },
       {
         title: 'The briefing has to be opened',
-        body: 'That step now offers Read the briefing first. The confirm button appears once it has actually been open.',
+        body: 'The confirm button appears once the briefing has been open.',
         who: 'crew',
       },
       {
         title: 'Send your invoice with the step',
-        body: 'Step six takes the PDF. It lands on the assignment, so FEM is not hunting through email for the document they are paying against.',
+        body: 'Step six takes the PDF. It lands on the assignment.',
       },
       {
         title: 'Steps can go back',
-        body: 'Clicked too soon? Go back a step, one at a time. FEM can undo a confirmed payment too. Every move is recorded: who, when, from which step to which, and whether it went forward or back. Nobody can edit or delete that record, FEM included.',
+        body: 'One step at a time, and recorded: who, when, forward or back. FEM can undo a payment too.',
       },
       {
         title: 'The sign-in code has a box per digit',
-        body: 'So you can see how long it is and how far through you are. Pasting and filling from the text message still work.',
+        body: 'One box per digit. Pasting and SMS autofill still work.',
       },
       {
         title: 'Who else is on it, only when there is',
-        body: 'That list no longer appears with a single name in it when you are the only one booked.',
+        body: 'Gone when you are the only one booked.',
         who: 'crew',
       },
     ],
@@ -92,38 +139,38 @@ export const RELEASES: Release[] = [
   {
     version: '1.0',
     date: '2026-08-27',
-    summary: 'The portal, end to end: sign in, get booked, deliver, invoice, get paid.',
+    summary: 'Sign in, get booked, deliver, invoice, get paid.',
     changes: [
       {
         title: 'Signing in without a password',
-        body: 'A code by email, and an authenticator app for everyone at FEM. There is no password to forget or leak.',
+        body: 'A code by email, and an authenticator for everyone at FEM.',
       },
       {
         title: 'Your profile',
-        body: 'Photo, crafts, kit, certificates and invoicing details. This is what FEM matches assignments against.',
+        body: 'Photo, crafts, kit, certificates, invoicing. What FEM matches on.',
         who: 'crew',
       },
       {
-        title: 'Seven steps with consequences',
-        body: 'From paperwork to payment. Each step opens the next, and the database enforces the order rather than the buttons.',
+        title: 'Steps with consequences',
+        body: 'Each step opens the next, enforced by the database.',
       },
       {
         title: 'Clients and assignments',
-        body: 'A client book, and assignments with one line per person needed. A launch with a photographer, a videographer and a drone operator is one job with three roles.',
+        body: 'One line per person needed. Three crew on a launch is one job with three roles.',
         who: 'fem',
       },
       {
         title: 'Finding crew',
-        body: 'Ranked by craft, city and kit, with anyone already booked that day or carrying an expired certificate flagged rather than hidden.',
+        body: 'Ranked by craft, city and kit. Clashes and expired certificates are flagged.',
         who: 'fem',
       },
       {
         title: 'Email at every turn',
-        body: 'Booked, unbooked, contract replaced, date moved, paid. FEM hears when someone accepts, signs, delivers and invoices.',
+        body: 'Booked, unbooked, date moved, paid. FEM hears about accepts, deliveries and invoices.',
       },
       {
         title: 'Signatures you can prove',
-        body: 'Every signature records who, when, from where, and a fingerprint of the exact document. Replace the document and the signature stops counting until it is signed again.',
+        body: 'Who, when, from where, and a fingerprint of the document. Replace it and the signature drops.',
       },
     ],
   },

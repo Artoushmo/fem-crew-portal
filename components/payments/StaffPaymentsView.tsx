@@ -136,9 +136,9 @@ export function StaffPaymentsView() {
             {shown.length === 0 ? (
               <p className="state state--idle">
                 {show === 'to-pay'
-                  ? 'Nothing waiting to be paid.'
+                  ? 'Nothing to pay.'
                   : show === 'to-invoice'
-                    ? 'Nothing delivered that has not been invoiced.'
+                    ? 'Nothing waiting on an invoice.'
                     : 'Nothing here.'}
               </p>
             ) : (

@@ -22,7 +22,7 @@ export function PaymentsView() {
     <>
       <Masthead>
         <h1 className="hero__greeting">Payments</h1>
-        <p className="hero__sub">Fees, invoices and what is still outstanding.</p>
+        <p className="hero__sub">What is outstanding.</p>
       </Masthead>
 
       <main className="content content--wide">

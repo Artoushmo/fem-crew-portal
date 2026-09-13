@@ -105,7 +105,7 @@ export function TeamView() {
               busyId={busyId}
               onRole={change}
               onAccess={access}
-              empty="No freelancers yet. Invite one above."
+              empty="No freelancers yet."
             />
           </>
         )}
@@ -248,8 +248,7 @@ function MemberList({
 
             {confirming && (
               <p className="member__warning">
-                {name} will not be able to sign in again. Their assignments, invoices and
-                history stay exactly as they are, and you can restore access later.
+                {name} cannot sign in again. History stays. Reversible.
               </p>
             )}
 
@@ -267,8 +266,7 @@ function MemberList({
 
             {needsMfa && (
               <p className="member__warning">
-                {ROLE_LABEL[m.role]} requires two-factor. Until they link an authenticator,
-                the database refuses every read — they will see an empty portal.
+                Needs an authenticator. Until then the portal shows them nothing.
               </p>
             )}
           </li>

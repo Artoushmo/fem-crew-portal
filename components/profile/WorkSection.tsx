@@ -99,7 +99,7 @@ export function WorkSection({
   return (
     <SectionForm
       title="What you do"
-      hint="FEM matches assignments on this. Pick everything you take work for, and mark the one you are booked as most."
+      hint="What FEM matches on. Mark your main one."
       onSave={save}
       dirty={dirty}
     >
@@ -154,7 +154,7 @@ export function WorkSection({
       </ul>
 
       <div className="grid-2 grid-2--spaced">
-        <Field label="How far you travel" hint="What a producer checks before offering you a day.">
+        <Field label="How far you travel">
           <select
             className="field__input"
             value={reach.travel_scope}
@@ -170,7 +170,7 @@ export function WorkSection({
           </select>
         </Field>
 
-        <Field label="Notice needed" hint="Hours of warning before a shoot.">
+        <Field label="Notice needed" hint="Hours.">
           <input
             className="field__input"
             value={reach.notice_hours}

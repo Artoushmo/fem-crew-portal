@@ -29,7 +29,7 @@ export const ROLE_LABEL: Record<AppRole, string> = {
 export const ROLE_NOTE: Record<AppRole, string> = {
   freelancer: 'Sees only their own assignments.',
   staff: 'Creates assignments and manages clients.',
-  admin: 'Everything staff can do, across the whole account.',
+  admin: 'Everything staff can do.',
   superadmin: 'Also adds members and sets roles.',
 };
 
@@ -101,8 +101,8 @@ export function useTeam() {
       return {
         mailed: false,
         mailNote: status.startsWith('skipped')
-          ? 'No welcome email was sent: the mail key is missing on the invite-member function. Send them the portal link yourself.'
-          : `The account exists, but the welcome email did not send (${status.replace(/^failed:\s*/, '')}). Send them the portal link yourself.`,
+          ? 'No welcome email sent: the mail key is missing. Send them the link yourself.'
+          : `Account created, email failed (${status.replace(/^failed:\s*/, '')}). Send them the link yourself.`,
       };
     },
     [load],
@@ -122,8 +122,8 @@ export function useTeam() {
 
       const notified = (data as { notified?: string } | null)?.notified ?? 'sent';
       return notified === 'sent'
-        ? 'Role updated. They have been emailed about the change.'
-        : 'Role updated, but no email went out. Tell them yourself.';
+        ? 'Role updated. They have been emailed.'
+        : 'Role updated. No email went out.';
     },
     [load],
   );

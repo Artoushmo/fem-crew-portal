@@ -76,7 +76,7 @@ export function useProfileData() {
       // maybeSingle() returns nothing when RLS refused the row, which is what a
       // role that demands a second factor looks like from here.
       setError(
-        'Your profile could not be read. If your role changed recently, link an authenticator under Security and sign in again.',
+        'Could not read your profile. If your role changed, link an authenticator under Security.',
       );
     }
 

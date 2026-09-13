@@ -37,8 +37,8 @@ export function StageAction({
           </p>
           <p className="stage-act__hint">
             {assignment.payment.state === 'paid'
-              ? 'Paid and closed. Nothing left to do.'
-              : 'Your invoice is in. FEM confirms the payment.'}
+              ? 'Paid and closed.'
+              : 'Invoice in. FEM confirms payment.'}
           </p>
         </div>
         {assignment.payment.state === 'paid' && (
@@ -84,7 +84,7 @@ export function StageAction({
                 , then mark it delivered.
               </>
             ) : (
-              'Send the files the way you normally would, then tell us where they went.'
+              'Send the files as usual, then say where they went.'
             )}
           </p>
 
@@ -178,7 +178,6 @@ export function StageAction({
           does: a misclick there is a message to FEM otherwise. */}
       {assignment.stage > 1 && assignment.payment.state !== 'paid' && (
         <p className="stage-act__undo">
-          Clicked too soon?{' '}
           <button
             type="button"
             className="link-arrow link-arrow--button"

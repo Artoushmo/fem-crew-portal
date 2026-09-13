@@ -75,10 +75,7 @@ export function AssignmentDetail({ id }: { id: string }) {
           <h1 className="hero__title">Not your assignment</h1>
         </Masthead>
         <main className="content">
-          <p className="state state--idle">
-            This assignment is not on your list. It may have been given to someone else, or
-            the link is from a different account.
-          </p>
+          <p className="state state--idle">Not on your list.</p>
         </main>
       </>
     );
@@ -269,8 +266,7 @@ function BriefingTab({ a }: { a: Assignment }) {
     <>
       {a.stage < 1 && (
         <p className="state state--idle">
-          Accept the assignment to lock this briefing in — details can still change
-          until you do.
+          Details can still change until you accept.
         </p>
       )}
 
@@ -286,8 +282,8 @@ function BriefingTab({ a }: { a: Assignment }) {
             <li key={e}>{e}</li>
           ))}
           <li>
-            Nothing from this job goes on social media without agreeing it with Fast
-            Elevate Media first. That includes stills, behind the scenes and stories.
+            Nothing on social media without agreeing it with FEM first &mdash; stills,
+            behind the scenes and stories included.
           </li>
         </ul>
       </section>
@@ -312,13 +308,13 @@ function ShotsTab({ a }: { a: Assignment }) {
     <>
       <section className="panel">
         <h2 className="panel__title">Must-have shots</h2>
-        <p className="panel__hint">Tick these off as you go — saved on this device.</p>
+        <p className="panel__hint">Saved on this device.</p>
         <Checklist storageKey={`fem.shots.${a.id}`} items={a.shots} />
       </section>
 
       <section className="panel">
         <h2 className="panel__title">Must-have equipment</h2>
-        <p className="panel__hint">What you cannot turn up without.</p>
+        <p className="panel__hint">Bring all of it.</p>
         <Checklist storageKey={`fem.kit.${a.id}`} items={a.equipment} columns />
       </section>
 

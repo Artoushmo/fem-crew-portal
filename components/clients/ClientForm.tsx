@@ -42,8 +42,7 @@ export function ClientForm({
     <form className="panel" onSubmit={submit}>
       <h2 className="panel__title">{client ? 'Edit client' : 'New client'}</h2>
       <p className="panel__hint">
-        Only the name is required. The rest is what a producer needs on the day, and what
-        ends up on the call sheet.
+        Only the name is required.
       </p>
 
       <div className="form-grid">
@@ -67,7 +66,7 @@ export function ClientForm({
           />
         </Field>
 
-        <Field label="Contact" hint="Who FEM speaks to.">
+        <Field label="Contact">
           <input
             className="field__input"
             value={form.contact_name ?? ''}
@@ -105,7 +104,7 @@ export function ClientForm({
         </Field>
       </div>
 
-      <Field label="Notes" hint="Access, parking, house rules. Anything that repeats every shoot.">
+      <Field label="Notes" hint="What repeats every shoot.">
         <textarea
           className="field__input field__input--area"
           rows={3}

@@ -113,16 +113,10 @@ export function ShootForm({
   return (
     <form className="panel" onSubmit={submit}>
       <h2 className="panel__title">{editing ? 'Edit assignment' : 'New assignment'}</h2>
-      <p className="panel__hint">
-        Everything here is shared by everyone on it. Who fills each role is decided on the
-        job itself, so nobody is offered anything before you have read it back.
-      </p>
+      <p className="panel__hint">Shared by everyone on the job. Crew is booked afterwards.</p>
 
       <p className="eyebrow eyebrow--spaced">What this job involves</p>
-      <p className="field__hint field__hint--block">
-        Not a choice between two kinds of work. A launch can be a shoot day and a website,
-        so tick whatever applies.
-      </p>
+      <p className="field__hint field__hint--block">Tick whatever applies. Both is fine.</p>
 
       <div className="toggles">
         <label className="toggle">
@@ -145,7 +139,7 @@ export function ShootForm({
           />
           <span>
             <b>A deadline</b>
-            Work delivered by a date &mdash; a web build, an app design, an edit.
+            Web, app, edit.
           </span>
         </label>
       </div>
@@ -179,9 +173,7 @@ export function ShootForm({
         <>
           <p className="eyebrow eyebrow--spaced">Who you need</p>
           <p className="field__hint field__hint--block">
-            One line per person. A launch with a photographer, a videographer and a drone
-            operator is one assignment with three roles, not three assignments. Fees are
-            <strong> excluding VAT</strong> &mdash; the freelancer adds it on their invoice.
+            One line per person. Fees <strong>excluding VAT</strong>.
           </p>
 
           <ul className="rolelines">
@@ -274,7 +266,7 @@ export function ShootForm({
         <>
           <p className="eyebrow eyebrow--spaced">Deadline</p>
           <div className="form-grid">
-            <Field label="Delivered by" hint="What the work is measured against.">
+            <Field label="Delivered by">
               <input type="date" className="field__input" value={form.due_on} onChange={set('due_on')} required />
             </Field>
           </div>
@@ -297,13 +289,10 @@ export function ShootForm({
                 required
               />
             </Field>
-            <Field label="Maps link" hint="Opens on their phone on the day.">
+            <Field label="Maps link">
               <input className="field__input" value={form.maps_url} onChange={set('maps_url')} placeholder="https://" />
             </Field>
-            <Field
-              label="Parking"
-              hint="A note, or a maps link. Paste a link and it becomes a button on their phone."
-            >
+            <Field label="Parking" hint="A note, or a maps link.">
               <input
                 className="field__input"
                 value={form.parking}
@@ -324,7 +313,7 @@ export function ShootForm({
       )}
 
       <p className="eyebrow eyebrow--spaced">Briefing</p>
-      <Field label="What the shoot is" hint="Read before anyone accepts.">
+      <Field label="What the job is">
         <textarea className="field__input field__input--area" rows={4} value={form.briefing} onChange={set('briefing')} />
       </Field>
 
@@ -353,7 +342,7 @@ export function ShootForm({
         </Field>
         <Field
           label={hasShootDay ? 'Must-have equipment' : 'Tools and access'}
-          hint="One per line. What they cannot turn up without."
+          hint="One per line."
         >
           <textarea
             className="field__input field__input--area"
@@ -367,7 +356,7 @@ export function ShootForm({
             }
           />
         </Field>
-        <Field label="Client notes" hint="House rules, access, anything from the client.">
+        <Field label="Client notes" hint="Access, house rules.">
           <textarea
             className="field__input field__input--area"
             rows={4}
@@ -404,10 +393,7 @@ export function ShootForm({
             placeholder={'JPEG, sRGB, full resolution\nWeb exports at 2048px long edge\nFilenames: FEM_client_date_001'}
           />
         </Field>
-        <Field
-          label="Gallery link"
-          hint="A Pixieset or similar gallery we already made. Set this and delivery means adding to it."
-        >
+        <Field label="Gallery link" hint="Pixieset or similar. Crew delivers into it.">
           <input
             className="field__input"
             value={form.gallery_link}
