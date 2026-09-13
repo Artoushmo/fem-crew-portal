@@ -91,12 +91,16 @@ export function CrewPicker({
         <>
           <ul className="picker__list">
             {shown.map(({ member: m, fits }) => {
+              // Two different kinds of "no". Unavailable is a judgement call a
+              // producer can override; unsigned is a refusal from the database,
+              // so the button says why instead of failing on click.
               const blocked = m.unavailable || m.clash;
+              const cannot = !m.signed;
               const avatar = avatarUrl(m.avatar_path);
               const name = m.full_name?.trim() || m.email?.split('@')[0] || 'Unnamed';
 
               return (
-                <li key={m.id} className={`picker__row ${blocked ? 'is-blocked' : ''}`}>
+                <li key={m.id} className={`picker__row ${blocked || cannot ? 'is-blocked' : ''}`}>
                   {avatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatar} alt="" className="member__avatar" />
@@ -120,6 +124,7 @@ export function CrewPicker({
                   </div>
 
                   <div className="picker__tags">
+                    {cannot && <span className="tag tag--warn">Agreement not signed</span>}
                     {m.primary_craft === craft && <span className="tag tag--ok">Main craft</span>}
                     {!fits && <span className="tag tag--warn">Different craft</span>}
                     {m.clash && <span className="tag tag--warn">Booked that day</span>}
@@ -136,10 +141,15 @@ export function CrewPicker({
                   <button
                     type="button"
                     className="btn btn--outline btn--sm"
-                    disabled={busyId === m.id}
+                    disabled={busyId === m.id || cannot}
+                    title={
+                      cannot
+                        ? 'They have not signed this year\u2019s Freelancer Agreement yet.'
+                        : undefined
+                    }
                     onClick={() => pick(m.id)}
                   >
-                    {busyId === m.id ? 'Booking...' : blocked ? 'Book anyway' : 'Book'}
+                    {busyId === m.id ? 'Booking...' : cannot ? 'Cannot book' : blocked ? 'Book anyway' : 'Book'}
                   </button>
                 </li>
               );

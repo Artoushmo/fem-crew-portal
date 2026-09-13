@@ -450,6 +450,23 @@ export function useShoots() {
           accepted_at: null,
           stage: 0,
           status: 'action-required',
+          // Everything the last person did goes with them. Handing the role on
+          // with their invoice still attached would offer the next freelancer a
+          // job that looks half paid.
+          payment_state: 'not-invoiced',
+          invoice_path: null,
+          invoice_name: null,
+          invoice_sha256: null,
+          invoice_number: null,
+          invoiced_on: null,
+          delivery_link: null,
+          delivery_note: null,
+          delivered_at: null,
+          contract_signed_on: null,
+          contract_signed_at: null,
+          signed_copy_path: null,
+          signed_copy_name: null,
+          stage_dates: {},
         })
         .eq('id', roleId);
       if (writeError) throw new Error(writeError.message);

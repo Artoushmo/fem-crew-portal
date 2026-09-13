@@ -55,7 +55,9 @@ export function usePending(): Pending {
       }
 
       // Money in motion: an invoice waiting to be paid, or work delivered that
-      // has not been invoiced yet.
+      // has not been invoiced yet. Only where somebody is actually on the role --
+      // an unbooked one has nobody to pay.
+      if (!r.freelancer_id) continue;
       if (r.payment_state === 'awaiting') payments += 1;
       else if (r.payment_state !== 'paid' && r.stage >= 3) payments += 1;
     }

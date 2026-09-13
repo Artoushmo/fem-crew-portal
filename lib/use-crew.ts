@@ -23,6 +23,9 @@ export interface CrewMember {
   /** Shoots already booked on the same day. Being somewhere else is the most
       common reason a match fails. */
   clash: boolean;
+  /** This year's Freelancer Agreement. Without it the database refuses the
+      booking outright, so it has to be visible before anyone clicks. */
+  signed: boolean;
 }
 
 interface Row {
@@ -39,6 +42,7 @@ interface Row {
   credentials: { label: string; expires_on: string | null }[];
   availability: { kind: string; starts_on: string; ends_on: string }[];
   assignment_roles: { offered_at: string | null; assignments: { starts_at: string } | null }[];
+  agreements: { year: number; signed_on: string | null }[];
 }
 
 const COLUMNS = `
@@ -47,7 +51,8 @@ const COLUMNS = `
   gear ( id ),
   credentials ( label, expires_on ),
   availability ( kind, starts_on, ends_on ),
-  assignment_roles ( offered_at, assignments ( starts_at ) )
+  assignment_roles ( offered_at, assignments ( starts_at ) ),
+  agreements ( year, signed_on )
 `;
 
 function sameDay(a: string, b: string): boolean {
@@ -108,8 +113,13 @@ export function useCrew(shootDate: string | null) {
           )
         : false;
 
+      const thisYear = new Date().getFullYear();
+
       return {
         id: r.id,
+        signed: (r.agreements ?? []).some(
+          (a) => a.year === thisYear && a.signed_on !== null,
+        ),
         full_name: r.full_name,
         email: r.email,
         avatar_path: r.avatar_path,
@@ -138,6 +148,7 @@ export function rankForCraft(crew: CrewMember[], craft: Craft, city: string | nu
     else if (m.crafts.includes(craft)) s += 3;
     if (city && m.base_city && m.base_city.toLowerCase() === city.toLowerCase()) s += 2;
     if (m.gear_count > 0) s += 1;
+    if (!m.signed) s -= 20;
     if (m.unavailable) s -= 6;
     if (m.clash) s -= 6;
     if (m.expiring.length > 0) s -= 3;
