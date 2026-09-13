@@ -106,7 +106,7 @@ export function AssignmentDetail({ id }: { id: string }) {
         <Stepper
           stage={a.stage}
           dates={a.stageDates}
-          complete={a.stage >= 6 && a.payment.state === 'paid'}
+          complete={a.stage >= 5 && a.payment.state === 'paid'}
           waitingUntil={waitingLabel(a, signed)}
         />
 
@@ -171,13 +171,23 @@ function DayTab({ a }: { a: Assignment }) {
           <div>
             <dt>Parking</dt>
             <dd className={a.parking.startsWith('Not') ? 'mini__warn' : undefined}>
-              {a.parking}
+              {/* A pasted maps link becomes a button; anything else is a note.
+                  Both are how people actually describe parking. */}
+              {/^https?:\/\//i.test(a.parking) ? (
+                <a href={a.parking} target="_blank" rel="noopener noreferrer">
+                  Open in Maps
+                </a>
+              ) : (
+                a.parking
+              )}
             </dd>
           </div>
-          <div>
-            <dt>Getting there</dt>
-            <dd>{a.travel}</dd>
-          </div>
+          {a.travel && (
+            <div>
+              <dt>Getting there</dt>
+              <dd>{a.travel}</dd>
+            </div>
+          )}
         </dl>
       </section>
 
@@ -206,21 +216,46 @@ function DayTab({ a }: { a: Assignment }) {
           </>
         )}
 
-        {a.crew.length === 0 && <h2 className="panel__title">Your producer</h2>}
+        {/* Not "your producer" -- they know who booked them. The question they
+            actually have is about this job, so that is the heading, and the two
+            ways people reach FEM are the buttons. */}
+        {a.crew.length === 0 && (
+          <h2 className="panel__title">Questions about your booking?</h2>
+        )}
 
         <div className="contact">
           <div>
             <p className="contact__name">{a.contact.name}</p>
-            <p className="contact__role">{a.contact.role}</p>
+            <p className="contact__role">Fast Elevate Media</p>
           </div>
           <p className="contact__links">
-            <a href={`tel:${a.contact.phone.replace(/\s/g, '')}`}>{a.contact.phone}</a>
-            <a href={`mailto:${a.contact.email}`}>{a.contact.email}</a>
+            {a.contact.email && (
+              <a
+                href={`mailto:${a.contact.email}?subject=${encodeURIComponent(
+                  `${a.title} - ${a.dateLabel}`,
+                )}`}
+                className="btn btn--outline btn--sm"
+              >
+                Email
+              </a>
+            )}
+            {a.contact.phone && (
+              <a
+                href={`https://wa.me/${a.contact.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                  `Hi, about ${a.title} on ${a.dateLabel} — `,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn--outline btn--sm"
+              >
+                WhatsApp
+              </a>
+            )}
           </p>
         </div>
       </section>
 
-      {a.stage >= 2 && (
+      {a.stage >= 1 && (
         <div className="panel__actions">
           <AddToCalendar assignment={a} />
         </div>
@@ -232,7 +267,7 @@ function DayTab({ a }: { a: Assignment }) {
 function BriefingTab({ a }: { a: Assignment }) {
   return (
     <>
-      {a.stage < 2 && (
+      {a.stage < 1 && (
         <p className="state state--idle">
           Accept the assignment to lock this briefing in — details can still change
           until you do.
@@ -282,8 +317,8 @@ function ShotsTab({ a }: { a: Assignment }) {
       </section>
 
       <section className="panel">
-        <h2 className="panel__title">Equipment</h2>
-        <p className="panel__hint">Your packing list.</p>
+        <h2 className="panel__title">Must-have equipment</h2>
+        <p className="panel__hint">What you cannot turn up without.</p>
         <Checklist storageKey={`fem.kit.${a.id}`} items={a.equipment} columns />
       </section>
 
@@ -338,7 +373,7 @@ function DeliveryTab({ a }: { a: Assignment }) {
           <p className="state state--ok">
             Files uploaded {a.stageDates[4] ?? ''}. The producer has them.
           </p>
-        ) : a.stage === 4 ? (
+        ) : a.stage === 3 ? (
           <>
             <p className="panel__hint">
               Shoot day is done. Upload from the step above to hand your work over.

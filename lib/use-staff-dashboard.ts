@@ -9,13 +9,12 @@ import { useShoots, type Role, type Shoot } from './use-staff-assignments';
 /** Stage indices, named. Reading `stage >= 4` in three places is how a workflow
     quietly changes meaning; these are the same seven steps the freelancer walks. */
 const STAGE = {
-  contract: 0,
-  accepted: 1,
-  briefing: 2,
-  shootDay: 3,
-  uploaded: 4,
-  invoiced: 5,
-  paid: 6,
+  accepted: 0,
+  briefing: 1,
+  shootDay: 2,
+  delivered: 3,
+  invoiced: 4,
+  paid: 5,
 } as const;
 
 export type Urgency = 'now' | 'soon' | 'later';
@@ -104,7 +103,7 @@ export function useStaffDashboard() {
         }
 
         // Offered and still silent. The closer the day, the worse the silence.
-        if (r.offered_at && !r.accepted_at && r.stage < STAGE.accepted && !past) {
+        if (r.offered_at && !r.accepted_at && !past) {
           out.push({
             ...base,
             id: `accept-${r.id}`,
@@ -114,7 +113,7 @@ export function useStaffDashboard() {
         }
 
         // The day has passed and the files never arrived.
-        if (past && r.stage < STAGE.uploaded) {
+        if (past && r.stage < STAGE.delivered) {
           out.push({
             ...base,
             id: `deliver-${r.id}`,
@@ -161,7 +160,7 @@ export function useStaffDashboard() {
         m.committed += r.fee_cents;
         if (r.payment_state === 'paid') m.paid += r.fee_cents;
         else if (r.payment_state === 'awaiting') m.awaitingPayment += r.fee_cents;
-        else if (r.stage >= STAGE.uploaded) m.awaitingInvoice += r.fee_cents;
+        else if (r.stage >= STAGE.delivered) m.awaitingInvoice += r.fee_cents;
       }
     }
 
@@ -185,7 +184,32 @@ export function useStaffDashboard() {
     [shoots],
   );
 
+  /** What is actually waiting, per screen. The rail shows these as numbers, so
+      they have to mean "things to do" and not "rows that exist" -- a badge that
+      never clears is one people stop reading. */
+  const pending = useMemo(() => {
+    let assignments = 0;
+    let payments = 0;
+
+    for (const s of shoots) {
+      const upcomingJob = daysFrom(s.starts_at) >= 0;
+
+      for (const r of s.roles) {
+        if (!r.freelancer_id) {
+          if (upcomingJob) assignments += 1;
+          continue;
+        }
+        if (r.offered_at && !r.accepted_at && upcomingJob) assignments += 1;
+        if (r.payment_state === 'awaiting') payments += 1;
+        else if (r.payment_state !== 'paid' && r.stage >= STAGE.delivered) payments += 1;
+      }
+    }
+
+    return { assignments, payments };
+  }, [shoots]);
+
   return {
+    pending,
     loading: shootsLoading || crewLoading || clientsLoading,
     error: shootsError,
     reload,

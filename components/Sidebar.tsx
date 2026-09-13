@@ -13,6 +13,7 @@ import {
   TeamIcon,
 } from './Icons';
 import { useAuth } from '@/lib/auth';
+import { usePending } from '@/lib/use-pending';
 import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
 
@@ -59,6 +60,7 @@ export function Sidebar({
   const pathname = usePathname();
   const { profile } = useAuth();
   const items = visibleNav(profile?.role);
+  const pending = usePending();
 
   return (
     <aside className="rail">
@@ -78,18 +80,34 @@ export function Sidebar({
       </div>
 
       <nav className="rail__nav" aria-label="Primary">
-        {items.map(({ href, label, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="rail__link"
-            aria-current={isActive(pathname, href) ? 'page' : undefined}
-            title={collapsed ? label : undefined}
-          >
-            <Icon />
-            <span className="rail__label">{label}</span>
-          </Link>
-        ))}
+        {items.map(({ href, label, Icon }) => {
+          // Only where a number means something to act on. A badge on Documents
+          // would only ever say how many documents exist.
+          const count =
+            href === '/assignments'
+              ? pending.assignments
+              : href === '/payments'
+                ? pending.payments
+                : 0;
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="rail__link"
+              aria-current={isActive(pathname, href) ? 'page' : undefined}
+              title={collapsed ? label : undefined}
+            >
+              <Icon />
+              <span className="rail__label">{label}</span>
+              {count > 0 && (
+                <span className="badge" aria-label={`${count} need attention`}>
+                  {count}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </nav>
 
       <div className="rail__foot">

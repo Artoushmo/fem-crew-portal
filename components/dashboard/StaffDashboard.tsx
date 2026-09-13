@@ -85,24 +85,34 @@ export function StaffDashboard() {
 
             <p className="eyebrow eyebrow--spaced">Money</p>
             <div className="tiles">
+              {/* A number you cannot act on is a number you stop looking at.
+                  Each of these opens the list it is counting. */}
               <Tile
                 label="Committed"
                 value={formatEuro(money.committed)}
                 note="Booked fees, all jobs"
+                href="/assignments"
               />
               <Tile
                 label="To be invoiced"
                 value={formatEuro(money.awaitingInvoice)}
                 note="Delivered, no invoice yet"
                 tone={money.awaitingInvoice > 0 ? 'wait' : undefined}
+                href="/payments?show=to-invoice"
               />
               <Tile
                 label="To pay"
                 value={formatEuro(money.awaitingPayment)}
                 note="Invoice received"
                 tone={money.awaitingPayment > 0 ? 'warn' : undefined}
+                href="/payments?show=to-pay"
               />
-              <Tile label="Paid" value={formatEuro(money.paid)} note="Settled" />
+              <Tile
+                label="Paid"
+                value={formatEuro(money.paid)}
+                note="Settled"
+                href="/payments?show=paid"
+              />
             </div>
 
             {/* --- The next two weeks ------------------------------------ */}

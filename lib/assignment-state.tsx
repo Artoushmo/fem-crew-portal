@@ -175,7 +175,7 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
   const advance = useCallback(
     (id: string) => {
       const current = assignments.find((a) => a.id === id);
-      if (!current || current.stage >= 6) return;
+      if (!current || current.stage >= 5) return;
 
       const nextStage = current.stage + 1;
       const stamp = today();
@@ -190,7 +190,7 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
         },
         // Sending the invoice is the one step that also moves the money on.
         payments:
-          current.stage === 5
+          current.stage === 4
             ? { ...progress.payments, [id]: 'awaiting' }
             : progress.payments,
       });
@@ -309,21 +309,19 @@ export function useActionQueue() {
 }
 
 const NEXT_ACTION: Record<number, string> = {
-  0: 'Sign your agreement',
-  1: 'Accept assignment',
-  2: 'Review briefing',
-  3: 'Shoot day',
-  4: 'Upload your files',
-  5: 'Send your invoice',
-  6: 'Awaiting payment',
+  0: 'Accept assignment',
+  1: 'Review briefing',
+  2: 'Shoot day',
+  3: 'Deliver your files',
+  4: 'Send your invoice',
+  5: 'Awaiting payment',
 };
 
 function deriveStatus(base: Assignment, stage: number, payment: PaymentState) {
-  if (stage >= 6 && payment === 'paid') return 'completed' as const;
-  if (stage >= 6) return 'delivered' as const;
-  if (stage >= 4) return 'delivered' as const;
-  if (stage <= 1) return 'action-required' as const;
-  if (stage === 3) return 'in-progress' as const;
+  if (stage >= 5 && payment === 'paid') return 'completed' as const;
+  if (stage >= 3) return 'delivered' as const;
+  if (stage === 0) return 'action-required' as const;
+  if (stage === 2) return 'in-progress' as const;
   return base.status === 'completed' ? 'confirmed' : ('confirmed' as const);
 }
 

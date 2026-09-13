@@ -8,11 +8,11 @@ export function AssignmentsView() {
   const assignments = useAssignments();
 
   const open = assignments
-    .filter((a) => !(a.stage >= 6 && a.payment.state === 'paid'))
+    .filter((a) => !(a.stage >= 5 && a.payment.state === 'paid'))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 
   const finished = assignments
-    .filter((a) => a.stage >= 6 && a.payment.state === 'paid')
+    .filter((a) => a.stage >= 5 && a.payment.state === 'paid')
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
   return (

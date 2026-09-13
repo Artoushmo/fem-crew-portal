@@ -300,8 +300,16 @@ export function ShootForm({
             <Field label="Maps link" hint="Opens on their phone on the day.">
               <input className="field__input" value={form.maps_url} onChange={set('maps_url')} placeholder="https://" />
             </Field>
-            <Field label="Parking">
-              <input className="field__input" value={form.parking} onChange={set('parking')} placeholder="P1, reimbursed" />
+            <Field
+              label="Parking"
+              hint="A note, or a maps link. Paste a link and it becomes a button on their phone."
+            >
+              <input
+                className="field__input"
+                value={form.parking}
+                onChange={set('parking')}
+                placeholder="P1, reimbursed — or https://maps.app.goo.gl/..."
+              />
             </Field>
             <Field label="Dress code">
               <input
@@ -343,7 +351,10 @@ export function ShootForm({
             }
           />
         </Field>
-        <Field label={hasShootDay ? 'Bring' : 'Tools and access'} hint="One per line.">
+        <Field
+          label={hasShootDay ? 'Must-have equipment' : 'Tools and access'}
+          hint="One per line. What they cannot turn up without."
+        >
           <textarea
             className="field__input field__input--area"
             rows={4}
@@ -402,15 +413,6 @@ export function ShootForm({
             value={form.gallery_link}
             onChange={set('gallery_link')}
             placeholder="https://..."
-          />
-        </Field>
-
-        <Field label="How to add to it" hint="Login, folder, naming - whatever they need.">
-          <input
-            className="field__input"
-            value={form.gallery_note}
-            onChange={set('gallery_note')}
-            placeholder="Upload into the Selects folder"
           />
         </Field>
 

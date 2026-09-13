@@ -84,13 +84,12 @@ interface Person {
 }
 
 const NEXT_ACTION: Record<number, string> = {
-  0: 'Sign your agreement',
-  1: 'Accept assignment',
-  2: 'Review briefing',
-  3: 'Shoot day',
-  4: 'Upload your files',
-  5: 'Send your invoice',
-  6: 'Awaiting payment',
+  0: 'Accept assignment',
+  1: 'Review briefing',
+  2: 'Shoot day',
+  3: 'Deliver your files',
+  4: 'Send your invoice',
+  5: 'Awaiting payment',
 };
 
 function dayLabel(iso: string): string {
@@ -110,17 +109,17 @@ function shortDate(value: string): string {
 }
 
 function deriveStatus(stage: number, payment: PaymentState): Status {
-  if (stage >= 6 && payment === 'paid') return 'completed';
-  if (stage >= 4) return 'delivered';
-  if (stage <= 1) return 'action-required';
-  if (stage === 3) return 'in-progress';
+  if (stage >= 5 && payment === 'paid') return 'completed';
+  if (stage >= 3) return 'delivered';
+  if (stage === 0) return 'action-required';
+  if (stage === 2) return 'in-progress';
   return 'confirmed';
 }
 
 /** stage_dates is stored keyed by stage index, so a stage completed out of the
     usual order still lands on its own step rather than shifting the rest. */
 function toStageDates(raw: Record<string, string> | null): (string | null)[] {
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: 6 }, (_, i) => {
     const v = raw?.[String(i)];
     return v ? shortDate(v) : null;
   });
@@ -157,12 +156,6 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     parking: s.parking ?? '',
     role: row.role_label,
     fee: row.fee_cents / 100,
-    contract: s.contract_path
-      ? {
-          name: s.contract_name ?? 'Contract',
-          signedOn: row.contract_signed_on ? shortDate(row.contract_signed_on) : null,
-        }
-      : null,
     reopened: row.reopened_reason,
     deliveredTo: row.delivery_link
       ? { link: row.delivery_link, note: row.delivery_note ?? '' }
@@ -342,9 +335,10 @@ export function useMyAssignments() {
 
       const patch: Record<string, unknown> = { stage: nextStage, stage_dates: dates };
 
-      if (current.stage === 1) patch.accepted_at = new Date().toISOString();
+      // Accepting is step one now, and it is what FEM waits on.
+      if (current.stage === 0) patch.accepted_at = new Date().toISOString();
 
-      if (current.stage === 5) {
+      if (current.stage === 4) {
         patch.payment_state = 'awaiting';
         patch.invoice_number = current.payment.invoiceNumber ?? invoiceNumber(id);
         patch.invoiced_on = stamp;
@@ -524,7 +518,7 @@ export function useMyAssignments() {
           delivery_link: trimmed || current.gallery?.link || null,
           delivery_note: note.trim() || (current.gallery ? 'Added to the FEM gallery' : null),
           delivered_at: stamp.toISOString(),
-          stage: Math.min(current.stage + 1, 6),
+          stage: Math.min(current.stage + 1, 5),
           stage_dates: dates,
         })
         .eq('id', id);
@@ -577,7 +571,7 @@ export function useMyAssignments() {
           invoice_number: current.payment.invoiceNumber ?? invoiceNumber(id),
           invoiced_on: stamp.toISOString().slice(0, 10),
           payment_state: 'awaiting',
-          stage: Math.min(current.stage + 1, 6),
+          stage: Math.min(current.stage + 1, 5),
           stage_dates: dates,
         })
         .eq('id', id);
@@ -597,7 +591,9 @@ export function useMyAssignments() {
   const stepBack = useCallback(
     async (id: string) => {
       const current = assignments.find((a) => a.id === id);
-      if (!current || current.stage <= 0) return;
+      // Accepting is final: stepping back out of the briefing would quietly
+      // reopen a search FEM has already called off.
+      if (!current || current.stage <= 1) return;
 
       const client = requireSupabase();
 

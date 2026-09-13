@@ -20,40 +20,24 @@ export function StageAction({
   briefingSeen?: boolean;
 }) {
   const { signed } = useAgreement();
-  const { advance, signContract, returnSignedCopy, deliver, sendInvoice, stepBack, contractUrl } =
-    useProgressActions();
+  const { advance, deliver, sendInvoice, stepBack } = useProgressActions();
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
-  const [link, setLink] = useState('');
-  const [note, setNote] = useState('');
   const action = stageAction(assignment, signed);
 
-  // Step one with paperwork of its own: the contract has to be readable before
-  // it can be signed, so reading it is part of the step rather than a link
-  // somewhere else on the page.
-  const unsignedContract =
-    assignment.stage === 0 && assignment.contract && !assignment.contract.signedOn
-      ? assignment.contract
-      : null;
-
-  const openContract = async () => {
-    setNotice(null);
-    try {
-      window.open(await contractUrl(assignment.id), '_blank', 'noopener');
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : 'Could not open the contract.');
-    }
-  };
-
+  // Past the last step there is nothing to press. Saying so beats an empty
+  // panel, which reads as something that failed to load.
   if (!action) {
     return (
       <div className="stage-act stage-act--waiting">
         <div className="stage-act__body">
-          <p className="stage-act__label">Waiting on FEM</p>
+          <p className="stage-act__label">
+            {assignment.payment.state === 'paid' ? 'All done' : 'Waiting on FEM'}
+          </p>
           <p className="stage-act__hint">
             {assignment.payment.state === 'paid'
-              ? 'Paid — nothing left to do.'
+              ? 'Paid and closed. Nothing left to do.'
               : 'Your invoice is in. FEM confirms the payment.'}
           </p>
         </div>
@@ -84,75 +68,71 @@ export function StageAction({
         <p className="stage-act__hint">{action.blocked ?? action.hint}</p>
       </div>
 
-      {/* Step five asks where the work went. The files travel the way they
-          always have -- a shoot day is tens of gigabytes and already moves by
-          WeTransfer or a client drive -- so what is missing is the pointer. */}
-      {/* Step three is the one people click through without reading, and the
-          briefing is the thing that stops someone turning up with the wrong
-          lens. So confirming it waits until the tab has actually been opened. */}
-      {assignment.stage === 2 && !briefingSeen && onOpenBriefing ? (
-        <div className="stage-act__pair">
-          <button type="button" className="btn btn--primary stage-act__btn" onClick={onOpenBriefing}>
-            Read the briefing
-          </button>
+      {/* Two ways of saying where the work went, and neither needs typing.
+          Pasting a link is one; having already put it where FEM asked is the
+          other, and that one was being refused for want of a url that does not
+          exist. */}
+      {assignment.stage === 3 && asking ? (
+        <div className="deliver">
+          <p className="deliver__gallery">
+            {assignment.gallery ? (
+              <>
+                Add your files to{' '}
+                <a href={assignment.gallery.link} target="_blank" rel="noopener noreferrer">
+                  the FEM gallery
+                </a>
+                , then mark it delivered.
+              </>
+            ) : (
+              'Send the files the way you normally would, then tell us where they went.'
+            )}
+          </p>
+
+          <div className="deliver__choices">
+            <label className="btn btn--outline stage-act__btn">
+              Add a link
+              <input
+                type="url"
+                className="sr-only"
+                onChange={async (e) => {
+                  const url = e.target.value;
+                  if (!url) return;
+                  setBusy(true);
+                  setNotice(null);
+                  try {
+                    await deliver(assignment.id, url, '');
+                    setAsking(false);
+                  } catch (err) {
+                    setNotice(err instanceof Error ? err.message : 'Could not record that.');
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="btn btn--primary stage-act__btn"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setNotice(null);
+                try {
+                  await deliver(assignment.id, '', '');
+                  setAsking(false);
+                } catch (err) {
+                  setNotice(err instanceof Error ? err.message : 'Could not record that.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? 'Saving...' : 'Mark delivered'}
+            </button>
+          </div>
         </div>
-      ) : assignment.stage === 4 && asking ? (
-        <form
-          className="deliver"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            setBusy(true);
-            setNotice(null);
-            try {
-              await deliver(assignment.id, link, note);
-              setAsking(false);
-              setLink('');
-              setNote('');
-            } catch (err) {
-              setNotice(err instanceof Error ? err.message : 'Could not record that.');
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          {assignment.gallery ? (
-            <p className="deliver__gallery">
-              Add your files to{' '}
-              <a href={assignment.gallery.link} target="_blank" rel="noopener noreferrer">
-                the FEM gallery
-              </a>
-              {assignment.gallery.note ? ` — ${assignment.gallery.note}` : ''}, then confirm below.
-            </p>
-          ) : (
-            <input
-              className="field__input"
-              value={link}
-              onChange={(e) => setLink(e.target.value)}
-              placeholder="https://we.tl/..."
-              aria-label="Delivery link"
-              autoFocus
-              required
-            />
-          )}
-          <input
-            className="field__input"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Anything the producer should know (optional)"
-            aria-label="Note for the producer"
-          />
-          <button type="submit" className="btn btn--primary stage-act__btn" disabled={busy}>
-            {busy ? 'Saving...' : 'Mark delivered'}
-          </button>
-          <button
-            type="button"
-            className="link-arrow link-arrow--button"
-            onClick={() => setAsking(false)}
-          >
-            Cancel
-          </button>
-        </form>
-      ) : assignment.stage === 5 ? (
+      ) : assignment.stage === 4 ? (
         <div className="stage-act__pair">
           <label className={`btn btn--primary stage-act__btn ${busy ? 'is-busy' : ''}`}>
             {busy ? 'Sending...' : 'Upload your invoice'}
@@ -177,50 +157,12 @@ export function StageAction({
             />
           </label>
         </div>
-      ) : unsignedContract ? (
-        <div className="stage-act__pair">
-          <button type="button" className="btn btn--outline stage-act__btn" onClick={openContract}>
-            Read it
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary stage-act__btn"
-            onClick={() => signContract(assignment.id)}
-          >
-            Sign here
-          </button>
-
-          {/* The other way most contracts are signed: print it, sign it, send
-              it back. Recorded the same way, against the file returned. */}
-          <label className={`btn btn--outline stage-act__btn ${busy ? 'is-busy' : ''}`}>
-            {busy ? 'Uploading...' : 'Upload a signed copy'}
-            <input
-              type="file"
-              accept="application/pdf"
-              className="sr-only"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = '';
-                if (!file) return;
-                setBusy(true);
-                setNotice(null);
-                try {
-                  await returnSignedCopy(assignment.id, file);
-                } catch (err) {
-                  setNotice(err instanceof Error ? err.message : 'Could not upload that file.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            />
-          </label>
-        </div>
       ) : (
         <button
           type="button"
           className="btn btn--primary stage-act__btn"
           disabled={Boolean(action.blocked)}
-          onClick={() => (assignment.stage === 4 ? setAsking(true) : advance(assignment.id))}
+          onClick={() => (assignment.stage === 3 ? setAsking(true) : advance(assignment.id))}
         >
           {action.label}
         </button>
@@ -232,7 +174,9 @@ export function StageAction({
         </p>
       )}
 
-      {assignment.stage > 0 && assignment.payment.state !== 'paid' && (
+      {/* Accepting is final, so step one has no way back. Everything after it
+          does: a misclick there is a message to FEM otherwise. */}
+      {assignment.stage > 1 && assignment.payment.state !== 'paid' && (
         <p className="stage-act__undo">
           Clicked too soon?{' '}
           <button

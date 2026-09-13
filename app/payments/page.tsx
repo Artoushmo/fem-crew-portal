@@ -1,5 +1,5 @@
-import { PaymentsView } from '@/components/PaymentsView';
+import { PaymentsRouter } from '@/components/payments/PaymentsRouter';
 
 export default function PaymentsPage() {
-  return <PaymentsView />;
+  return <PaymentsRouter />;
 }

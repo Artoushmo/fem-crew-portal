@@ -31,7 +31,7 @@ export function DashboardView() {
   const later = scheduled.slice(1);
   const bookedFees = scheduled.reduce((sum, a) => sum + a.fee, 0);
   const toInvoice = assignments
-    .filter((a) => a.stage === 5)
+    .filter((a) => a.stage === 4)
     .reduce((sum, a) => sum + a.fee, 0);
   const awaiting = assignments
     .filter((a) => a.payment.state === 'awaiting')
@@ -147,7 +147,7 @@ export function DashboardView() {
                 <Link href={`/assignments/${job.id}`} className="btn btn--primary">
                   View Assignment
                 </Link>
-                {job.stage >= 2 && <AddToCalendar assignment={job} />}
+                {job.stage >= 1 && <AddToCalendar assignment={job} />}
               </div>
             </article>
           </section>

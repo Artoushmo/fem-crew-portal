@@ -16,7 +16,7 @@ export function PaymentsView() {
 
   const paid = sum((a) => a.payment.state === 'paid');
   const awaiting = sum((a) => a.payment.state === 'awaiting');
-  const toInvoice = sum((a) => a.stage === 5);
+  const toInvoice = sum((a) => a.stage === 4);
 
   return (
     <>
@@ -47,7 +47,7 @@ export function PaymentsView() {
                 </span>
                 <span className="payrow__fee">{formatFee(a.fee)}</span>
                 <span className={`pay pay--${a.payment.state}`}>
-                  {a.payment.state === 'not-invoiced' && a.stage === 5
+                  {a.payment.state === 'not-invoiced' && a.stage === 4
                     ? 'Ready to invoice'
                     : PAYMENT_LABEL[a.payment.state]}
                 </span>

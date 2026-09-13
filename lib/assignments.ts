@@ -15,12 +15,16 @@ export const agreement = {
 export const VAT_RATE = 0.21;
 
 /** The seven stages every assignment moves through, from contract to payment. */
+/** Six steps, starting where the work does.
+ *
+ * Signing the yearly agreement used to be step one. It is a condition now, not
+ * a step: nobody can be booked or accept without it, which is a stronger rule
+ * than a tracker entry an impatient click can walk past. */
 export const STAGES = [
-  { key: 'contract', label: 'Contract signed', short: 'Contract' },
   { key: 'accepted', label: 'Assignment accepted', short: 'Accepted' },
   { key: 'briefing', label: 'Briefing reviewed', short: 'Briefing' },
   { key: 'shoot', label: 'Shoot day', short: 'Shoot' },
-  { key: 'upload', label: 'Files uploaded', short: 'Upload' },
+  { key: 'upload', label: 'Files delivered', short: 'Deliver' },
   { key: 'invoice', label: 'Invoice sent', short: 'Invoice' },
   { key: 'paid', label: 'Paid', short: 'Paid' },
 ] as const;
@@ -61,9 +65,6 @@ export interface Assignment {
   parking: string;
   role: string;
   fee: number;
-  /** The job's own contract, when the client brought one. Null means the yearly
-      Freelancer Agreement is the paperwork. */
-  contract: { name: string; signedOn: string | null } | null;
   /** Set when FEM changed the paperwork after someone had already signed, so
       the screen can say why the step came back instead of looking like a bug. */
   reopened: string | null;
@@ -110,7 +111,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — P1, code at the desk',
     role: 'Photographer',
     fee: 450,
-    contract: null,
     reopened: null,
     deliveredTo: null,
     gallery: null,
@@ -180,7 +180,6 @@ export const assignments: Assignment[] = [
     parking: 'Not confirmed yet',
     role: 'Videographer',
     fee: 780,
-    contract: null,
     reopened: null,
     deliveredTo: null,
     gallery: null,
@@ -244,7 +243,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — on-site, spot 12',
     role: 'Drone operator',
     fee: 520,
-    contract: null,
     reopened: null,
     deliveredTo: null,
     gallery: null,
@@ -308,7 +306,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — boulevard, day ticket reimbursed',
     role: 'Photographer',
     fee: 640,
-    contract: null,
     reopened: null,
     deliveredTo: null,
     gallery: null,
@@ -452,58 +449,36 @@ export function buildActionQueue(
 export function stageAction(a: Assignment, signed: boolean) {
   switch (a.stage) {
     case 0:
-      return a.contract
-        ? {
-            label: a.contract.signedOn ? 'Continue' : 'Sign the contract',
-            hint: `${a.contract.name} — read it before you sign.`,
-            done: 'Contract signed',
-            blocked: a.contract.signedOn ? null : 'Open the contract below and sign it.',
-          }
-        : {
-            label: 'Confirm and continue',
-            hint: 'No separate contract for this job — your Freelancer Agreement covers it.',
-            done: 'Contract signed',
-            blocked: signed ? null : 'Sign your Freelancer Agreement first.',
-          };
-    case 1:
       return {
         label: 'Accept assignment',
-        hint: 'Confirms you are available and locks in the fee.',
+        hint: 'Confirms you are available and locks in the fee. This one cannot be undone.',
         done: 'Accepted',
-        blocked: signed ? null : 'Sign your Freelancer Agreement first.',
+        blocked: signed ? null : 'Sign your Freelancer Agreement first, under Documents.',
       };
-    case 2:
+    case 1:
       return {
         label: 'I have read the briefing',
         hint: 'Confirms you know the shots, kit and dresscode.',
         done: 'Briefing confirmed',
         blocked: null,
       };
-    case 3:
+    case 2:
       return {
         label: 'Confirm the shoot is done',
-        hint: 'Marks the shoot day complete so you can upload.',
+        hint: 'Marks the shoot day complete so you can deliver.',
         done: 'Shoot complete',
-        blocked:
-          daysUntil(a.startsAt) > 0
-            ? `Available on ${a.dateLabel}.`
-            : null,
+        blocked: daysUntil(a.startsAt) > 0 ? `Available on ${a.dateLabel}.` : null,
+      };
+    case 3:
+      return {
+        label: 'Deliver',
+        hint: a.gallery
+          ? 'Add your files to the FEM gallery, then mark it delivered.'
+          : 'Send the files the way you normally would, then say where they went.',
+        done: 'Delivered',
+        blocked: null,
       };
     case 4:
-      return a.gallery
-        ? {
-            label: 'Mark as delivered',
-            hint: `Add your files to the FEM gallery, then confirm.${a.gallery.note ? ` ${a.gallery.note}` : ''}`,
-            done: 'Delivered',
-            blocked: null,
-          }
-        : {
-            label: 'Add the delivery link',
-            hint: 'Where you sent the files. WeTransfer, Frame.io, a client drive -- whatever you used.',
-            done: 'Delivered',
-            blocked: null,
-          };
-    case 5:
       return {
         label: 'Send invoice',
         hint: `Invoices ${withVat(a.fee)} including VAT.`,
