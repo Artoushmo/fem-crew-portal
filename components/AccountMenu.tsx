@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { CURRENT_VERSION } from '@/lib/changelog';
+import type { AppRole } from '@/lib/auth';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { avatarUrl } from '@/lib/use-profile';
@@ -17,7 +18,7 @@ const ROLE_LABEL: Record<string, string> = {
 /** Who you are and how to leave, in one place. Sits at the foot of the rail on
     desktop and in the masthead on mobile — the two spots people already look. */
 export function AccountMenu({ compact = false }: { compact?: boolean }) {
-  const { profile, session, signOut, configured } = useAuth();
+  const { profile, session, signOut, configured, realRole, viewAs, setViewAs } = useAuth();
   const [open, setOpen] = useState(false);
   const wrapper = useRef<HTMLDivElement>(null);
 
@@ -97,6 +98,32 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             <ProfileIcon size={15} />
             Profile settings
           </Link>
+
+          {/* Switching costs a sign-out otherwise, which is enough friction that
+              nobody checks how a screen looks to their crew. */}
+          {realRole === 'superadmin' && (
+            <div className="account__viewas">
+              <p className="account__viewas-label">View the portal as</p>
+              {(['superadmin', 'staff', 'freelancer'] as AppRole[]).map((r) => {
+                const on = r === 'superadmin' ? viewAs === null : viewAs === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={on}
+                    className={`account__item account__item--pick ${on ? 'is-on' : ''}`}
+                    onClick={() => {
+                      setViewAs(r === 'superadmin' ? null : r);
+                      setOpen(false);
+                    }}
+                  >
+                    {r === 'superadmin' ? 'Myself (Superadmin)' : ROLE_LABEL[r]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Not in the rail: people read it once when something changed, not
               every day. Here it is findable without taking a place from the

@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/lib/auth';
 import { AuthGate, DemoBanner } from './AuthGate';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
+import { ViewAsBanner } from './ViewAsBanner';
 
 const STORAGE_KEY = 'fem.rail.collapsed';
 
@@ -46,6 +47,7 @@ function PortalLayout({ children }: { children: React.ReactNode }) {
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <div className="shell">
         {!configured && <DemoBanner />}
+        <ViewAsBanner />
         {children}
       </div>
       <BottomNav />

@@ -6,6 +6,8 @@ import { isAuthConfigured, requireSupabase, supabase } from './supabase';
 
 export type AppRole = 'freelancer' | 'staff' | 'admin' | 'superadmin';
 
+const VIEW_AS_KEY = 'fem.viewAs.v1';
+
 export interface Profile {
   id: string;
   role: AppRole;
@@ -31,7 +33,15 @@ interface AuthValue {
   configured: boolean;
   stage: AuthStage;
   session: Session | null;
+  /** The profile the screens read. Its role is the one being viewed, which for
+      a superadmin trying on another role is not the one they actually hold. */
   profile: Profile | null;
+  /** What the account really is. The banner and the switch read this; nothing
+      else should. */
+  realRole: AppRole | null;
+  /** Set while a superadmin is looking at the portal as someone else. */
+  viewAs: AppRole | null;
+  setViewAs: (role: AppRole | null) => void;
   /** aal1 = one factor verified, aal2 = second factor verified. */
   assuranceLevel: 'aal1' | 'aal2' | null;
   /** True when this account must hold aal2 — always for staff and admins, and
@@ -54,6 +64,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [assuranceLevel, setAssuranceLevel] = useState<'aal1' | 'aal2' | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
+  const [viewAs, setViewAsState] = useState<AppRole | null>(null);
+
+  // Survives a reload, because checking a screen usually means reloading it.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_AS_KEY) as AppRole | null;
+      if (stored) setViewAsState(stored);
+    } catch {
+      /* no stored preference is the normal case */
+    }
+  }, []);
+
+  const setViewAs = useCallback((role: AppRole | null) => {
+    setViewAsState(role);
+    try {
+      if (role) window.localStorage.setItem(VIEW_AS_KEY, role);
+      else window.localStorage.removeItem(VIEW_AS_KEY);
+    } catch {
+      /* the switch still applies for this session */
+    }
+  }, []);
 
   /** Re-derives everything that depends on the session: the profile, enrolled
       factors, and whether a second factor is still outstanding. */
@@ -168,12 +199,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  const realRole = profile?.role ?? null;
+
+  // Only a superadmin may look through someone else's screens, and only at a
+  // role below their own. This changes what is rendered and nothing else: row
+  // level security still sees the account that signed in, so a preview can
+  // never show more than the real role could.
+  const allowed = realRole === 'superadmin' && viewAs !== null && viewAs !== 'superadmin';
+
+  const shownProfile = useMemo(
+    () => (profile && allowed ? { ...profile, role: viewAs! } : profile),
+    [profile, allowed, viewAs],
+  );
+
   const value = useMemo(
     () => ({
       configured: isAuthConfigured,
       stage,
       session,
-      profile,
+      profile: shownProfile,
+      realRole,
+      viewAs: allowed ? viewAs : null,
+      setViewAs,
       assuranceLevel,
       mfaRequired,
       factors,
@@ -186,7 +233,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [
       stage,
       session,
-      profile,
+      shownProfile,
+      realRole,
+      allowed,
+      viewAs,
+      setViewAs,
       assuranceLevel,
       mfaRequired,
       factors,

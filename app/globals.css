@@ -1563,6 +1563,58 @@ button {
   margin-left: auto;
 }
 
+/* --- Viewing as someone else ------------------------------------------- */
+
+/* Gold, and in the way. A preview you can forget you are in is how somebody
+   decides the portal is broken because Team vanished. */
+.viewas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 14px auto 0;
+  padding: 11px 16px;
+  max-width: var(--fem-content-width);
+  border-radius: 10px;
+  background: rgba(242, 190, 80, 0.2);
+  border: 1px solid rgba(242, 190, 80, 0.5);
+  font-size: 13.5px;
+  color: var(--fem-text);
+}
+
+.viewas__exit {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fem-blue);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.account__viewas {
+  padding: 8px 4px 4px;
+  border-top: 1px solid var(--fem-border-light);
+  margin-top: 4px;
+}
+
+.account__viewas-label {
+  margin: 0 0 4px;
+  padding: 0 10px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--fem-text-muted);
+}
+
+.account__item--pick.is-on {
+  color: var(--fem-blue);
+  font-weight: 600;
+}
+
 /* --- Counts on the rail ------------------------------------------------- */
 
 .badge {
