@@ -52,6 +52,8 @@ interface Ctx {
   sendInvoice: (id: string, file: File) => Promise<void>;
   /** One step back, recorded. */
   stepBack: (id: string) => Promise<void>;
+  /** A short-lived link to a file of theirs in the private bucket. */
+  fileUrl: (path: string) => Promise<string>;
   unsignAgreement: () => void;
   reset: () => void;
 }
@@ -91,6 +93,7 @@ function LiveProvider({
       deliver: live.deliver,
       sendInvoice: live.sendInvoice,
       stepBack: live.stepBack,
+      fileUrl: live.fileUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
       unsignAgreement: () => {},
@@ -222,6 +225,9 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
       stepBack: async () => {
         throw new Error('The sample assignments do not step back.');
       },
+      fileUrl: async () => {
+        throw new Error('The sample assignments have no files.');
+      },
       unsignAgreement,
       reset,
     }),
@@ -256,6 +262,7 @@ export function useProgressActions() {
     deliver,
     sendInvoice,
     stepBack,
+    fileUrl,
     unsignAgreement,
     reset,
     ready,
@@ -268,6 +275,7 @@ export function useProgressActions() {
     deliver,
     sendInvoice,
     stepBack,
+    fileUrl,
     unsignAgreement,
     reset,
     ready,

@@ -92,7 +92,15 @@ export interface Assignment {
   clientNotes: string;
   files: { name: string; kind: string; size: string }[];
   delivery: { firstSelection: string; fullEdit: string; format: string; retention: string };
-  payment: { state: PaymentState; invoiceNumber?: string; invoicedOn?: string; paidOn?: string };
+  payment: {
+    state: PaymentState;
+    invoiceNumber?: string;
+    invoicedOn?: string;
+    paidOn?: string;
+    /** Where the invoice they sent is stored, so they can fetch it back. */
+    path?: string;
+    name?: string;
+  };
   calendar: { start: string; end: string };
 }
 

@@ -17,7 +17,8 @@ import { requireSupabase, supabase } from './supabase';
 
 const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
-  payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
+  payment_state, invoice_number, invoiced_on, paid_on, invoice_path, invoice_name,
+  offered_at, accepted_at,
   delivery_link, delivery_note,
   on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
   assignments (
@@ -40,6 +41,8 @@ interface RawRole {
   invoice_number: string | null;
   invoiced_on: string | null;
   paid_on: string | null;
+  invoice_path: string | null;
+  invoice_name: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
   on_site: string | null;
@@ -215,6 +218,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       ...(row.invoice_number ? { invoiceNumber: row.invoice_number } : {}),
       ...(row.invoiced_on ? { invoicedOn: shortDate(row.invoiced_on) } : {}),
       ...(row.paid_on ? { paidOn: shortDate(row.paid_on) } : {}),
+      ...(row.invoice_path ? { path: row.invoice_path, name: row.invoice_name ?? 'Invoice' } : {}),
     },
     calendar: {
       start: `${day}T${onSite}:00`,
@@ -518,6 +522,17 @@ export function useMyAssignments() {
     [assignments, load],
   );
 
+  /** A short-lived link to something of theirs in the private bucket -- their
+      own invoice, or the agreement they signed. */
+  const fileUrl = useCallback(async (path: string): Promise<string> => {
+    const { data, error: signError } = await requireSupabase()
+      .storage.from('agreements')
+      .createSignedUrl(path, 300);
+
+    if (signError || !data) throw new Error(signError?.message ?? 'Could not open that file.');
+    return data.signedUrl;
+  }, []);
+
   const signAgreement = useCallback(async () => {
     if (!uid) return;
 
@@ -579,6 +594,7 @@ export function useMyAssignments() {
     deliver,
     sendInvoice,
     stepBack,
+    fileUrl,
     reload: load,
   };
 }

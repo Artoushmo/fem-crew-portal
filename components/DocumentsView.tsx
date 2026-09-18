@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAgreement, useProgressActions } from '@/lib/assignment-state';
+import { useAgreement, useAssignments, useProgressActions } from '@/lib/assignment-state';
+import { VAT_RATE, withVat } from '@/lib/assignments';
 import { useAgreementDoc } from '@/lib/use-agreement-doc';
 import { shortHash } from '@/lib/signing';
 import { SigningReceipt } from './SigningReceipt';
@@ -14,19 +15,35 @@ const archive = [
 
 export function DocumentsView() {
   const agreement = useAgreement();
-  const { signAgreement } = useProgressActions();
+  const { signAgreement, fileUrl } = useProgressActions();
+  const assignments = useAssignments();
+
+  // Anything that has been invoiced, newest first. Before it is invoiced it is
+  // work, not paperwork.
+  const invoices = [...assignments]
+    .filter((a) => a.payment.state !== 'not-invoiced')
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
   const { doc, loading, error, canManage, upload, openUrl } = useAgreementDoc(agreement.year);
   const agreementId = agreement.id;
 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const open = async () => {
+  const openAgreement = async () => {
     setNotice(null);
     try {
       window.open(await openUrl(), '_blank', 'noopener');
     } catch (err) {
       setNotice(err instanceof Error ? err.message : 'Could not open the document.');
+    }
+  };
+
+  const open = async (path: string) => {
+    setNotice(null);
+    try {
+      window.open(await fileUrl(path), '_blank', 'noopener');
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : 'Could not open that file.');
     }
   };
 
@@ -122,7 +139,7 @@ export function DocumentsView() {
 
           <div className="card__actions">
             {doc && (
-              <button type="button" className="btn btn--outline" onClick={open}>
+              <button type="button" className="btn btn--outline" onClick={openAgreement}>
                 Read it
               </button>
             )}
@@ -151,23 +168,57 @@ export function DocumentsView() {
           </div>
         </article>
 
-        <p className="eyebrow eyebrow--spaced">Archive</p>
+        {/* Their own books. A freelancer's paperwork with FEM is scattered
+            across their email otherwise: what was invoiced, when it was paid,
+            and which job it was for. */}
+        <p className="eyebrow eyebrow--spaced">Invoices</p>
 
-        <ul className="list">
-          {archive.map((doc) => (
-            <li key={doc.year} className="row">
-              <div className="row__summary row__summary--static">
-                <span className="row__main">
-                  <span className="row__title">Freelancer Agreement {doc.year}</span>
-                  <span className="row__client">Signed on {doc.signedOn}</span>
-                </span>
-                <button type="button" className="link-arrow link-arrow--button">
-                  Download →
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {invoices.length === 0 ? (
+          <p className="state state--idle">Nothing invoiced yet.</p>
+        ) : (
+          <ul className="list">
+            {invoices.map((a) => (
+              <li key={a.id} className="row">
+                <div className="payline">
+                  <div className="payline__what">
+                    <span className="job__title">
+                      {a.title} &mdash; {a.client}
+                    </span>
+                    <span className="job__meta">
+                      {a.payment.invoiceNumber ?? 'No number'} &middot; {a.dateLabel}
+                      {a.payment.invoicedOn ? ` · sent ${a.payment.invoicedOn}` : ''}
+                    </span>
+                  </div>
+
+                  <span className={`tag ${a.payment.state === 'paid' ? 'tag--ok' : 'tag--wait'}`}>
+                    {a.payment.state === 'paid'
+                      ? `Paid ${a.payment.paidOn ?? ''}`.trim()
+                      : 'Awaiting payment'}
+                  </span>
+
+                  <span className="roles__fee">{withVat(a.fee)}</span>
+
+                  <span className="payline__controls">
+                    {a.payment.path && (
+                      <button
+                        type="button"
+                        className="link-arrow link-arrow--button"
+                        onClick={() => open(a.payment.path!)}
+                      >
+                        Open
+                      </button>
+                    )}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="field__hint field__hint--block">
+          Amounts include {Math.round(VAT_RATE * 100)}% VAT.
+        </p>
+
       </main>
     </>
   );
