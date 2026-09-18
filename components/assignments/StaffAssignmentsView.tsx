@@ -293,6 +293,21 @@ export function StaffAssignmentsView() {
                                 <span className="roles__craft">{CRAFT_LABEL[r.craft]}</span>
                                 <span className="roles__label">
                                   {r.role_label === CRAFT_LABEL[r.craft] ? '' : r.role_label}
+                                  {(r.on_site || r.wrapped) && (
+                                    <span className="roles__own">
+                                      {r.on_site?.slice(0, 5) ?? '—'}
+                                      {r.wrapped ? `-${r.wrapped.slice(0, 5)}` : ''}
+                                    </span>
+                                  )}
+                                  {r.due_on && (
+                                    <span className="roles__own">
+                                      due{' '}
+                                      {new Date(r.due_on).toLocaleDateString('en-GB', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                      })}
+                                    </span>
+                                  )}
                                 </span>
 
                                 {r.freelancer_id ? (

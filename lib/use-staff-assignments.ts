@@ -15,6 +15,15 @@ export interface Role {
   assignment_id: string;
   craft: Craft;
   role_label: string;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  due_on: string | null;
+  briefing: string | null;
+  expectations: string[] | null;
+  shots: string[] | null;
+  equipment: string[] | null;
+  delivery: Partial<Delivery> | null;
   freelancer_id: string | null;
   freelancer_name: string | null;
   freelancer_avatar: string | null;
@@ -89,6 +98,17 @@ export interface RoleDraft {
   craft: Craft | '';
   role_label: string;
   fee: string;
+  /** Everything below is optional. Empty means this role follows the job, which
+      is the case for most of them -- a producer fills in what differs. */
+  on_site: string;
+  camera_ready: string;
+  wrapped: string;
+  due_on: string;
+  briefing: string;
+  expectations: string;
+  shots: string;
+  equipment: string;
+  delivery: Delivery;
 }
 
 export interface ShootDraft {
@@ -122,7 +142,20 @@ export interface ShootDraft {
   roles: RoleDraft[];
 }
 
-export const BLANK_ROLE: RoleDraft = { craft: '', role_label: '', fee: '' };
+export const BLANK_ROLE: RoleDraft = {
+  craft: '',
+  role_label: '',
+  fee: '',
+  on_site: '',
+  camera_ready: '',
+  wrapped: '',
+  due_on: '',
+  briefing: '',
+  expectations: '',
+  shots: '',
+  equipment: '',
+  delivery: { ...BLANK_DELIVERY },
+};
 
 export const BLANK_SHOOT: ShootDraft = {
   hasShootDay: true,
@@ -160,6 +193,7 @@ const SHOOT_COLUMNS = `
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
     delivery_link, delivery_note, invoice_path, invoice_name,
+    on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
     profiles ( full_name, avatar_path )
   )
 `;
@@ -235,6 +269,33 @@ export function jobProgress(s: Shoot): number {
   return Math.round((total / (s.roles.length * 6)) * 100);
 }
 
+/** A role row, with everything left blank stored as null so it keeps following
+    the job. Writing empty strings instead would freeze today's values onto the
+    role and a later change to the job would stop reaching it. */
+export function toRoleRow(draft: RoleDraft, assignmentId: string) {
+  const some = (v: string) => (v.trim() === '' ? null : v.trim());
+  const lines = (v: string) => (toLines(v).length === 0 ? null : toLines(v));
+  const delivery = Object.values(draft.delivery).some((v) => v.trim() !== '')
+    ? draft.delivery
+    : null;
+
+  return {
+    assignment_id: assignmentId,
+    craft: draft.craft,
+    role_label: draft.role_label.trim() || 'Crew',
+    fee_cents: toCents(draft.fee),
+    on_site: some(draft.on_site),
+    camera_ready: some(draft.camera_ready),
+    wrapped: some(draft.wrapped),
+    due_on: some(draft.due_on),
+    briefing: some(draft.briefing),
+    expectations: lines(draft.expectations),
+    shots: lines(draft.shots),
+    equipment: lines(draft.equipment),
+    delivery,
+  };
+}
+
 export function centsToInput(cents: number): string {
   return cents === 0 ? '' : (cents / 100).toString().replace('.', ',');
 }
@@ -257,6 +318,15 @@ interface RawRole {
   assignment_id: string;
   craft: Craft;
   role_label: string;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  due_on: string | null;
+  briefing: string | null;
+  expectations: string[] | null;
+  shots: string[] | null;
+  equipment: string[] | null;
+  delivery: Partial<Delivery> | null;
   freelancer_id: string | null;
   fee_cents: number;
   status: string;
@@ -380,14 +450,7 @@ export function useShoots() {
       if (writeError) throw new Error(writeError.message);
       const id = (data as { id: string }).id;
 
-      const roles = draft.roles
-        .filter((r) => r.craft !== '')
-        .map((r) => ({
-          assignment_id: id,
-          craft: r.craft,
-          role_label: r.role_label.trim() || 'Crew',
-          fee_cents: toCents(r.fee),
-        }));
+      const roles = draft.roles.filter((r) => r.craft !== '').map((r) => toRoleRow(r, id));
 
       if (roles.length > 0) {
         const { error: roleError } = await client.from('assignment_roles').insert(roles);
@@ -435,13 +498,26 @@ export function useShoots() {
 
   const addRole = useCallback(
     async (assignmentId: string, draft: RoleDraft) => {
-      const { error: writeError } = await requireSupabase().from('assignment_roles').insert({
-        assignment_id: assignmentId,
-        craft: draft.craft,
-        role_label: draft.role_label.trim() || 'Crew',
-        fee_cents: toCents(draft.fee),
-      });
+      const { error: writeError } = await requireSupabase()
+        .from('assignment_roles')
+        .insert(toRoleRow(draft, assignmentId));
       if (writeError) throw new Error(writeError.message);
+      await load();
+    },
+    [load],
+  );
+
+  /** Changes what one person is asked for, without touching anyone else. */
+  const updateRole = useCallback(
+    async (roleId: string, assignmentId: string, draft: RoleDraft) => {
+      const { assignment_id: _drop, ...fields } = toRoleRow(draft, assignmentId);
+      const { error: writeError } = await requireSupabase()
+        .from('assignment_roles')
+        .update(fields)
+        .eq('id', roleId);
+
+      if (writeError) throw new Error(writeError.message);
+      drainNotifications();
       await load();
     },
     [load],
@@ -604,6 +680,7 @@ export function useShoots() {
     update,
     remove,
     addRole,
+    updateRole,
     removeRole,
     book,
     unbook,

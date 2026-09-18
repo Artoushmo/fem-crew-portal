@@ -14,6 +14,46 @@ import {
 } from '@/lib/use-staff-assignments';
 import { Field } from '../profile/SectionForm';
 
+/** Whether anything was set for this person rather than the whole crew. Drives
+    the label, so a producer can see at a glance which roles differ. */
+function roleHasOwn(r: RoleDraft): boolean {
+  return Boolean(
+    r.on_site ||
+      r.camera_ready ||
+      r.wrapped ||
+      r.due_on ||
+      r.briefing.trim() ||
+      r.expectations.trim() ||
+      r.shots.trim() ||
+      r.equipment.trim() ||
+      Object.values(r.delivery).some((v) => v.trim()),
+  );
+}
+
+/** A saved role back into something the form can edit. Empty strings where the
+    role follows the job, which is what the form shows as "same as the job". */
+export function roleToDraft(r: Shoot['roles'][number]): RoleDraft {
+  return {
+    craft: r.craft,
+    role_label: r.role_label,
+    fee: centsToInput(r.fee_cents),
+    on_site: r.on_site?.slice(0, 5) ?? '',
+    camera_ready: r.camera_ready?.slice(0, 5) ?? '',
+    wrapped: r.wrapped?.slice(0, 5) ?? '',
+    due_on: r.due_on ?? '',
+    briefing: r.briefing ?? '',
+    expectations: fromLines(r.expectations),
+    shots: fromLines(r.shots),
+    equipment: fromLines(r.equipment),
+    delivery: {
+      firstSelection: r.delivery?.firstSelection ?? '',
+      fullEdit: r.delivery?.fullEdit ?? '',
+      format: r.delivery?.format ?? '',
+      retention: r.delivery?.retention ?? '',
+    },
+  };
+}
+
 export function toDraft(s: Shoot): ShootDraft {
   return {
     title: s.title,
@@ -39,13 +79,9 @@ export function toDraft(s: Shoot): ShootDraft {
     gallery_link: s.gallery_link ?? '',
     gallery_note: s.gallery_note ?? '',
     delivery: s.delivery,
-    // Roles are edited on the shoot itself, where you can also see who is on
+    // Roles are edited on the job itself, where you can also see who is on
     // them. Editing them here would mean two places to book from.
-    roles: s.roles.map((r) => ({
-      craft: r.craft,
-      role_label: r.role_label,
-      fee: centsToInput(r.fee_cents),
-    })),
+    roles: s.roles.map((r) => roleToDraft(r)),
   };
 }
 
@@ -64,6 +100,10 @@ export function ShootForm({
   const [form, setForm] = useState<ShootDraft>(shoot ? toDraft(shoot) : BLANK_SHOOT);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which role has its own details open. Closed by default, because most roles
+  // follow the job and an always-open panel makes the exception look like the
+  // rule.
+  const [openRole, setOpenRole] = useState<number | null>(null);
 
   const set =
     (key: keyof ShootDraft) =>
@@ -220,12 +260,140 @@ export function ShootForm({
 
                 <button
                   type="button"
+                  className="link-arrow link-arrow--button"
+                  onClick={() => setOpenRole(openRole === i ? null : i)}
+                >
+                  {roleHasOwn(r) ? 'Own details' : 'Details'}
+                </button>
+
+                <button
+                  type="button"
                   className="link-arrow link-arrow--button link-arrow--danger"
                   onClick={() => dropRole(i)}
                   disabled={form.roles.length === 1}
                 >
                   Remove
                 </button>
+
+                {openRole === i && (
+                  <div className="rolelines__own">
+                    <p className="field__hint field__hint--block">
+                      Leave empty to follow the job.
+                    </p>
+
+                    <div className="form-grid form-grid--four">
+                      <Field label="On site">
+                        <input
+                          type="time"
+                          className="field__input"
+                          value={r.on_site}
+                          onChange={(e) => setRole(i, { on_site: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Camera ready">
+                        <input
+                          type="time"
+                          className="field__input"
+                          value={r.camera_ready}
+                          onChange={(e) => setRole(i, { camera_ready: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Wrapped">
+                        <input
+                          type="time"
+                          className="field__input"
+                          value={r.wrapped}
+                          onChange={(e) => setRole(i, { wrapped: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Deadline" hint="Their own, if it differs.">
+                        <input
+                          type="date"
+                          className="field__input"
+                          value={r.due_on}
+                          onChange={(e) => setRole(i, { due_on: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label="Briefing">
+                      <textarea
+                        className="field__input field__input--area"
+                        rows={3}
+                        value={r.briefing}
+                        onChange={(e) => setRole(i, { briefing: e.target.value })}
+                      />
+                    </Field>
+
+                    <div className="form-grid">
+                      <Field label="What we expect" hint="One per line.">
+                        <textarea
+                          className="field__input field__input--area"
+                          rows={3}
+                          value={r.expectations}
+                          onChange={(e) => setRole(i, { expectations: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Shot list or deliverables" hint="One per line.">
+                        <textarea
+                          className="field__input field__input--area"
+                          rows={3}
+                          value={r.shots}
+                          onChange={(e) => setRole(i, { shots: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Must-have equipment" hint="One per line.">
+                        <textarea
+                          className="field__input field__input--area"
+                          rows={3}
+                          value={r.equipment}
+                          onChange={(e) => setRole(i, { equipment: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+
+                    <div className="form-grid">
+                      <Field label="First selection">
+                        <input
+                          className="field__input"
+                          value={r.delivery.firstSelection}
+                          onChange={(e) =>
+                            setRole(i, {
+                              delivery: { ...r.delivery, firstSelection: e.target.value },
+                            })
+                          }
+                        />
+                      </Field>
+                      <Field label="Full edit">
+                        <input
+                          className="field__input"
+                          value={r.delivery.fullEdit}
+                          onChange={(e) =>
+                            setRole(i, { delivery: { ...r.delivery, fullEdit: e.target.value } })
+                          }
+                        />
+                      </Field>
+                      <Field label="Format">
+                        <input
+                          className="field__input"
+                          value={r.delivery.format}
+                          onChange={(e) =>
+                            setRole(i, { delivery: { ...r.delivery, format: e.target.value } })
+                          }
+                        />
+                      </Field>
+                      <Field label="Save originals for">
+                        <input
+                          className="field__input"
+                          value={r.delivery.retention}
+                          onChange={(e) =>
+                            setRole(i, { delivery: { ...r.delivery, retention: e.target.value } })
+                          }
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

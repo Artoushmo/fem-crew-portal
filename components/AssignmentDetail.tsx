@@ -270,6 +270,12 @@ function BriefingTab({ a }: { a: Assignment }) {
         </p>
       )}
 
+      {/* Said once, at the top. Without it a videographer called in at eight
+          has no way to know the half twelve on the job is not theirs. */}
+      {a.ownDetails && (
+        <p className="state state--ok">This briefing is set for your role.</p>
+      )}
+
       <section className="panel panel--lead">
         <h2 className="panel__title">The job</h2>
         <p className="prose">{a.briefing}</p>
@@ -357,6 +363,18 @@ function DeliveryTab({ a }: { a: Assignment }) {
             <dt>Save originals</dt>
             <dd>{a.delivery.retention}</dd>
           </div>
+          {a.dueOn && (
+            <div>
+              <dt>Your deadline</dt>
+              <dd>
+                {new Date(a.dueOn).toLocaleDateString('en-GB', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
 

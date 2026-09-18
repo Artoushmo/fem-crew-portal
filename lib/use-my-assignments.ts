@@ -19,6 +19,7 @@ const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
   delivery_link, delivery_note,
+  on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
@@ -41,6 +42,15 @@ interface RawRole {
   paid_on: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  due_on: string | null;
+  briefing: string | null;
+  expectations: string[] | null;
+  shots: string[] | null;
+  equipment: string[] | null;
+  delivery: Record<string, string> | null;
   offered_at: string | null;
   accepted_at: string | null;
   assignments: {
@@ -132,9 +142,23 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
   const producer = people.find((p) => p.kind === 'producer');
   const crew = people.filter((p) => p.kind === 'crew');
 
-  const onSite = timeOf(s.on_site, '09:00');
-  const wrapped = timeOf(s.wrapped, '17:00');
+  // Anything set on the role wins. Null means "the same as the job" rather
+  // than "nothing", so a producer sets what differs and leaves the rest to
+  // follow the shoot.
+  const onSite = timeOf(row.on_site ?? s.on_site, '09:00');
+  const wrapped = timeOf(row.wrapped ?? s.wrapped, '17:00');
   const day = s.starts_at.slice(0, 10);
+
+  const ownDetails = Boolean(
+    row.on_site ||
+      row.wrapped ||
+      row.due_on ||
+      row.briefing ||
+      row.shots?.length ||
+      row.equipment?.length ||
+      row.expectations?.length ||
+      row.delivery,
+  );
 
   return {
     id: row.id,
@@ -143,7 +167,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     startsAt: s.starts_at,
     dateLabel: dayLabel(s.starts_at),
     onSite,
-    cameraReady: timeOf(s.camera_ready, onSite),
+    cameraReady: timeOf(row.camera_ready ?? s.camera_ready, onSite),
     wrapped,
     city: s.city ?? '',
     venue: s.venue ?? (s.kind === 'project' ? 'Remote' : ''),
@@ -167,10 +191,10 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       email: producer?.email ?? '',
     },
     crew: crew.map((c) => `${c.name} — ${c.role_label.toLowerCase()}`),
-    briefing: s.briefing ?? '',
-    expectations: s.expectations ?? [],
-    shots: s.shots ?? [],
-    equipment: s.equipment ?? [],
+    briefing: row.briefing ?? s.briefing ?? '',
+    expectations: row.expectations ?? s.expectations ?? [],
+    shots: row.shots ?? s.shots ?? [],
+    equipment: row.equipment ?? s.equipment ?? [],
     dresscode: s.dresscode ?? '',
     clientNotes: s.client_notes ?? '',
     files: (s.assignment_files ?? []).map((f) => ({
@@ -179,11 +203,13 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       size: f.size_label ?? '',
     })),
     delivery: {
-      firstSelection: s.delivery?.firstSelection ?? '',
-      fullEdit: s.delivery?.fullEdit ?? '',
-      format: s.delivery?.format ?? '',
-      retention: s.delivery?.retention ?? '',
+      firstSelection: row.delivery?.firstSelection ?? s.delivery?.firstSelection ?? '',
+      fullEdit: row.delivery?.fullEdit ?? s.delivery?.fullEdit ?? '',
+      format: row.delivery?.format ?? s.delivery?.format ?? '',
+      retention: row.delivery?.retention ?? s.delivery?.retention ?? '',
     },
+    dueOn: row.due_on ?? s.due_on,
+    ownDetails,
     payment: {
       state: row.payment_state,
       ...(row.invoice_number ? { invoiceNumber: row.invoice_number } : {}),

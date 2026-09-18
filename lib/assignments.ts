@@ -71,6 +71,11 @@ export interface Assignment {
   /** A gallery FEM already made. When there is one, delivering means adding to
       it rather than sending a link back. */
   gallery: { link: string; note: string } | null;
+  /** This role's own deadline, where it differs from the shoot day. */
+  dueOn: string | null;
+  /** True where any of what is shown was set for this person rather than the
+      whole crew, so the screen can say so. */
+  ownDetails: boolean;
   status: Status;
   /** Index into STAGES: the stage currently in play. */
   stage: number;
@@ -110,6 +115,8 @@ export const assignments: Assignment[] = [
     fee: 450,
     deliveredTo: null,
     gallery: null,
+    dueOn: null,
+    ownDetails: false,
     status: 'confirmed',
     stage: 2,
     stageDates: ['4 Jan 2026', '2 Sep 2026', null, null, null, null, null],
@@ -178,6 +185,8 @@ export const assignments: Assignment[] = [
     fee: 780,
     deliveredTo: null,
     gallery: null,
+    dueOn: null,
+    ownDetails: false,
     status: 'action-required',
     stage: 1,
     stageDates: ['4 Jan 2026', null, null, null, null, null, null],
@@ -240,6 +249,8 @@ export const assignments: Assignment[] = [
     fee: 520,
     deliveredTo: null,
     gallery: null,
+    dueOn: null,
+    ownDetails: false,
     status: 'delivered',
     stage: 5,
     stageDates: [
@@ -302,6 +313,8 @@ export const assignments: Assignment[] = [
     fee: 640,
     deliveredTo: null,
     gallery: null,
+    dueOn: null,
+    ownDetails: false,
     status: 'completed',
     stage: 6,
     stageDates: [
