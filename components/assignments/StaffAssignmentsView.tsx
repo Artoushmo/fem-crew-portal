@@ -21,7 +21,8 @@ import { BrandLoader } from '../BrandLoader';
 import { ChevronIcon } from '../Icons';
 import { Masthead } from '../Masthead';
 import { CrewPicker } from './CrewPicker';
-import { ShootForm } from './ShootForm';
+import { RoleDetails, roleHasOwn } from './RoleDetails';
+import { ShootForm, roleToDraft } from './ShootForm';
 
 type Filter = 'unbooked' | 'booked' | 'past';
 
@@ -58,6 +59,7 @@ export function StaffAssignmentsView() {
     update,
     remove,
     addRole,
+    updateRole,
     removeRole,
     book,
     unbook,
@@ -75,6 +77,9 @@ export function StaffAssignmentsView() {
   const [pickingRole, setPickingRole] = useState<{ role: Role; shoot: Shoot } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<{ shootId: string; draft: RoleDraft } | null>(null);
+  const [editRole, setEditRole] = useState<{ id: string; shootId: string; draft: RoleDraft } | null>(
+    null,
+  );
   const [rowError, setRowError] = useState<string | null>(null);
 
   const counts = useMemo(() => {
@@ -404,6 +409,20 @@ export function StaffAssignmentsView() {
                                 <span className="roles__fee">{formatEuro(r.fee_cents)}</span>
 
                                 <span className="roles__controls">
+                                  <button
+                                    type="button"
+                                    className="link-arrow link-arrow--button"
+                                    onClick={() =>
+                                      setEditRole(
+                                        editRole?.id === r.id
+                                          ? null
+                                          : { id: r.id, shootId: s.id, draft: roleToDraft(r) },
+                                      )
+                                    }
+                                  >
+                                    {roleHasOwn(roleToDraft(r)) ? 'Own details' : 'Details'}
+                                  </button>
+
                                   {r.freelancer_id ? (
                                     <button
                                       type="button"
@@ -434,6 +453,43 @@ export function StaffAssignmentsView() {
                               </li>
                             ))}
                           </ul>
+
+                          {/* Same form as when the job was written, so nobody
+                              has to learn two versions of it. */}
+                          {editRole?.shootId === s.id && (
+                            <div className="roleedit">
+                              <RoleDetails
+                                role={editRole.draft}
+                                onChange={(patch) =>
+                                  setEditRole({
+                                    ...editRole,
+                                    draft: { ...editRole.draft, ...patch },
+                                  })
+                                }
+                              />
+                              <div className="panel__actions">
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  onClick={() =>
+                                    guard(async () => {
+                                      await updateRole(editRole.id, s.id, editRole.draft);
+                                      setEditRole(null);
+                                    })
+                                  }
+                                >
+                                  Save role
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn--outline btn--sm"
+                                  onClick={() => setEditRole(null)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {pickingRole?.shoot.id === s.id && (
                             <CrewPicker
