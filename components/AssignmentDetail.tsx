@@ -294,10 +294,7 @@ function BriefingTab({ a }: { a: Assignment }) {
           <p className="prose">{a.dresscode}</p>
         </section>
 
-        <section className="panel panel--note">
-          <h2 className="panel__title">Client notes</h2>
-          <p className="prose">{a.clientNotes}</p>
-        </section>
+
       </div>
     </>
   );
@@ -357,7 +354,7 @@ function DeliveryTab({ a }: { a: Assignment }) {
             <dd>{a.delivery.format}</dd>
           </div>
           <div>
-            <dt>Originals</dt>
+            <dt>Save originals</dt>
             <dd>{a.delivery.retention}</dd>
           </div>
         </dl>

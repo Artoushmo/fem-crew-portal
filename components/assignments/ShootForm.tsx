@@ -402,12 +402,12 @@ export function ShootForm({
           />
         </Field>
 
-        <Field label="Retention">
+        <Field label="Save originals for">
           <input
             className="field__input"
             value={form.delivery.retention}
             onChange={setDelivery('retention')}
-            placeholder="Keep the raws for 90 days"
+            placeholder="90 days"
           />
         </Field>
       </div>

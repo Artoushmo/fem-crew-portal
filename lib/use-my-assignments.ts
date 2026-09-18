@@ -491,11 +491,11 @@ export function useMyAssignments() {
 
       const trimmed = link.trim();
 
-      // With a gallery on the job the destination was set by FEM, so there is
-      // nothing to paste back. Without one, a delivery with no destination is
-      // the state this step exists to prevent.
-      if (!current.gallery && !/^https?:\/\//i.test(trimmed)) {
-        throw new Error('That does not look like a link. It should start with https://');
+      // A link is offered, never demanded. Files reach FEM by agency drive, by
+      // a gallery, by hand -- and someone who has already delivered should not
+      // be held at a step because the destination has no url.
+      if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+        throw new Error('A link should start with https://');
       }
 
       const client = requireSupabase();

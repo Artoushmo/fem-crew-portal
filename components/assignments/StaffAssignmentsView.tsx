@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
+import { STAGES } from '@/lib/assignments';
 import { useClients } from '@/lib/use-clients';
 import {
   BLANK_ROLE,
@@ -64,6 +65,7 @@ export function StaffAssignmentsView() {
     removeContract,
     confirmPayment,
     undoPayment,
+    setRoleStage,
     contractUrl,
   } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
@@ -304,6 +306,36 @@ export function StaffAssignmentsView() {
                                   <span className="tag tag--wait">Open</span>
                                 )}
 
+                                {/* Where this person is, and the two controls
+                                    to move them. A producer who knows the files
+                                    landed should not have to ask for a click. */}
+                                {r.freelancer_id && (
+                                  <span className="rolestep">
+                                    <button
+                                      type="button"
+                                      className="rolestep__nudge"
+                                      aria-label="Step back"
+                                      disabled={r.stage <= 0}
+                                      onClick={() => guard(() => setRoleStage(r.id, r.stage - 1))}
+                                    >
+                                      &minus;
+                                    </button>
+                                    <span className="rolestep__label">
+                                      {r.stage + 1}/{STAGES.length} &middot;{' '}
+                                      {STAGES[Math.min(r.stage, STAGES.length - 1)].short}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="rolestep__nudge"
+                                      aria-label="Move on a step"
+                                      disabled={r.stage >= STAGES.length - 1}
+                                      onClick={() => guard(() => setRoleStage(r.id, r.stage + 1))}
+                                    >
+                                      +
+                                    </button>
+                                  </span>
+                                )}
+
                                 {r.contract_signed_on && (
                                   <span className="tag tag--ok">
                                     {r.signed_copy_name ? 'Signed copy' : 'Signed'}
@@ -427,72 +459,6 @@ export function StaffAssignmentsView() {
                               onCancel={() => setPickingRole(null)}
                             />
                           )}
-
-                          {/* The client's own paperwork, when there is any.
-                              Attached here rather than in the form, because it
-                              often arrives after the job has been written up. */}
-                          <div className="contract">
-                            {s.contract_path ? (
-                              <>
-                                <span className="contract__name">
-                                  {s.contract_name ?? 'Contract'}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="link-arrow link-arrow--button"
-                                  onClick={() =>
-                                    guard(async () => {
-                                      window.open(
-                                        await contractUrl(s.contract_path!),
-                                        '_blank',
-                                        'noopener',
-                                      );
-                                    })
-                                  }
-                                >
-                                  Open
-                                </button>
-                                <button
-                                  type="button"
-                                  className="link-arrow link-arrow--button link-arrow--danger"
-                                  onClick={() => guard(() => removeContract(s.id))}
-                                >
-                                  Detach
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="contract__name contract__name--none">
-                                  No contract
-                                </span>
-                                <label
-                                  className={`link-arrow link-arrow--button ${
-                                    uploadingFor === s.id ? 'is-busy' : ''
-                                  }`}
-                                >
-                                  {uploadingFor === s.id ? 'Uploading...' : 'Attach a contract'}
-                                  <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    className="sr-only"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      e.target.value = '';
-                                      if (!file) return;
-                                      setUploadingFor(s.id);
-                                      guard(async () => {
-                                        try {
-                                          await attachContract(s.id, file);
-                                        } finally {
-                                          setUploadingFor(null);
-                                        }
-                                      });
-                                    }}
-                                  />
-                                </label>
-                              </>
-                            )}
-                          </div>
 
                           {newRole?.shootId === s.id ? (
                             <div className="rolelines__row rolelines__row--add">
@@ -624,8 +590,75 @@ export function StaffAssignmentsView() {
                               )}
                             </div>
                           )}
+
+                          {/* The client's own paperwork, when there is any.
+                              Attached here rather than in the form, because it
+                              often arrives after the job has been written up. */}
+                          <div className="contract">
+                            {s.contract_path ? (
+                              <>
+                                <span className="contract__name">
+                                  {s.contract_name ?? 'Contract'}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="link-arrow link-arrow--button"
+                                  onClick={() =>
+                                    guard(async () => {
+                                      window.open(
+                                        await contractUrl(s.contract_path!),
+                                        '_blank',
+                                        'noopener',
+                                      );
+                                    })
+                                  }
+                                >
+                                  Open
+                                </button>
+                                <button
+                                  type="button"
+                                  className="link-arrow link-arrow--button link-arrow--danger"
+                                  onClick={() => guard(() => removeContract(s.id))}
+                                >
+                                  Detach
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="contract__name contract__name--none">
+                                  No contract
+                                </span>
+                                <label
+                                  className={`link-arrow link-arrow--button ${
+                                    uploadingFor === s.id ? 'is-busy' : ''
+                                  }`}
+                                >
+                                  {uploadingFor === s.id ? 'Uploading...' : 'Attach a contract'}
+                                  <input
+                                    type="file"
+                                    accept="application/pdf"
+                                    className="sr-only"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      e.target.value = '';
+                                      if (!file) return;
+                                      setUploadingFor(s.id);
+                                      guard(async () => {
+                                        try {
+                                          await attachContract(s.id, file);
+                                        } finally {
+                                          setUploadingFor(null);
+                                        }
+                                      });
+                                    }}
+                                  />
+                                </label>
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
+
                     </li>
                   );
                 })}

@@ -24,6 +24,7 @@ export function StageAction({
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [link, setLink] = useState('');
   const action = stageAction(assignment, signed);
 
   // Past the last step there is nothing to press. Saying so beats an empty
@@ -68,10 +69,9 @@ export function StageAction({
         <p className="stage-act__hint">{action.blocked ?? action.hint}</p>
       </div>
 
-      {/* Two ways of saying where the work went, and neither needs typing.
-          Pasting a link is one; having already put it where FEM asked is the
-          other, and that one was being refused for want of a url that does not
-          exist. */}
+      {/* A link is offered, not demanded. Hiding the field inside a label was
+          worse than no field: nothing appeared on click, and the other button
+          then refused for want of the url nobody could type. */}
       {assignment.stage === 3 && asking ? (
         <div className="deliver">
           <p className="deliver__gallery">
@@ -81,56 +81,42 @@ export function StageAction({
                 <a href={assignment.gallery.link} target="_blank" rel="noopener noreferrer">
                   the FEM gallery
                 </a>
-                , then mark it delivered.
+                .
               </>
             ) : (
-              'Send the files as usual, then say where they went.'
+              'Send the files as usual. A link is optional.'
             )}
           </p>
 
-          <div className="deliver__choices">
-            <label className="btn btn--outline stage-act__btn">
-              Add a link
-              <input
-                type="url"
-                className="sr-only"
-                onChange={async (e) => {
-                  const url = e.target.value;
-                  if (!url) return;
-                  setBusy(true);
-                  setNotice(null);
-                  try {
-                    await deliver(assignment.id, url, '');
-                    setAsking(false);
-                  } catch (err) {
-                    setNotice(err instanceof Error ? err.message : 'Could not record that.');
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              />
-            </label>
+          <input
+            className="field__input"
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
+            placeholder="https://we.tl/... (optional)"
+            aria-label="Delivery link"
+            inputMode="url"
+          />
 
-            <button
-              type="button"
-              className="btn btn--primary stage-act__btn"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                setNotice(null);
-                try {
-                  await deliver(assignment.id, '', '');
-                  setAsking(false);
-                } catch (err) {
-                  setNotice(err instanceof Error ? err.message : 'Could not record that.');
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              {busy ? 'Saving...' : 'Mark delivered'}
-            </button>
-          </div>
+          <button
+            type="button"
+            className="btn btn--primary stage-act__btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setNotice(null);
+              try {
+                await deliver(assignment.id, link, '');
+                setAsking(false);
+                setLink('');
+              } catch (err) {
+                setNotice(err instanceof Error ? err.message : 'Could not record that.');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? 'Saving...' : 'Mark delivered'}
+          </button>
         </div>
       ) : assignment.stage === 4 ? (
         <div className="stage-act__pair">

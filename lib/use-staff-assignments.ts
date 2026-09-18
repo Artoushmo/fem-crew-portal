@@ -581,6 +581,40 @@ export function useShoots() {
     [load],
   );
 
+  /** Moves somebody's step for them. A producer who knows the files landed in
+      the shared drive should not have to ask the freelancer to click a button
+      before the job can move on -- and the ledger records who moved it. */
+  const setRoleStage = useCallback(
+    async (roleId: string, stage: number) => {
+      const client = requireSupabase();
+
+      const { data: existing } = await client
+        .from('assignment_roles')
+        .select('stage_dates')
+        .eq('id', roleId)
+        .maybeSingle();
+
+      const dates = { ...((existing?.stage_dates as Record<string, string>) ?? {}) };
+      const today = new Date().toISOString().slice(0, 10);
+
+      // Walking forward stamps the steps passed; walking back clears them,
+      // so the tracker never claims a day for something that was undone.
+      Object.keys(dates).forEach((k) => {
+        if (Number(k) >= stage) delete dates[k];
+      });
+      for (let i = 0; i < stage; i += 1) dates[String(i)] ??= today;
+
+      const { error: writeError } = await client
+        .from('assignment_roles')
+        .update({ stage, stage_dates: dates })
+        .eq('id', roleId);
+
+      if (writeError) throw new Error(writeError.message);
+      await load();
+    },
+    [load],
+  );
+
   /** The last step of the whole process, and the only one FEM owns outright.
       An RPC rather than an update, so the state and the date are set together
       and can never disagree -- and so the refusal for anyone else comes from the
@@ -629,6 +663,7 @@ export function useShoots() {
     removeContract,
     confirmPayment,
     undoPayment,
+    setRoleStage,
     contractUrl,
     create,
     update,

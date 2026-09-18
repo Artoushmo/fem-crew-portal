@@ -57,7 +57,7 @@ export function TeamView() {
       <Masthead>
         <h1 className="hero__greeting">Team</h1>
         <p className="hero__sub">
-          {activeStaff.length} at FEM &middot; {activeCrew.length} crew
+          {activeStaff.length} at FEM &middot; {activeCrew.length} freelancers
         </p>
       </Masthead>
 
@@ -86,7 +86,7 @@ export function TeamView() {
               </p>
             )}
 
-            <p className="eyebrow eyebrow--spaced">Fast Elevate Media</p>
+            <p className="eyebrow eyebrow--spaced">Fast Elevate Media Crew</p>
             <MemberList
               members={staff}
               canManage={canManage}
@@ -97,7 +97,7 @@ export function TeamView() {
               empty="No one at FEM yet."
             />
 
-            <p className="eyebrow eyebrow--spaced">Crew</p>
+            <p className="eyebrow eyebrow--spaced">Freelancers</p>
             <MemberList
               members={crew}
               canManage={canManage}
