@@ -4448,6 +4448,19 @@ select.field__input {
   cursor: pointer;
 }
 
+/* Beside the role select rather than in a card of its own. */
+.toggle--inline {
+  padding: 4px 10px;
+  border-radius: 99px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.toggle--inline span {
+  font-size: 12.5px;
+}
+
 .toggle:has(input:checked) {
   border-color: var(--fem-blue-faint);
   background: rgba(76, 114, 169, 0.05);

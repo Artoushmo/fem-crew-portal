@@ -121,6 +121,7 @@ export function CrewPicker({
                   </div>
 
                   <div className="picker__tags">
+                    {m.atFem && <span className="tag tag--wait">At FEM</span>}
                     {cannot && <span className="tag tag--warn">Agreement not signed</span>}
                     {m.primary_craft === craft && <span className="tag tag--ok">Main craft</span>}
                     {!fits && <span className="tag tag--warn">Different craft</span>}

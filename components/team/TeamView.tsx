@@ -10,7 +10,8 @@ import { InviteForm } from './InviteForm';
 
 export function TeamView() {
   const { profile } = useAuth();
-  const { members, loading, error, canManage, invite, setRole, setAccess } = useTeam();
+  const { members, loading, error, canManage, invite, setRole, setAccess, setFreelancing } =
+    useTeam();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   const [rowNote, setRowNote] = useState<string | null>(null);
@@ -30,6 +31,16 @@ export function TeamView() {
       setRowError(err instanceof Error ? err.message : 'Could not change that role.');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const guard = async (fn: () => Promise<void>) => {
+    setRowError(null);
+    setRowNote(null);
+    try {
+      await fn();
+    } catch (err) {
+      setRowError(err instanceof Error ? err.message : 'That did not work.');
     }
   };
 
@@ -94,6 +105,7 @@ export function TeamView() {
               busyId={busyId}
               onRole={change}
               onAccess={access}
+              onFreelancing={(m, on) => guard(() => setFreelancing(m.id, on))}
               empty="No one at FEM yet."
             />
 
@@ -121,6 +133,7 @@ function MemberList({
   busyId,
   onRole,
   onAccess,
+  onFreelancing,
   empty,
 }: {
   members: Member[];
@@ -129,6 +142,8 @@ function MemberList({
   busyId: string | null;
   onRole: (id: string, role: AppRole) => void;
   onAccess: (m: Member, action: 'revoke' | 'restore') => void;
+  /** Only passed for the FEM list. A freelancer is bookable by definition. */
+  onFreelancing?: (m: Member, on: boolean) => void;
   empty: string;
 }) {
   // Ending someone's access is not undoable from their side, so it takes two
@@ -198,6 +213,17 @@ function MemberList({
                         </option>
                       ))}
                     </select>
+
+                    {onFreelancing && !revoked && (
+                      <label className="toggle toggle--inline">
+                        <input
+                          type="checkbox"
+                          checked={m.can_freelance}
+                          onChange={(e) => onFreelancing(m, e.target.checked)}
+                        />
+                        <span>Bookable as crew</span>
+                      </label>
+                    )}
 
                     {revoked ? (
                       <button

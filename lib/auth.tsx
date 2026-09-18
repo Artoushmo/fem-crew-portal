@@ -6,7 +6,7 @@ import { isAuthConfigured, requireSupabase, supabase } from './supabase';
 
 export type AppRole = 'freelancer' | 'staff' | 'admin' | 'superadmin';
 
-const VIEW_AS_KEY = 'fem.viewAs.v1';
+const HAT_KEY = 'fem.asFreelancer.v1';
 
 export interface Profile {
   id: string;
@@ -20,6 +20,7 @@ export interface Profile {
 interface Access extends Profile {
   mfa_required: boolean;
   mfa_enrolled: boolean;
+  can_freelance: boolean;
 }
 
 /** Where the session sits in the login flow.
@@ -39,9 +40,11 @@ interface AuthValue {
   /** What the account really is. The banner and the switch read this; nothing
       else should. */
   realRole: AppRole | null;
-  /** Set while a superadmin is looking at the portal as someone else. */
-  viewAs: AppRole | null;
-  setViewAs: (role: AppRole | null) => void;
+  /** True for someone at FEM who can also be booked as crew. */
+  canFreelance: boolean;
+  /** Set while they are working as crew rather than at FEM. */
+  asFreelancer: boolean;
+  setAsFreelancer: (on: boolean) => void;
   /** aal1 = one factor verified, aal2 = second factor verified. */
   assuranceLevel: 'aal1' | 'aal2' | null;
   /** True when this account must hold aal2 — always for staff and admins, and
@@ -64,23 +67,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [assuranceLevel, setAssuranceLevel] = useState<'aal1' | 'aal2' | null>(null);
   const [mfaRequired, setMfaRequired] = useState(false);
-  const [viewAs, setViewAsState] = useState<AppRole | null>(null);
+  const [asFreelancer, setAsFreelancerState] = useState(false);
+  const [canFreelance, setCanFreelance] = useState(false);
 
-  // Survives a reload, because checking a screen usually means reloading it.
+  // Survives a reload: somebody working a shoot stays in that hat all day.
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(VIEW_AS_KEY) as AppRole | null;
-      if (stored) setViewAsState(stored);
+      setAsFreelancerState(window.localStorage.getItem(HAT_KEY) === '1');
     } catch {
       /* no stored preference is the normal case */
     }
   }, []);
 
-  const setViewAs = useCallback((role: AppRole | null) => {
-    setViewAsState(role);
+  const setAsFreelancer = useCallback((on: boolean) => {
+    setAsFreelancerState(on);
     try {
-      if (role) window.localStorage.setItem(VIEW_AS_KEY, role);
-      else window.localStorage.removeItem(VIEW_AS_KEY);
+      if (on) window.localStorage.setItem(HAT_KEY, '1');
+      else window.localStorage.removeItem(HAT_KEY);
     } catch {
       /* the switch still applies for this session */
     }
@@ -117,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setFactors(verified);
     setAssuranceLevel((aal?.currentLevel as 'aal1' | 'aal2') ?? 'aal1');
     setProfile(access);
+    setCanFreelance(access?.can_freelance ?? false);
 
     // Supabase says a second factor is expected when nextLevel outranks
     // currentLevel. The role may demand aal2 even before one is enrolled, which
@@ -201,15 +205,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const realRole = profile?.role ?? null;
 
-  // Only a superadmin may look through someone else's screens, and only at a
-  // role below their own. This changes what is rendered and nothing else: row
-  // level security still sees the account that signed in, so a preview can
-  // never show more than the real role could.
-  const allowed = realRole === 'superadmin' && viewAs !== null && viewAs !== 'superadmin';
+  // Only meaningful for somebody at FEM who is also bookable. A freelancer has
+  // one hat and no switch; for them this is always false.
+  const wearingCrewHat =
+    asFreelancer && canFreelance && realRole !== null && realRole !== 'freelancer';
 
+  // Changes what is rendered and nothing else. Row level security still sees
+  // the account that signed in, so the crew screens show their own bookings --
+  // which is the point: these are real, not a preview.
   const shownProfile = useMemo(
-    () => (profile && allowed ? { ...profile, role: viewAs! } : profile),
-    [profile, allowed, viewAs],
+    () => (profile && wearingCrewHat ? { ...profile, role: 'freelancer' as AppRole } : profile),
+    [profile, wearingCrewHat],
   );
 
   const value = useMemo(
@@ -219,8 +225,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       profile: shownProfile,
       realRole,
-      viewAs: allowed ? viewAs : null,
-      setViewAs,
+      canFreelance,
+      asFreelancer: wearingCrewHat,
+      setAsFreelancer,
       assuranceLevel,
       mfaRequired,
       factors,
@@ -235,9 +242,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       session,
       shownProfile,
       realRole,
-      allowed,
-      viewAs,
-      setViewAs,
+      canFreelance,
+      wearingCrewHat,
+      setAsFreelancer,
       assuranceLevel,
       mfaRequired,
       factors,

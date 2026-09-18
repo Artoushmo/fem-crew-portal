@@ -14,6 +14,8 @@ export interface CrewMember {
   travel_scope: TravelScope;
   crafts: Craft[];
   primary_craft: Craft | null;
+  /** True when this is someone at FEM wearing the other hat. */
+  atFem: boolean;
   gear_count: number;
   /** Certifications that have expired or expire before the shoot. A drone job
       with a lapsed licence is the one match a producer must never make blind. */
@@ -37,6 +39,7 @@ interface Row {
   travel_scope: TravelScope;
   status: string;
   role: string;
+  can_freelance: boolean;
   freelancer_crafts: { craft: Craft; is_primary: boolean }[];
   gear: { id: string }[];
   credentials: { label: string; expires_on: string | null }[];
@@ -46,7 +49,7 @@ interface Row {
 }
 
 const COLUMNS = `
-  id, full_name, email, avatar_path, base_city, travel_scope, status, role,
+  id, full_name, email, avatar_path, base_city, travel_scope, status, role, can_freelance,
   freelancer_crafts ( craft, is_primary ),
   gear ( id ),
   credentials ( label, expires_on ),
@@ -72,11 +75,13 @@ export function useCrew(shootDate: string | null) {
     if (!supabase || stage !== 'ready') return;
     setError(null);
 
+    // Anyone bookable, not only the accounts whose whole job it is. Somebody at
+    // FEM who shoots on Saturdays is crew that day.
     const { data, error: queryError } = await supabase
       .from('profiles')
       .select(COLUMNS)
-      .eq('role', 'freelancer')
       .eq('status', 'active')
+      .or('role.eq.freelancer,can_freelance.is.true')
       .order('full_name');
 
     if (queryError) setError(queryError.message);
@@ -127,6 +132,7 @@ export function useCrew(shootDate: string | null) {
         travel_scope: r.travel_scope,
         crafts,
         primary_craft: primary,
+        atFem: r.role !== 'freelancer',
         gear_count: (r.gear ?? []).length,
         expiring,
         unavailable,

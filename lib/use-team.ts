@@ -12,6 +12,7 @@ export interface Member {
   avatar_path: string | null;
   base_city: string | null;
   status: 'active' | 'revoked';
+  can_freelance: boolean;
   revoked_at: string | null;
   mfa_enrolled: boolean;
   last_sign_in: string | null;
@@ -144,5 +145,30 @@ export function useTeam() {
     [load],
   );
 
-  return { members, loading, error, canManage, reload: load, invite, setRole, setAccess };
+  /** Lets somebody at FEM be booked as crew as well. Not something you set on
+      yourself: a second hat you hand yourself is how one person ends up booking
+      and paying their own work unobserved. */
+  const setFreelancing = useCallback(
+    async (targetId: string, allowed: boolean) => {
+      const { error: rpcError } = await requireSupabase().rpc('set_member_freelancing', {
+        target_id: targetId,
+        allowed,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      await load();
+    },
+    [load],
+  );
+
+  return {
+    members,
+    loading,
+    error,
+    canManage,
+    reload: load,
+    invite,
+    setRole,
+    setAccess,
+    setFreelancing,
+  };
 }

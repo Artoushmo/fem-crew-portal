@@ -1,25 +1,24 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
-import { ROLE_LABEL } from '@/lib/use-team';
 
-/** Says, permanently and in the way, that these are not your own screens.
+/** Says which hat you are wearing, for the people who have two.
  *
- * A preview you can forget you are in is how someone concludes the portal is
- * broken because Team disappeared. It cannot be dismissed -- only switched off,
- * which is the same button. */
+ * Permanent while it applies, because forgetting you are on the crew side is
+ * how somebody decides the portal is broken because Clients vanished. It cannot
+ * be dismissed, only switched back -- which is the same button. */
 export function ViewAsBanner() {
-  const { viewAs, setViewAs } = useAuth();
+  const { asFreelancer, setAsFreelancer } = useAuth();
 
-  if (!viewAs) return null;
+  if (!asFreelancer) return null;
 
   return (
     <div className="viewas" role="status">
       <span>
-        Viewing as <strong>{ROLE_LABEL[viewAs]}</strong>.
+        Working as <strong>crew</strong>. Your own assignments and invoices.
       </span>
-      <button type="button" className="viewas__exit" onClick={() => setViewAs(null)}>
-        Back to mine
+      <button type="button" className="viewas__exit" onClick={() => setAsFreelancer(false)}>
+        Back to FEM
       </button>
     </div>
   );
