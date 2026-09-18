@@ -57,6 +57,7 @@ export function StaffAssignmentsView() {
     error,
     create,
     update,
+    publish,
     remove,
     addRole,
     updateRole,
@@ -81,6 +82,7 @@ export function StaffAssignmentsView() {
     null,
   );
   const [rowError, setRowError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { unbooked: 0, booked: 0, past: 0 };
@@ -191,6 +193,12 @@ export function StaffAssignmentsView() {
               </p>
             )}
 
+            {notice && (
+              <p className="state state--ok" role="status">
+                {notice}
+              </p>
+            )}
+
             {shown.length === 0 ? (
               <p className="state state--idle">
                 {filter === 'unbooked'
@@ -292,6 +300,35 @@ export function StaffAssignmentsView() {
 
                       {open && (
                         <div className="shoot">
+                          {/* Saving is not telling. Edits pile up here until
+                              somebody decides the crew should hear about them,
+                              so fixing three things sends one message. */}
+                          {s.unpublished_changes.length > 0 &&
+                            s.roles.some((r) => r.freelancer_id) && (
+                              <div className="unpublished">
+                                <span>
+                                  Not sent yet: {s.unpublished_changes.join(', ')}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  onClick={() =>
+                                    guard(async () => {
+                                      const n = await publish(s.id);
+                                      setRowError(null);
+                                      setNotice(
+                                        n === 0
+                                          ? 'Nothing to send.'
+                                          : `Sent to ${n} ${n === 1 ? 'person' : 'people'}.`,
+                                      );
+                                    })
+                                  }
+                                >
+                                  Publish
+                                </button>
+                              </div>
+                            )}
+
                           <ul className="roles">
                             {s.roles.map((r) => (
                               <li key={r.id} className="roles__row">

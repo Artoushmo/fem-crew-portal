@@ -3101,6 +3101,25 @@ select.field__input {
   margin-left: auto;
 }
 
+/* Gold, and above the crew it concerns. Not an error -- an edit nobody has been
+   told about yet is a normal state, it just should not stay one. */
+.unpublished {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  background: rgba(242, 190, 80, 0.2);
+  border: 1px solid rgba(242, 190, 80, 0.5);
+  font-size: 13.5px;
+}
+
+.unpublished .btn {
+  margin-left: auto;
+}
+
 .roleedit {
   margin-bottom: 14px;
 }

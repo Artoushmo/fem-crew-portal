@@ -76,6 +76,10 @@ export interface Shoot {
   client_notes: string | null;
   gallery_link: string | null;
   gallery_note: string | null;
+  /** What has changed since the crew was last told. Empty means they are up to
+      date. */
+  unpublished_changes: string[];
+  last_published_at: string | null;
   delivery: Delivery;
   roles: Role[];
 }
@@ -188,6 +192,7 @@ const SHOOT_COLUMNS = `
   id, reference, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
   equipment, dresscode, client_notes, delivery, gallery_link, gallery_note,
+  unpublished_changes, last_published_at,
   clients ( name ),
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
@@ -482,6 +487,22 @@ export function useShoots() {
     [load, profile?.id],
   );
 
+  /** Tells the crew what changed since the last time they were told. One
+      message naming everything, rather than one per edit -- a producer fixing
+      the venue, then the times, then a typo used to send three. */
+  const publish = useCallback(
+    async (id: string): Promise<number> => {
+      const { data, error: rpcError } = await requireSupabase().rpc('publish_assignment', {
+        job_id: id,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      drainNotifications();
+      await load();
+      return (data as number) ?? 0;
+    },
+    [load],
+  );
+
   const remove = useCallback(
     async (id: string) => {
       const { error: writeError } = await requireSupabase()
@@ -678,6 +699,7 @@ export function useShoots() {
     fileUrl,
     create,
     update,
+    publish,
     remove,
     addRole,
     updateRole,
