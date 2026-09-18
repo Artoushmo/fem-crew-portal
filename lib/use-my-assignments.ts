@@ -18,11 +18,11 @@ import { requireSupabase, supabase } from './supabase';
 const COLUMNS = `
   id, craft, role_label, fee_cents, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, offered_at, accepted_at,
-  contract_signed_on, reopened_reason, delivery_link, delivery_note,
+  delivery_link, delivery_note,
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
-    equipment, dresscode, client_notes, delivery, contract_path, contract_name, gallery_link, gallery_note,
+    equipment, dresscode, client_notes, delivery, gallery_link, gallery_note,
     clients ( name ),
     assignment_files ( name, kind, size_label )
   )
@@ -39,8 +39,6 @@ interface RawRole {
   invoice_number: string | null;
   invoiced_on: string | null;
   paid_on: string | null;
-  contract_signed_on: string | null;
-  reopened_reason: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
   offered_at: string | null;
@@ -65,8 +63,6 @@ interface RawRole {
     equipment: string[] | null;
     dresscode: string | null;
     client_notes: string | null;
-    contract_path: string | null;
-    contract_name: string | null;
     gallery_link: string | null;
     gallery_note: string | null;
     delivery: Record<string, string> | null;
@@ -156,7 +152,6 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     parking: s.parking ?? '',
     role: row.role_label,
     fee: row.fee_cents / 100,
-    reopened: row.reopened_reason,
     deliveredTo: row.delivery_link
       ? { link: row.delivery_link, note: row.delivery_note ?? '' }
       : null,
@@ -360,128 +355,6 @@ export function useMyAssignments() {
     [assignments, load],
   );
 
-  /** Records this person's signature on the job's own contract. Kept apart from
-      advance() because signing and moving on are two decisions, and the second
-      is refused until the first has happened. */
-  const signContract = useCallback(
-    async (id: string) => {
-      const client = requireSupabase();
-
-      const { data: role } = await client
-        .from('assignment_roles')
-        .select('assignments ( contract_path, contract_name, contract_sha256 )')
-        .eq('id', id)
-        .maybeSingle();
-
-      const job = (role as {
-        assignments?: {
-          contract_path?: string | null;
-          contract_name?: string | null;
-          contract_sha256?: string | null;
-        };
-      } | null)?.assignments;
-
-      const now = new Date();
-      const { error: writeError } = await client
-        .from('assignment_roles')
-        .update({
-          contract_signed_on: now.toISOString().slice(0, 10),
-          contract_signed_at: now.toISOString(),
-          contract_signed_sha256: job?.contract_sha256 ?? null,
-          // Whatever sent them back has been dealt with.
-          reopened_at: null,
-          reopened_reason: null,
-        })
-        .eq('id', id);
-
-      if (writeError) {
-        setError(writeError.message);
-        return;
-      }
-
-      try {
-        await recordSignature({
-          documentKind: 'job-contract',
-          documentName: job?.contract_name ?? 'Contract',
-          documentSha256: job?.contract_sha256 ?? null,
-          documentPath: job?.contract_path ?? null,
-          subjectType: 'assignment_role',
-          subjectId: id,
-        });
-      } catch (err) {
-        setError(
-          `Signed, but the signing record could not be written: ${
-            err instanceof Error ? err.message : 'unknown error'
-          }`,
-        );
-      }
-
-      await load();
-    },
-    [load],
-  );
-
-  /** Uploads a countersigned PDF against a role. The click-to-sign route stays;
-      this is for the contracts that have to come back on paper.
-
-      Recorded in the ledger like any other signature, with the fingerprint of
-      the file that was returned -- so what is on record is the copy that was
-      actually sent back, not the one that was sent out. */
-  const returnSignedCopy = useCallback(
-    async (id: string, file: File) => {
-      if (file.type !== 'application/pdf') throw new Error('The signed copy has to be a PDF.');
-      if (file.size > 10 * 1024 * 1024) throw new Error('That file is over 10 MB.');
-
-      const client = requireSupabase();
-      const digest = await hashFile(file);
-      const path = `signed/${id}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
-
-      const { error: uploadError } = await client.storage
-        .from('agreements')
-        .upload(path, file, { contentType: 'application/pdf' });
-
-      if (uploadError) throw new Error(uploadError.message);
-
-      const { data: role } = await client
-        .from('assignment_roles')
-        .select('assignments ( contract_sha256 )')
-        .eq('id', id)
-        .maybeSingle();
-
-      const jobHash = (role as { assignments?: { contract_sha256?: string | null } } | null)
-        ?.assignments?.contract_sha256 ?? null;
-
-      const now = new Date();
-      const { error: writeError } = await client
-        .from('assignment_roles')
-        .update({
-          signed_copy_path: path,
-          signed_copy_name: file.name,
-          signed_copy_sha256: digest,
-          contract_signed_on: now.toISOString().slice(0, 10),
-          contract_signed_at: now.toISOString(),
-          contract_signed_sha256: jobHash,
-          reopened_at: null,
-          reopened_reason: null,
-        })
-        .eq('id', id);
-
-      if (writeError) throw new Error(writeError.message);
-
-      await recordSignature({
-        documentKind: 'job-contract',
-        documentName: file.name,
-        documentSha256: digest,
-        documentPath: path,
-        subjectType: 'assignment_role',
-        subjectId: id,
-      });
-
-      await load();
-    },
-    [load],
-  );
-
   /** Records where the work was delivered, and moves the step. Kept together
       because a delivery with no destination is the state we just removed. */
   const deliver = useCallback(
@@ -619,28 +492,6 @@ export function useMyAssignments() {
     [assignments, load],
   );
 
-  /** A short-lived link to the job's contract. */
-  const contractUrl = useCallback(async (id: string): Promise<string> => {
-    const client = requireSupabase();
-
-    const { data: role } = await client
-      .from('assignment_roles')
-      .select('assignments ( contract_path )')
-      .eq('id', id)
-      .maybeSingle();
-
-    const path = (role as { assignments?: { contract_path?: string } } | null)?.assignments
-      ?.contract_path;
-    if (!path) throw new Error('There is no contract for this job.');
-
-    const { data, error: signError } = await client.storage
-      .from('agreements')
-      .createSignedUrl(path, 300);
-
-    if (signError || !data) throw new Error(signError?.message ?? 'Could not open the contract.');
-    return data.signedUrl;
-  }, []);
-
   const signAgreement = useCallback(async () => {
     if (!uid) return;
 
@@ -699,12 +550,9 @@ export function useMyAssignments() {
     error,
     advance,
     signAgreement,
-    signContract,
-    returnSignedCopy,
     deliver,
     sendInvoice,
     stepBack,
-    contractUrl,
     reload: load,
   };
 }

@@ -46,20 +46,12 @@ interface Ctx {
   live: boolean;
   advance: (id: string) => void;
   signAgreement: () => void;
-  /** Records this person's signature on the job's own contract, where there is
-      one. A no-op in demo, which has no paperwork behind it. */
-  signContract: (id: string) => void;
-  /** Returns a countersigned PDF instead of clicking. Both are signatures; this
-      one is for contracts that have to come back on paper. */
-  returnSignedCopy: (id: string, file: File) => Promise<void>;
   /** Records where the work went, and moves step five on. */
   deliver: (id: string, link: string, note: string) => Promise<void>;
   /** Uploads the invoice and moves step six. */
   sendInvoice: (id: string, file: File) => Promise<void>;
   /** One step back, recorded. */
   stepBack: (id: string) => Promise<void>;
-  /** A short-lived link to that contract. */
-  contractUrl: (id: string) => Promise<string>;
   unsignAgreement: () => void;
   reset: () => void;
 }
@@ -96,12 +88,9 @@ function LiveProvider({
       live: true,
       advance: live.advance,
       signAgreement: live.signAgreement,
-      signContract: live.signContract,
-      returnSignedCopy: live.returnSignedCopy,
       deliver: live.deliver,
       sendInvoice: live.sendInvoice,
       stepBack: live.stepBack,
-      contractUrl: live.contractUrl,
       // Nothing to undo against a database: an agreement you can withdraw from
       // the screen that signed it is not an agreement.
       unsignAgreement: () => {},
@@ -228,17 +217,10 @@ function DemoProvider({ children }: { children: React.ReactNode }) {
       live: false,
       advance,
       signAgreement,
-      signContract: () => {},
-      returnSignedCopy: async () => {
-        throw new Error('The sample assignments have no contract to return.');
-      },
       deliver: async (id: string) => advance(id),
       sendInvoice: async (id: string) => advance(id),
       stepBack: async () => {
         throw new Error('The sample assignments do not step back.');
-      },
-      contractUrl: async () => {
-        throw new Error('The sample assignments have no contract attached.');
       },
       unsignAgreement,
       reset,
@@ -271,12 +253,9 @@ export function useProgressActions() {
   const {
     advance,
     signAgreement,
-    signContract,
-    returnSignedCopy,
     deliver,
     sendInvoice,
     stepBack,
-    contractUrl,
     unsignAgreement,
     reset,
     ready,
@@ -286,12 +265,9 @@ export function useProgressActions() {
   return {
     advance,
     signAgreement,
-    signContract,
-    returnSignedCopy,
     deliver,
     sendInvoice,
     stepBack,
-    contractUrl,
     unsignAgreement,
     reset,
     ready,

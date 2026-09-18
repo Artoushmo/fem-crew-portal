@@ -24,9 +24,6 @@ export interface Role {
   payment_state: string;
   offered_at: string | null;
   accepted_at: string | null;
-  contract_signed_on: string | null;
-  signed_copy_path: string | null;
-  signed_copy_name: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
   invoice_path: string | null;
@@ -68,8 +65,6 @@ export interface Shoot {
   equipment: string[];
   dresscode: string | null;
   client_notes: string | null;
-  contract_path: string | null;
-  contract_name: string | null;
   gallery_link: string | null;
   gallery_note: string | null;
   delivery: Delivery;
@@ -159,13 +154,12 @@ export const BLANK_SHOOT: ShootDraft = {
 const SHOOT_COLUMNS = `
   id, reference, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
-  equipment, dresscode, client_notes, delivery, contract_path, contract_name,
+  equipment, dresscode, client_notes, delivery, gallery_link, gallery_note,
   clients ( name ),
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
-    contract_signed_on, signed_copy_path, signed_copy_name, delivery_link, delivery_note,
-    invoice_path, invoice_name,
+    delivery_link, delivery_note, invoice_path, invoice_name,
     profiles ( full_name, avatar_path )
   )
 `;
@@ -270,9 +264,6 @@ interface RawRole {
   payment_state: string;
   offered_at: string | null;
   accepted_at: string | null;
-  contract_signed_on: string | null;
-  signed_copy_path: string | null;
-  signed_copy_name: string | null;
   delivery_link: string | null;
   delivery_note: string | null;
   invoice_path: string | null;
@@ -342,8 +333,6 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     delivery: draft.delivery,
   };
 }
-
-const MAX_CONTRACT_BYTES = 10 * 1024 * 1024;
 
 export function useShoots() {
   const { profile, stage } = useAuth();
@@ -519,63 +508,11 @@ export function useShoots() {
           delivery_link: null,
           delivery_note: null,
           delivered_at: null,
-          contract_signed_on: null,
-          contract_signed_at: null,
-          signed_copy_path: null,
-          signed_copy_name: null,
           stage_dates: {},
         })
         .eq('id', roleId);
       if (writeError) throw new Error(writeError.message);
       drainNotifications();
-      await load();
-    },
-    [load],
-  );
-
-  /** Attaches the client's own paperwork to a job. Stored beside the yearly
-      agreement in the same private bucket, under the job's id, and reached
-      through an expiring signed url like everything else in there. */
-  const attachContract = useCallback(
-    async (shootId: string, file: File) => {
-      if (file.type !== 'application/pdf') throw new Error('The contract has to be a PDF.');
-      if (file.size > MAX_CONTRACT_BYTES) throw new Error('That file is over 10 MB.');
-
-      const digest = await hashFile(file);
-      const client = requireSupabase();
-      const path = `jobs/${shootId}/${Date.now()}-${file.name.replace(/[^\w.\-]+/g, '-')}`;
-
-      const { error: uploadError } = await client.storage
-        .from('agreements')
-        .upload(path, file, { contentType: 'application/pdf' });
-
-      if (uploadError) throw new Error(uploadError.message);
-
-      const { error: writeError } = await client
-        .from('assignments')
-        .update({ contract_path: path, contract_name: file.name, contract_sha256: digest })
-        .eq('id', shootId);
-
-      if (writeError) {
-        await client.storage.from('agreements').remove([path]);
-        throw new Error(writeError.message);
-      }
-
-      await load();
-    },
-    [load],
-  );
-
-  /** Detaches it. The file stays in the bucket: someone may already have signed
-      against it, and deleting the paper under a signature is not a tidy-up. */
-  const removeContract = useCallback(
-    async (shootId: string) => {
-      const { error: writeError } = await requireSupabase()
-        .from('assignments')
-        .update({ contract_path: null, contract_name: null, contract_sha256: null })
-        .eq('id', shootId);
-
-      if (writeError) throw new Error(writeError.message);
       await load();
     },
     [load],
@@ -597,8 +534,8 @@ export function useShoots() {
       const dates = { ...((existing?.stage_dates as Record<string, string>) ?? {}) };
       const today = new Date().toISOString().slice(0, 10);
 
-      // Walking forward stamps the steps passed; walking back clears them,
-      // so the tracker never claims a day for something that was undone.
+      // Walking forward stamps the steps passed; walking back clears them, so
+      // the tracker never claims a day for something that was undone.
       Object.keys(dates).forEach((k) => {
         if (Number(k) >= stage) delete dates[k];
       });
@@ -615,10 +552,8 @@ export function useShoots() {
     [load],
   );
 
-  /** The last step of the whole process, and the only one FEM owns outright.
-      An RPC rather than an update, so the state and the date are set together
-      and can never disagree -- and so the refusal for anyone else comes from the
-      database instead of a hidden button. */
+  /** The last step, and the only one FEM owns outright. An RPC rather than an
+      update, so the state and the date are set together and cannot disagree. */
   const confirmPayment = useCallback(
     async (roleId: string) => {
       const { error: rpcError } = await requireSupabase().rpc('confirm_payment', {
@@ -645,12 +580,14 @@ export function useShoots() {
     [load],
   );
 
-  const contractUrl = useCallback(async (path: string): Promise<string> => {
+  /** A short-lived link to a stored file -- an invoice, or the yearly
+      agreement. The bucket is private; nothing in it is fetched directly. */
+  const fileUrl = useCallback(async (path: string): Promise<string> => {
     const { data, error: signError } = await requireSupabase()
       .storage.from('agreements')
       .createSignedUrl(path, 300);
 
-    if (signError || !data) throw new Error(signError?.message ?? 'Could not open the contract.');
+    if (signError || !data) throw new Error(signError?.message ?? 'Could not open that file.');
     return data.signedUrl;
   }, []);
 
@@ -659,12 +596,10 @@ export function useShoots() {
     loading,
     error,
     reload: load,
-    attachContract,
-    removeContract,
     confirmPayment,
     undoPayment,
     setRoleStage,
-    contractUrl,
+    fileUrl,
     create,
     update,
     remove,

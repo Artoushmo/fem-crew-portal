@@ -65,9 +65,6 @@ export interface Assignment {
   parking: string;
   role: string;
   fee: number;
-  /** Set when FEM changed the paperwork after someone had already signed, so
-      the screen can say why the step came back instead of looking like a bug. */
-  reopened: string | null;
   /** Where the work went. The files travel the way they always have; this is
       the pointer FEM needs. */
   deliveredTo: { link: string; note: string } | null;
@@ -111,7 +108,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — P1, code at the desk',
     role: 'Photographer',
     fee: 450,
-    reopened: null,
     deliveredTo: null,
     gallery: null,
     status: 'confirmed',
@@ -180,7 +176,6 @@ export const assignments: Assignment[] = [
     parking: 'Not confirmed yet',
     role: 'Videographer',
     fee: 780,
-    reopened: null,
     deliveredTo: null,
     gallery: null,
     status: 'action-required',
@@ -243,7 +238,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — on-site, spot 12',
     role: 'Drone operator',
     fee: 520,
-    reopened: null,
     deliveredTo: null,
     gallery: null,
     status: 'delivered',
@@ -306,7 +300,6 @@ export const assignments: Assignment[] = [
     parking: 'Confirmed — boulevard, day ticket reimbursed',
     role: 'Photographer',
     fee: 640,
-    reopened: null,
     deliveredTo: null,
     gallery: null,
     status: 'completed',
@@ -382,7 +375,7 @@ export interface ActionItem {
 }
 
 /** Everything waiting on the freelancer, derived from stage — never hand-maintained.
-    Ordered by urgency: contract first (it blocks everything), then unanswered
+    Ordered by urgency: unanswered
     offers, then briefings, then the shoot day, then money already earned. */
 export function buildActionQueue(
   list: Assignment[],

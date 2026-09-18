@@ -36,7 +36,7 @@ function dateLabel(iso: string): string {
  * producer arrives with is "what do I owe" and not "what happened when". The
  * dashboard tiles link straight into one of these buckets. */
 export function StaffPaymentsView() {
-  const { shoots, loading, error, confirmPayment, undoPayment, contractUrl } = useShoots();
+  const { shoots, loading, error, confirmPayment, undoPayment, fileUrl } = useShoots();
   const params = useSearchParams();
 
   const asked = params.get('show') as Show | null;
@@ -177,7 +177,7 @@ export function StaffPaymentsView() {
                             onClick={() =>
                               guard(async () => {
                                 window.open(
-                                  await contractUrl(role.invoice_path!),
+                                  await fileUrl(role.invoice_path!),
                                   '_blank',
                                   'noopener',
                                 );

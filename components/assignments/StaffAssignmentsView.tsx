@@ -61,12 +61,10 @@ export function StaffAssignmentsView() {
     removeRole,
     book,
     unbook,
-    attachContract,
-    removeContract,
     confirmPayment,
     undoPayment,
     setRoleStage,
-    contractUrl,
+    fileUrl,
   } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
 
@@ -78,7 +76,6 @@ export function StaffAssignmentsView() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<{ shootId: string; draft: RoleDraft } | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
-  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { unbooked: 0, booked: 0, past: 0 };
@@ -336,30 +333,6 @@ export function StaffAssignmentsView() {
                                   </span>
                                 )}
 
-                                {r.contract_signed_on && (
-                                  <span className="tag tag--ok">
-                                    {r.signed_copy_name ? 'Signed copy' : 'Signed'}
-                                  </span>
-                                )}
-
-                                {r.signed_copy_path && (
-                                  <button
-                                    type="button"
-                                    className="link-arrow link-arrow--button"
-                                    onClick={() =>
-                                      guard(async () => {
-                                        window.open(
-                                          await contractUrl(r.signed_copy_path!),
-                                          '_blank',
-                                          'noopener',
-                                        );
-                                      })
-                                    }
-                                  >
-                                    Open signed
-                                  </button>
-                                )}
-
                                 {r.delivery_link && (
                                   <a
                                     href={r.delivery_link}
@@ -389,7 +362,7 @@ export function StaffAssignmentsView() {
                                     onClick={() =>
                                       guard(async () => {
                                         window.open(
-                                          await contractUrl(r.invoice_path!),
+                                          await fileUrl(r.invoice_path!),
                                           '_blank',
                                           'noopener',
                                         );
@@ -591,71 +564,6 @@ export function StaffAssignmentsView() {
                             </div>
                           )}
 
-                          {/* The client's own paperwork, when there is any.
-                              Attached here rather than in the form, because it
-                              often arrives after the job has been written up. */}
-                          <div className="contract">
-                            {s.contract_path ? (
-                              <>
-                                <span className="contract__name">
-                                  {s.contract_name ?? 'Contract'}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="link-arrow link-arrow--button"
-                                  onClick={() =>
-                                    guard(async () => {
-                                      window.open(
-                                        await contractUrl(s.contract_path!),
-                                        '_blank',
-                                        'noopener',
-                                      );
-                                    })
-                                  }
-                                >
-                                  Open
-                                </button>
-                                <button
-                                  type="button"
-                                  className="link-arrow link-arrow--button link-arrow--danger"
-                                  onClick={() => guard(() => removeContract(s.id))}
-                                >
-                                  Detach
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="contract__name contract__name--none">
-                                  No contract
-                                </span>
-                                <label
-                                  className={`link-arrow link-arrow--button ${
-                                    uploadingFor === s.id ? 'is-busy' : ''
-                                  }`}
-                                >
-                                  {uploadingFor === s.id ? 'Uploading...' : 'Attach a contract'}
-                                  <input
-                                    type="file"
-                                    accept="application/pdf"
-                                    className="sr-only"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      e.target.value = '';
-                                      if (!file) return;
-                                      setUploadingFor(s.id);
-                                      guard(async () => {
-                                        try {
-                                          await attachContract(s.id, file);
-                                        } finally {
-                                          setUploadingFor(null);
-                                        }
-                                      });
-                                    }}
-                                  />
-                                </label>
-                              </>
-                            )}
-                          </div>
                         </div>
                       )}
 

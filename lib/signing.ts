@@ -37,6 +37,8 @@ export interface SignatureEvidence {
   reference: string;
   signer_name: string | null;
   signer_email: string | null;
+  /** 'job-contract' only appears on rows written before per-assignment
+      contracts were removed. Nothing writes it now. */
   document_kind: 'agreement' | 'job-contract';
   document_name: string;
   document_sha256: string | null;
@@ -49,7 +51,7 @@ export interface SignatureEvidence {
     from where -- is filled in by the database from the verified session, so the
     values here are only the ones about the document. */
 export async function recordSignature(input: {
-  documentKind: 'agreement' | 'job-contract';
+  documentKind: 'agreement';
   documentName: string;
   documentSha256: string | null;
   documentPath: string | null;
