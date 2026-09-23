@@ -526,7 +526,8 @@ async function handler(req: Request): Promise<Response> {
     if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
   } else if (action === 'set-role' && !GRANTABLE.includes(role)) {
     return json({ error: 'Unknown role.' }, 400);
-  } else if (!payload.target_id) {
+  } else if (action !== 'notify' && !payload.target_id) {
+    // Draining names nobody: it sends what the database already addressed.
     return json({ error: 'Say whose access to change.' }, 400);
   }
 
