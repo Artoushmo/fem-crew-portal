@@ -119,7 +119,6 @@ export function DashboardView() {
                   <CameraIcon />
                   <div>
                     <div className="fact__value">{job.role}</div>
-                    <div className="fact__note">{job.contact.name} is your producer</div>
                   </div>
                 </div>
 

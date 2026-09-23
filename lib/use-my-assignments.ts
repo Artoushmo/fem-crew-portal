@@ -24,7 +24,7 @@ const COLUMNS = `
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
-    equipment, dresscode, client_notes, delivery, gallery_link, gallery_note,
+    equipment, dresscode, delivery, gallery_link, gallery_note,
     clients ( name ),
     assignment_files ( name, kind, size_label )
   )
@@ -75,7 +75,6 @@ interface RawRole {
     shots: string[] | null;
     equipment: string[] | null;
     dresscode: string | null;
-    client_notes: string | null;
     gallery_link: string | null;
     gallery_note: string | null;
     delivery: Record<string, string> | null;
@@ -199,7 +198,6 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     shots: row.shots ?? s.shots ?? [],
     equipment: row.equipment ?? s.equipment ?? [],
     dresscode: s.dresscode ?? '',
-    clientNotes: s.client_notes ?? '',
     files: (s.assignment_files ?? []).map((f) => ({
       name: f.name,
       kind: f.kind,

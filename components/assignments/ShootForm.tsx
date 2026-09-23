@@ -61,7 +61,6 @@ export function toDraft(s: Shoot): ShootDraft {
     shots: fromLines(s.shots),
     equipment: fromLines(s.equipment),
     dresscode: s.dresscode ?? '',
-    client_notes: s.client_notes ?? '',
     gallery_link: s.gallery_link ?? '',
     gallery_note: s.gallery_note ?? '',
     delivery: s.delivery,
@@ -392,14 +391,6 @@ export function ShootForm({
                 ? 'Two bodies\n24-70 and 70-200\nSpare batteries'
                 : 'Figma file\nStaging access\nBrand kit'
             }
-          />
-        </Field>
-        <Field label="Client notes" hint="Access, house rules.">
-          <textarea
-            className="field__input field__input--area"
-            rows={4}
-            value={form.client_notes}
-            onChange={set('client_notes')}
           />
         </Field>
       </div>

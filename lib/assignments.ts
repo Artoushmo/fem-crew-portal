@@ -89,7 +89,6 @@ export interface Assignment {
   shots: string[];
   equipment: string[];
   dresscode: string;
-  clientNotes: string;
   files: { name: string; kind: string; size: string }[];
   delivery: { firstSelection: string; fullEdit: string; format: string; retention: string };
   payment: {
@@ -159,8 +158,6 @@ export const assignments: Assignment[] = [
       'Two cards',
     ],
     dresscode: 'Smart casual, dark colours. No branded clothing from other agencies.',
-    clientNotes:
-      'The CEO prefers to be photographed from their left. Two guests have asked not to be photographed — Sanne will point them out at call time.',
     files: [
       { name: 'Run of show', kind: 'PDF', size: '240 KB' },
       { name: 'Venue floorplan', kind: 'PDF', size: '1.1 MB' },
@@ -227,8 +224,6 @@ export const assignments: Assignment[] = [
       'Three-point lighting',
     ],
     dresscode: 'All black. You will be visible in the background of some shots.',
-    clientNotes:
-      'The product is under embargo until 10 October. Nothing may be posted or shared before then.',
     files: [{ name: 'Shot list draft', kind: 'PDF', size: '180 KB' }],
     delivery: {
       firstSelection: 'Rushes within 48 hours',
@@ -292,7 +287,6 @@ export const assignments: Assignment[] = [
     ],
     equipment: ['Drone', 'ND filters', 'Spare props', 'Three batteries', 'Hi-vis vest'],
     dresscode: 'Hi-vis vest on the roof — supplied on site.',
-    clientNotes: 'Neighbouring building D is still occupied; keep it out of frame where possible.',
     files: [{ name: 'Airspace clearance', kind: 'PDF', size: '96 KB' }],
     delivery: {
       firstSelection: 'Delivered 12 September',
@@ -347,7 +341,6 @@ export const assignments: Assignment[] = [
     shots: ['60 selects delivered', 'Verticals for social from every setup'],
     equipment: ['One body', '35mm', '85mm', 'Reflector'],
     dresscode: 'Beachwear appropriate — you will be in and out of the water.',
-    clientNotes: 'Delivered and signed off.',
     files: [],
     delivery: {
       firstSelection: 'Delivered 19 July',

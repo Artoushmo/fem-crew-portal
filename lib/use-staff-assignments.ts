@@ -73,7 +73,6 @@ export interface Shoot {
   shots: string[];
   equipment: string[];
   dresscode: string | null;
-  client_notes: string | null;
   gallery_link: string | null;
   gallery_note: string | null;
   /** What has changed since the crew was last told. Empty means they are up to
@@ -138,7 +137,6 @@ export interface ShootDraft {
   shots: string;
   equipment: string;
   dresscode: string;
-  client_notes: string;
   gallery_link: string;
   gallery_note: string;
   delivery: Delivery;
@@ -181,7 +179,6 @@ export const BLANK_SHOOT: ShootDraft = {
   shots: '',
   equipment: '',
   dresscode: '',
-  client_notes: '',
   gallery_link: '',
   gallery_note: '',
   delivery: BLANK_DELIVERY,
@@ -191,7 +188,7 @@ export const BLANK_SHOOT: ShootDraft = {
 const SHOOT_COLUMNS = `
   id, reference, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
-  equipment, dresscode, client_notes, delivery, gallery_link, gallery_note,
+  equipment, dresscode, delivery, gallery_link, gallery_note,
   unpublished_changes, last_published_at,
   clients ( name ),
   assignment_roles (
@@ -402,7 +399,6 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     shots: toLines(draft.shots),
     equipment: toLines(draft.equipment),
     dresscode: tidy(draft.dresscode),
-    client_notes: tidy(draft.client_notes),
     gallery_link: tidy(draft.gallery_link),
     gallery_note: tidy(draft.gallery_note),
     delivery: draft.delivery,
