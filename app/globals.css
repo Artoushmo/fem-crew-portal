@@ -3215,12 +3215,16 @@ select.field__input {
   padding: 16px 18px;
 }
 
+/* Two columns of the same width, so the contact details start at the same
+   place on every row. Sized by share rather than by content: hugging the
+   buttons on the right made a long email address begin further left than a
+   short one, and a list you read by scanning down has to line up. */
 .client__who {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-width: 190px;
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
 }
 
 .client__name {
@@ -3237,8 +3241,12 @@ select.field__input {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1 1 200px;
+  min-width: 0;
   font-size: 13px;
   color: var(--fem-text-secondary);
+  /* An address longer than the column wraps rather than widening it. */
+  overflow-wrap: anywhere;
 }
 
 .client__link {
