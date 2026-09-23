@@ -521,14 +521,6 @@ async function handler(req: Request): Promise<Response> {
   const fullName = (payload.full_name ?? '').trim();
   const role = (payload.role ?? 'freelancer') as Role;
 
-  // Draining the queue is not a privileged act -- it sends messages the database
-  // already decided to send, to addresses it already chose. Any signed-in
-  // account may kick it, which is what lets the portal drain it on load without
-  // anyone waiting for a scheduler.
-  if (action === 'notify') {
-    return await drainNotifications();
-  }
-
   if (action === 'invite') {
     if (!email || !email.includes('@')) return json({ error: 'Give a valid email address.' }, 400);
     if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
@@ -547,6 +539,19 @@ async function handler(req: Request): Promise<Response> {
 
   const { data: caller } = await asCaller.auth.getUser();
   if (!caller?.user) return json({ error: 'Not signed in.' }, 401);
+
+  // Draining the queue is not a privileged act -- it sends messages the database
+  // already decided to send, to addresses it already chose, with no input from
+  // the caller. Any signed-in account may kick it, which is what lets the portal
+  // drain it on load without anyone waiting for a scheduler.
+  //
+  // Below getUser on purpose: the gateway only checks that the token is one of
+  // ours, and the publishable key is a valid token of ours that anybody can
+  // read out of the page. Without this line "signed in" was never actually
+  // checked, and the queue could be flushed by a stranger.
+  if (action === 'notify') {
+    return await drainNotifications();
+  }
 
   // RLS does the heavy lifting: a staff session below aal2 reads nothing here.
   const { data: profile, error: profileError } = await asCaller
