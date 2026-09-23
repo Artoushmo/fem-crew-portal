@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
 import { STAGES } from '@/lib/assignments';
 import { useClients } from '@/lib/use-clients';
@@ -71,10 +72,15 @@ export function StaffAssignmentsView() {
   } = useShoots();
   const { clients, loading: clientsLoading } = useClients();
 
+  // Linked to from Payments, so a row there opens the job it belongs to rather
+  // than dropping you at the top of an unfiltered list.
+  const params = useSearchParams();
+  const asked = params.get('job');
+
   const [filter, setFilter] = useState<Filter>('unbooked');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Shoot | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(asked);
   const [pickingRole, setPickingRole] = useState<{ role: Role; shoot: Shoot } | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<{ shootId: string; draft: RoleDraft } | null>(null);
@@ -91,6 +97,18 @@ export function StaffAssignmentsView() {
   }, [shoots]);
 
   const shown = useMemo(() => shoots.filter((s) => bucket(s) === filter), [shoots, filter]);
+
+  // A link from Payments names a job, and the job may well be in a tab that is
+  // not the one this page opens on. Done once, after the jobs arrive, so the
+  // producer can move off it without being dragged back.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (jumped.current || !asked || shoots.length === 0) return;
+    const job = shoots.find((s) => s.id === asked);
+    if (!job) return;
+    jumped.current = true;
+    setFilter(bucket(job));
+  }, [asked, shoots]);
 
   const openRoles = useMemo(
     () => shoots.filter((s) => bucket(s) !== 'past').reduce(

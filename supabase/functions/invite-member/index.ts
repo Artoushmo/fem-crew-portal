@@ -365,6 +365,13 @@ function compose(kind: string, job: Job): { subject: string; heading: string; bo
         body: `${job.freelancer ?? 'Your crew'} invoiced ${euro(job.fee_cents)} for <strong>${name}</strong>${client}${job.invoice ? `, reference ${job.invoice}` : ''}. Mark it paid once it has gone out.`,
         cta: 'Open the assignment',
       };
+    case 'invoice-due':
+      return {
+        subject: `Invoice still open: ${name}`,
+        heading: 'We are waiting on your invoice',
+        body: `The work on <strong>${name}</strong>${client} is delivered, but your invoice for ${euro(job.fee_cents)} has not come in. Send it through the portal and it goes into the next payment run.`,
+        cta: 'Send your invoice',
+      };
     default:
       return null;
   }

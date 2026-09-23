@@ -37,6 +37,20 @@ export interface Role {
   delivery_note: string | null;
   invoice_path: string | null;
   invoice_name: string | null;
+  invoice_number: string | null;
+  /** The dates the money side turns on: when the work landed, when they billed
+      for it, when it went out. */
+  delivered_at: string | null;
+  invoiced_on: string | null;
+  paid_on: string | null;
+  /** When we last asked for the invoice. Null means we never did. */
+  reminded_at: string | null;
+  /** What you need in front of you to actually pay them. Staff-only by row
+      level security; a freelancer reading this hook gets their own and nothing
+      else. */
+  iban: string | null;
+  company_name: string | null;
+  vat_number: string | null;
 }
 
 export type JobKind = 'shoot' | 'project';
@@ -194,9 +208,10 @@ const SHOOT_COLUMNS = `
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents,
     status, stage, payment_state, offered_at, accepted_at,
-    delivery_link, delivery_note, invoice_path, invoice_name,
+    delivery_link, delivery_note, invoice_path, invoice_name, invoice_number,
+    delivered_at, invoiced_on, paid_on, reminded_at,
     on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
-    profiles ( full_name, avatar_path )
+    profiles ( full_name, avatar_path, iban, company_name, vat_number )
   )
 `;
 
@@ -340,7 +355,18 @@ interface RawRole {
   delivery_note: string | null;
   invoice_path: string | null;
   invoice_name: string | null;
-  profiles: { full_name: string | null; avatar_path: string | null } | null;
+  invoice_number: string | null;
+  delivered_at: string | null;
+  invoiced_on: string | null;
+  paid_on: string | null;
+  reminded_at: string | null;
+  profiles: {
+    full_name: string | null;
+    avatar_path: string | null;
+    iban: string | null;
+    company_name: string | null;
+    vat_number: string | null;
+  } | null;
 }
 
 interface RawShoot extends Omit<Shoot, 'client_name' | 'roles' | 'delivery'> {
@@ -361,6 +387,9 @@ function flatten(row: RawShoot): Shoot {
         ...r,
         freelancer_name: profiles?.full_name ?? null,
         freelancer_avatar: profiles?.avatar_path ?? null,
+        iban: profiles?.iban ?? null,
+        company_name: profiles?.company_name ?? null,
+        vat_number: profiles?.vat_number ?? null,
       }))
       // Unfilled roles first: they are the ones that still need doing.
       .sort((a, b) => Number(!!a.freelancer_id) - Number(!!b.freelancer_id)),
@@ -673,6 +702,43 @@ export function useShoots() {
     [load],
   );
 
+  /** Waiting on somebody's invoice is the one place a producer had nothing to
+      click. The database holds it to one a day and records that we asked, so a
+      week later the question "did we chase this" has an answer. */
+  const remindInvoice = useCallback(
+    async (roleId: string) => {
+      const { error: rpcError } = await requireSupabase().rpc('remind_invoice', {
+        role_id: roleId,
+      });
+      if (rpcError) throw new Error(rpcError.message);
+      drainNotifications();
+      await load();
+    },
+    [load],
+  );
+
+  /** Paying is a Friday afternoon job done in one go, not one row at a time.
+      Sequential rather than parallel: each is its own RPC with its own ledger
+      entry, and one that fails should not take the rest down with it. */
+  const confirmPayments = useCallback(
+    async (roleIds: string[]): Promise<{ done: number; failed: string[] }> => {
+      const client = requireSupabase();
+      const failed: string[] = [];
+      let done = 0;
+
+      for (const id of roleIds) {
+        const { error: rpcError } = await client.rpc('confirm_payment', { role_id: id });
+        if (rpcError) failed.push(rpcError.message);
+        else done += 1;
+      }
+
+      drainNotifications();
+      await load();
+      return { done, failed };
+    },
+    [load],
+  );
+
   /** A short-lived link to a stored file -- an invoice, or the yearly
       agreement. The bucket is private; nothing in it is fetched directly. */
   const fileUrl = useCallback(async (path: string): Promise<string> => {
@@ -690,6 +756,8 @@ export function useShoots() {
     error,
     reload: load,
     confirmPayment,
+    confirmPayments,
+    remindInvoice,
     undoPayment,
     setRoleStage,
     fileUrl,
