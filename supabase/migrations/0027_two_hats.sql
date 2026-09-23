@@ -163,7 +163,11 @@ grant execute on function public.set_member_freelancing(uuid, boolean) to authen
 -- What the portal needs to know about you
 -- ---------------------------------------------------------------------------
 
-create or replace function public.my_access()
+-- Dropped rather than replaced: the return type gains a column, and Postgres
+-- will not change one in place.
+drop function if exists public.my_access();
+
+create function public.my_access()
 returns table (
   id            uuid,
   role          public.app_role,
