@@ -22,7 +22,8 @@ import { BrandLoader } from '../BrandLoader';
 import { ChevronIcon } from '../Icons';
 import { Masthead } from '../Masthead';
 import { CrewPicker } from './CrewPicker';
-import { RoleDetails, roleHasOwn } from './RoleDetails';
+import Link from 'next/link';
+import { RoleDetails, inheritedFrom, roleHasOwn } from './RoleDetails';
 import { ShootForm, roleToDraft } from './ShootForm';
 
 type Filter = 'unbooked' | 'booked' | 'past';
@@ -65,7 +66,7 @@ export function StaffAssignmentsView() {
     removeRole,
     book,
     unbook,
-    confirmPayment,
+    setLead,
     undoPayment,
     setRoleStage,
     fileUrl,
@@ -371,12 +372,28 @@ export function StaffAssignmentsView() {
                                 </span>
 
                                 {r.freelancer_id ? (
-                                  <span className="tag tag--ok">
+                                  <span className={`tag ${r.offered_at ? 'tag--ok' : 'tag--wait'}`}
+                                    title={r.offered_at ? undefined : 'Not told yet. Publish to send the booking.'}
+                                  >
                                     {r.freelancer_name ?? 'Booked'}
+                                    {!r.offered_at && ' · not sent'}
                                   </span>
                                 ) : (
                                   <span className="tag tag--wait">Open</span>
                                 )}
+
+                                {/* One per job. The lead sees the client and
+                                    everyone's numbers; nobody else does. */}
+                                <label className="rolelines__lead" title="Point of contact on site">
+                                  <input
+                                    type="checkbox"
+                                    checked={r.is_lead}
+                                    onChange={(e) =>
+                                      guard(() => setLead(s.id, e.target.checked ? r.id : null))
+                                    }
+                                  />
+                                  Lead
+                                </label>
 
                                 {/* Where this person is, and the two controls
                                     to move them. A producer who knows the files
@@ -420,14 +437,16 @@ export function StaffAssignmentsView() {
                                   </a>
                                 )}
 
+                                {/* Paying happens on Payments, where the IBAN,
+                                    the invoice and the amount sit together. This
+                                    only takes you there with the row open. */}
                                 {r.payment_state === 'awaiting' && (
-                                  <button
-                                    type="button"
+                                  <Link
+                                    href={`/payments?show=to-pay&role=${r.id}`}
                                     className="btn btn--outline btn--sm"
-                                    onClick={() => guard(() => confirmPayment(r.id))}
                                   >
-                                    Mark paid
-                                  </button>
+                                    Pay now
+                                  </Link>
                                 )}
 
                                 {r.invoice_path && (
@@ -515,6 +534,13 @@ export function StaffAssignmentsView() {
                             <div className="roleedit">
                               <RoleDetails
                                 role={editRole.draft}
+                                inherited={inheritedFrom({
+                                  briefing: s.briefing ?? '',
+                                  expectations: s.expectations.join('\n'),
+                                  shots: s.shots.join('\n'),
+                                  equipment: s.equipment.join('\n'),
+                                  delivery: s.delivery,
+                                })}
                                 onChange={(patch) =>
                                   setEditRole({
                                     ...editRole,
@@ -554,6 +580,7 @@ export function StaffAssignmentsView() {
                               onPick={async (freelancerId) => {
                                 await book(pickingRole.role.id, freelancerId);
                                 setPickingRole(null);
+                                setNotice('Added. Publish to let them know.');
                               }}
                               onCancel={() => setPickingRole(null)}
                             />

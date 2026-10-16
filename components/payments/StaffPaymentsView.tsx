@@ -67,10 +67,15 @@ export function StaffPaymentsView() {
   const params = useSearchParams();
 
   const asked = params.get('show') as Show | null;
-  const [show, setShow] = useState<Show>(asked && LABEL[asked] ? asked : 'to-pay');
+  // "Pay now" on a job lands here with the role named, so the row is already
+  // open on the four things you type into the bank.
+  const askedRole = params.get('role');
+  const [show, setShow] = useState<Show>(
+    askedRole ? 'to-pay' : asked && LABEL[asked] ? asked : 'to-pay',
+  );
   const [rowError, setRowError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(askedRole);
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -96,7 +101,7 @@ export function StaffPaymentsView() {
             ? 'paid'
             : role.payment_state === 'awaiting'
               ? 'to-pay'
-              : role.stage >= 3
+              : role.stage >= 4
                 ? 'to-invoice'
                 : 'open';
 

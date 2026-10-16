@@ -238,6 +238,7 @@ interface Job {
   title?: string;
   client?: string;
   role_label?: string;
+  is_lead?: boolean;
   starts_at?: string;
   due_on?: string | null;
   on_site?: string | null;
@@ -304,7 +305,7 @@ function compose(kind: string, job: Job): { subject: string; heading: string; bo
       return {
         subject: `You have been booked: ${name}`,
         heading: 'You have been booked',
-        body: `Fast Elevate Media has put you down as ${job.role_label ?? 'crew'} on <strong>${name}</strong>${client}, at ${euro(job.fee_cents)}. Open it to read the briefing and accept.`,
+        body: `Fast Elevate Media has put you down as ${job.is_lead ? '<strong>lead</strong> and ' : ''}${job.role_label ?? 'crew'} on <strong>${name}</strong>${client}, at ${euro(job.fee_cents)}.${job.is_lead ? ' As lead you hold the overview on site and are the point of contact for the client and the crew.' : ''} Open it to read the briefing and accept.`,
         cta: 'View and accept',
       };
     case 'unbooked':

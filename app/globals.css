@@ -5021,3 +5021,102 @@ select.field__input {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* --- The team on a job --------------------------------------------------- */
+
+/* Read across like a call sheet: who, what, when. Your own row is marked
+   because on a list of six the first thing anyone looks for is themselves. */
+.team {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.team td {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--fem-border-soft);
+  vertical-align: top;
+}
+
+.team tr:last-child td {
+  border-bottom: 0;
+}
+
+.team__you td {
+  font-weight: 600;
+}
+
+.team__who {
+  white-space: nowrap;
+}
+
+.team__role {
+  color: var(--fem-text-secondary);
+}
+
+.team__when {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.team__reach {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.team__reach a {
+  color: var(--fem-blue);
+  text-decoration: none;
+}
+
+.team__lead {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--fem-gold);
+  color: var(--fem-obsidian);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+@media (max-width: 520px) {
+  .team__role {
+    display: none;
+  }
+}
+
+/* --- Lead on the role form ------------------------------------------------ */
+
+.rolelines__lead {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fem-text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rolelines__lead input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--fem-blue);
+  margin: 0;
+}
+
+/* A field that departs from the job is marked, so a producer scanning a role
+   sees in a glance which lines were written for this person. */
+.field__input.is-own {
+  border-color: var(--fem-blue-faint);
+  background: #f7f9fc;
+}
+
+.roles__own--inline {
+  margin: 0 0 6px;
+}

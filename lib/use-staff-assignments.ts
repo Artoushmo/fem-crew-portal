@@ -28,6 +28,9 @@ export interface Role {
   freelancer_name: string | null;
   freelancer_avatar: string | null;
   fee_cents: number;
+  /** Point of contact on site. One per job; sees the client and the team's
+      details where the others see names and hours. */
+  is_lead: boolean;
   status: string;
   stage: number;
   payment_state: string;
@@ -115,6 +118,7 @@ export interface RoleDraft {
   craft: Craft | '';
   role_label: string;
   fee: string;
+  is_lead: boolean;
   /** Everything below is optional. Empty means this role follows the job, which
       is the case for most of them -- a producer fills in what differs. */
   on_site: string;
@@ -162,6 +166,7 @@ export const BLANK_ROLE: RoleDraft = {
   craft: '',
   role_label: '',
   fee: '',
+  is_lead: false,
   on_site: '',
   camera_ready: '',
   wrapped: '',
@@ -206,7 +211,7 @@ const SHOOT_COLUMNS = `
   unpublished_changes, last_published_at,
   clients ( name ),
   assignment_roles (
-    id, assignment_id, craft, role_label, freelancer_id, fee_cents,
+    id, assignment_id, craft, role_label, freelancer_id, fee_cents, is_lead,
     status, stage, payment_state, offered_at, accepted_at,
     delivery_link, delivery_note, invoice_path, invoice_name, invoice_number,
     delivered_at, invoiced_on, paid_on, reminded_at,
@@ -268,7 +273,8 @@ export function jobStatus(s: Shoot): JobStatus {
   if (booked.every((r) => r.payment_state === 'paid')) return 'paid';
   if (booked.every((r) => r.payment_state === 'awaiting' || r.payment_state === 'paid'))
     return 'invoiced';
-  if (least >= 3) return 'delivered';
+  // Stage 3 is the delivery step still in play: shot, not yet handed over.
+  if (least >= 4) return 'delivered';
   if (least >= 2) return 'shooting';
   return 'booked';
 }
@@ -301,6 +307,7 @@ export function toRoleRow(draft: RoleDraft, assignmentId: string) {
     craft: draft.craft,
     role_label: draft.role_label.trim() || 'Crew',
     fee_cents: toCents(draft.fee),
+    is_lead: draft.is_lead,
     on_site: some(draft.on_site),
     camera_ready: some(draft.camera_ready),
     wrapped: some(draft.wrapped),
@@ -346,6 +353,7 @@ interface RawRole {
   delivery: Partial<Delivery> | null;
   freelancer_id: string | null;
   fee_cents: number;
+  is_lead: boolean;
   status: string;
   stage: number;
   payment_state: string;
@@ -587,9 +595,12 @@ export function useShoots() {
     async (roleId: string, freelancerId: string) => {
       const { error: writeError } = await requireSupabase()
         .from('assignment_roles')
+        // Not offered yet: offered_at is what puts the job on their dashboard
+        // and sends the booking, and both wait for Publish. Until then the
+        // role is theirs on paper and they know nothing about it.
         .update({
           freelancer_id: freelancerId,
-          offered_at: new Date().toISOString(),
+          offered_at: null,
           status: 'action-required',
           stage: 0,
         })
@@ -702,6 +713,33 @@ export function useShoots() {
     [load],
   );
 
+  /** One lead per job, enforced by the database. Clearing first and then
+      setting keeps that true in the middle of a swap. Pass null to have no
+      lead at all. */
+  const setLead = useCallback(
+    async (assignmentId: string, roleId: string | null) => {
+      const client = requireSupabase();
+
+      const { error: clearError } = await client
+        .from('assignment_roles')
+        .update({ is_lead: false })
+        .eq('assignment_id', assignmentId)
+        .eq('is_lead', true);
+      if (clearError) throw new Error(clearError.message);
+
+      if (roleId) {
+        const { error: setError } = await client
+          .from('assignment_roles')
+          .update({ is_lead: true })
+          .eq('id', roleId);
+        if (setError) throw new Error(setError.message);
+      }
+
+      await load();
+    },
+    [load],
+  );
+
   /** Waiting on somebody's invoice is the one place a producer had nothing to
       click. The database holds it to one a day and records that we asked, so a
       week later the question "did we chase this" has an answer. */
@@ -758,6 +796,7 @@ export function useShoots() {
     confirmPayment,
     confirmPayments,
     remindInvoice,
+    setLead,
     undoPayment,
     setRoleStage,
     fileUrl,

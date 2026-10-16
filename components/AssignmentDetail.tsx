@@ -48,6 +48,19 @@ export function AssignmentDetail({ id }: { id: string }) {
     setTab('day');
   }, [id]);
 
+  // At the briefing step the page opens on the briefing and brings it into
+  // view, rather than leaving someone to find the tab the step is about.
+  const stage = a?.stage;
+  useEffect(() => {
+    if (stage !== 1) return;
+    setTab('briefing');
+    setBriefingSeen(true);
+    const t = window.setTimeout(() => {
+      document.getElementById('panel-briefing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [id, stage]);
+
   // Returning null for both cases made a slow load look identical to a missing
   // assignment: a blank page either way, with nothing to act on.
   if (!ready) {
@@ -198,27 +211,77 @@ function DayTab({ a }: { a: Assignment }) {
         </p>
       </section>
 
-      <section className="panel">
-        {/* Only worth a heading when somebody else is actually on it. A list of
-            one, naming the producer whose details are right underneath, answers
-            a question nobody asked. */}
-        {a.crew.length > 0 && (
-          <>
-            <h2 className="panel__title">Who else is on it</h2>
-            <ul className="people">
-              {a.crew.map((p) => (
-                <li key={p}>{p}</li>
+      {/* Everyone on the day with their hours: that is how a team plans. Only
+          worth a heading when somebody else is actually coming. */}
+      {a.team.length > 1 && (
+        <section className="panel">
+          <h2 className="panel__title">Who is on it</h2>
+          <table className="team">
+            <tbody>
+              {a.team.map((m) => (
+                <tr key={`${m.name}-${m.role}`} className={m.isYou ? 'team__you' : undefined}>
+                  <td className="team__who">
+                    {m.isYou ? 'You' : m.name}
+                    {m.isLead && <span className="team__lead">Lead</span>}
+                  </td>
+                  <td className="team__role">{m.role}</td>
+                  <td className="team__when">
+                    {m.onSite}–{m.wrapped}
+                  </td>
+                  {a.isLead && (
+                    <td className="team__reach">
+                      {!m.isYou && m.phone && (
+                        <a href={`tel:${m.phone.replace(/[^\d+]/g, '')}`}>{m.phone}</a>
+                      )}
+                    </td>
+                  )}
+                </tr>
               ))}
-            </ul>
-          </>
-        )}
+            </tbody>
+          </table>
+        </section>
+      )}
 
+      {/* The lead holds the overview on site: the client's contact and the
+          crew's numbers are theirs and nobody else's. */}
+      {a.isLead && (
+        <section className="panel panel--lead">
+          <h2 className="panel__title">You are lead on this job</h2>
+          <p className="prose">
+            You are the point of contact on site, for the client and for the crew. Price and
+            planning still go through FEM.
+          </p>
+          {a.clientContact && (
+            <div className="contact">
+              <div>
+                <p className="contact__name">{a.clientContact.name}</p>
+                <p className="contact__role">{a.clientContact.company}</p>
+              </div>
+              <p className="contact__links">
+                {a.clientContact.phone && (
+                  <a
+                    href={`tel:${a.clientContact.phone.replace(/[^\d+]/g, '')}`}
+                    className="btn btn--outline btn--sm"
+                  >
+                    Call
+                  </a>
+                )}
+                {a.clientContact.email && (
+                  <a href={`mailto:${a.clientContact.email}`} className="btn btn--outline btn--sm">
+                    Email
+                  </a>
+                )}
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="panel">
         {/* Not "your producer" -- they know who booked them. The question they
             actually have is about this job, so that is the heading, and the two
             ways people reach FEM are the buttons. */}
-        {a.crew.length === 0 && (
-          <h2 className="panel__title">Questions about your booking?</h2>
-        )}
+        <h2 className="panel__title">Questions about your booking?</h2>
 
         <div className="contact">
           <div>

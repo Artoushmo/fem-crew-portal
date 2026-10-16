@@ -16,7 +16,7 @@ import { requireSupabase, supabase } from './supabase';
     shoot is the context around it. */
 
 const COLUMNS = `
-  id, craft, role_label, fee_cents, status, stage, stage_dates,
+  id, craft, role_label, fee_cents, is_lead, status, stage, stage_dates,
   payment_state, invoice_number, invoiced_on, paid_on, invoice_path, invoice_name,
   offered_at, accepted_at,
   delivery_link, delivery_note,
@@ -34,6 +34,7 @@ interface RawRole {
   id: string;
   role_label: string;
   fee_cents: number;
+  is_lead: boolean;
   status: Status;
   stage: number;
   stage_dates: Record<string, string> | null;
@@ -84,9 +85,13 @@ interface RawRole {
 }
 
 interface Person {
-  kind: 'producer' | 'crew';
+  kind: 'producer' | 'crew' | 'client';
   name: string;
   role_label: string;
+  on_site: string | null;
+  wrapped: string | null;
+  is_lead: boolean;
+  is_you: boolean;
   phone: string | null;
   email: string | null;
 }
@@ -118,7 +123,8 @@ function shortDate(value: string): string {
 
 function deriveStatus(stage: number, payment: PaymentState): Status {
   if (stage >= 5 && payment === 'paid') return 'completed';
-  if (stage >= 3) return 'delivered';
+  // Stage 3 is the delivery step still in play: shot, not yet handed over.
+  if (stage >= 4) return 'delivered';
   if (stage === 0) return 'action-required';
   if (stage === 2) return 'in-progress';
   return 'confirmed';
@@ -143,6 +149,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
 
   const producer = people.find((p) => p.kind === 'producer');
   const crew = people.filter((p) => p.kind === 'crew');
+  const client = people.find((p) => p.kind === 'client');
 
   // Anything set on the role wins. Null means "the same as the job" rather
   // than "nothing", so a producer sets what differs and leaves the rest to
@@ -192,7 +199,34 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       phone: producer?.phone ?? '',
       email: producer?.email ?? '',
     },
-    crew: crew.map((c) => `${c.name} — ${c.role_label.toLowerCase()}`),
+    // Yourself first, then the lead, then by call time: the order a call sheet
+    // reads in.
+    team: crew
+      .map((c) => ({
+        name: c.name,
+        role: c.role_label,
+        onSite: timeOf(c.on_site, onSite),
+        wrapped: timeOf(c.wrapped, wrapped),
+        isLead: c.is_lead,
+        isYou: c.is_you,
+        phone: c.phone ?? '',
+        email: c.email ?? '',
+      }))
+      .sort(
+        (x, y) =>
+          Number(y.isYou) - Number(x.isYou) ||
+          Number(y.isLead) - Number(x.isLead) ||
+          x.onSite.localeCompare(y.onSite),
+      ),
+    isLead: row.is_lead,
+    clientContact: client
+      ? {
+          name: client.name,
+          company: client.role_label,
+          phone: client.phone ?? '',
+          email: client.email ?? '',
+        }
+      : null,
     briefing: row.briefing ?? s.briefing ?? '',
     expectations: row.expectations ?? s.expectations ?? [],
     shots: row.shots ?? s.shots ?? [],

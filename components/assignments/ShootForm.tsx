@@ -13,7 +13,7 @@ import {
   type ShootDraft,
 } from '@/lib/use-staff-assignments';
 import { Field } from '../profile/SectionForm';
-import { RoleDetails, roleHasOwn } from './RoleDetails';
+import { RoleDetails, inheritedFrom, roleHasOwn } from './RoleDetails';
 
 
 /** A saved role back into something the form can edit. Empty strings where the
@@ -23,6 +23,7 @@ export function roleToDraft(r: Shoot['roles'][number]): RoleDraft {
     craft: r.craft,
     role_label: r.role_label,
     fee: centsToInput(r.fee_cents),
+    is_lead: r.is_lead,
     on_site: r.on_site?.slice(0, 5) ?? '',
     camera_ready: r.camera_ready?.slice(0, 5) ?? '',
     wrapped: r.wrapped?.slice(0, 5) ?? '',
@@ -198,7 +199,8 @@ export function ShootForm({
         <>
           <p className="eyebrow eyebrow--spaced">Who you need</p>
           <p className="field__hint field__hint--block">
-            One line per person. Fees <strong>excluding VAT</strong>.
+            One line per person. Two photographers are two lines, each with its own label.
+            Fees <strong>excluding VAT</strong>.
           </p>
 
           <ul className="rolelines">
@@ -243,6 +245,24 @@ export function ShootForm({
                   inputMode="decimal"
                 />
 
+                {/* One per job. Ticking a second one moves it. */}
+                <label className="rolelines__lead" title="Point of contact on site">
+                  <input
+                    type="checkbox"
+                    checked={r.is_lead}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        roles: f.roles.map((x, n) => ({
+                          ...x,
+                          is_lead: n === i ? e.target.checked : false,
+                        })),
+                      }))
+                    }
+                  />
+                  Lead
+                </label>
+
                 <button
                   type="button"
                   className="link-arrow link-arrow--button"
@@ -261,7 +281,11 @@ export function ShootForm({
                 </button>
 
                 {openRole === i && (
-                  <RoleDetails role={r} onChange={(patch) => setRole(i, patch)} />
+                  <RoleDetails
+                    role={r}
+                    inherited={inheritedFrom(form)}
+                    onChange={(patch) => setRole(i, patch)}
+                  />
                 )}
               </li>
             ))}

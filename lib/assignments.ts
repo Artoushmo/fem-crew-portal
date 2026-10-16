@@ -47,6 +47,17 @@ export const PAYMENT_LABEL: Record<PaymentState, string> = {
   paid: 'Paid',
 };
 
+export interface TeamMember {
+  name: string;
+  role: string;
+  onSite: string;
+  wrapped: string;
+  isLead: boolean;
+  isYou: boolean;
+  phone: string;
+  email: string;
+}
+
 export interface Assignment {
   id: string;
   title: string;
@@ -83,7 +94,13 @@ export interface Assignment {
   stageDates: (string | null)[];
   nextAction: string;
   contact: { name: string; role: string; phone: string; email: string };
-  crew: string[];
+  /** Everyone booked, yourself included, with the hours each is wanted. How a
+      team plans a day. Phone and email are filled in for the lead only. */
+  team: TeamMember[];
+  /** Point of contact on site: sees the client and the team's numbers. */
+  isLead: boolean;
+  /** The client's contact. Lead only; null for everyone else. */
+  clientContact: { name: string; company: string; phone: string; email: string } | null;
   briefing: string;
   expectations: string[];
   shots: string[];
@@ -134,7 +151,12 @@ export const assignments: Assignment[] = [
       phone: '+31 6 12 34 56 78',
       email: 'sanne@fastelevatemedia.nl',
     },
-    crew: ['Sanne de Vries — producer', 'Joost Meijer — second photographer'],
+    team: [
+      { name: 'You', role: 'Photographer', onSite: '10:30', wrapped: '17:00', isLead: true, isYou: true, phone: '', email: '' },
+      { name: 'Joost Meijer', role: 'Second photographer', onSite: '12:00', wrapped: '17:00', isLead: false, isYou: false, phone: '+31 6 1234 5678', email: 'joost@example.com' },
+    ],
+    isLead: true,
+    clientContact: { name: 'Isabeau Riquiere', company: 'Client X', phone: '+32 56 24 81 88', email: 'isabeau@example.com' },
     briefing:
       'Annual partner event for roughly 300 guests. Coverage runs from the walk-in through the keynote to the closing drinks. The client wants the day to feel busy and warm, not staged.',
     expectations: [
@@ -202,7 +224,11 @@ export const assignments: Assignment[] = [
       phone: '+31 6 22 33 44 55',
       email: 'milan@fastelevatemedia.nl',
     },
-    crew: ['Milan Bakker — producer'],
+    team: [
+      { name: 'You', role: 'Videographer', onSite: '08:00', wrapped: '18:00', isLead: false, isYou: true, phone: '', email: '' },
+    ],
+    isLead: false,
+    clientContact: null,
     briefing:
       'Half-day shoot for a product launch film. Interviews in the morning, b-roll of the product and the space in the afternoon.',
     expectations: [
@@ -272,7 +298,11 @@ export const assignments: Assignment[] = [
       phone: '+31 6 12 34 56 78',
       email: 'sanne@fastelevatemedia.nl',
     },
-    crew: ['Sanne de Vries — producer', 'Ground crew arranged by FEM'],
+    team: [
+      { name: 'You', role: 'Drone operator', onSite: '06:30', wrapped: '09:30', isLead: false, isYou: true, phone: '', email: '' },
+    ],
+    isLead: false,
+    clientContact: null,
     briefing:
       'Early-morning aerials of the completed building for the client’s leasing brochure. Golden hour, clear skies only — the shoot moves if the forecast turns.',
     expectations: [
@@ -335,7 +365,11 @@ export const assignments: Assignment[] = [
       phone: '+31 6 22 33 44 55',
       email: 'milan@fastelevatemedia.nl',
     },
-    crew: ['Milan Bakker — producer', 'Client art director on set'],
+    team: [
+      { name: 'You', role: 'Photographer', onSite: '09:00', wrapped: '17:00', isLead: false, isYou: true, phone: '', email: '' },
+    ],
+    isLead: false,
+    clientContact: null,
     briefing: 'Beach lifestyle shoot for the summer campaign. Four models, natural light only.',
     expectations: ['Weather call made at 07:00 on the day', 'Client art director on set all day'],
     shots: ['60 selects delivered', 'Verticals for social from every setup'],
