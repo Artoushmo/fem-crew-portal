@@ -36,16 +36,31 @@ const MAIL_REPLY_TO = (Deno.env.get('MAIL_REPLY_TO') ?? 'info@fastelevatemedia.c
 // worse than no mail.
 const PORTAL_URL = (Deno.env.get('PORTAL_URL') ?? 'https://fem-crew-portal.vercel.app').replace(/\/+$/, '');
 
-// Set ALLOWED_ORIGIN to the portal's URL in production. '*' is fine while the
-// only caller is localhost.
-const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') ?? '*';
+// Set ALLOWED_ORIGIN to the portal's URL in production. Several, comma
+// separated, while a domain is being moved: the old address keeps working
+// until the last bookmark has caught up. '*' only while the sole caller is
+// localhost.
+const ALLOWED = (Deno.env.get('ALLOWED_ORIGIN') ?? '*')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
 
-const cors: Record<string, string> = {
-  'Access-Control-Allow-Origin': ORIGIN,
-  'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  Vary: 'Origin',
-};
+/** The one origin the browser is told it may use: the caller's, if it is on
+    the list, else the first on the list -- which the browser then rejects,
+    which is the point. */
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allow = ALLOWED.includes('*') ? '*' : ALLOWED.includes(origin) ? origin : ALLOWED[0] ?? '';
+  return {
+    'Access-Control-Allow-Origin': allow,
+    'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  };
+}
+
+// Set per request in handler(); json() and the PDF response read it from here.
+let cors: Record<string, string> = corsFor(new Request('https://localhost'));
 
 const GRANTABLE = ['freelancer', 'staff', 'admin', 'superadmin'] as const;
 type Role = (typeof GRANTABLE)[number];
@@ -1231,6 +1246,7 @@ async function drainNotifications(): Promise<Response> {
 }
 
 async function handler(req: Request): Promise<Response> {
+  cors = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST.' }, 405);
 
