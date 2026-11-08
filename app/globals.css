@@ -5120,3 +5120,135 @@ select.field__input {
 .roles__own--inline {
   margin: 0 0 6px;
 }
+
+/* --- Days on the job form ------------------------------------------------- */
+
+/* One line per day: date, three times, a note. Reads like the top of a call
+   sheet, which is where it ends up. */
+.daylines {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.daylines__row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1.6fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 700px) {
+  .daylines__row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .daylines__row > :first-child,
+  .daylines__row > :nth-child(5) {
+    grid-column: 1 / -1;
+  }
+}
+
+.daylines__legend {
+  margin-top: 2px;
+}
+
+/* --- One person's days -------------------------------------------------- */
+
+.roledays {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--fem-border-light);
+  border-radius: 10px;
+  background: var(--fem-white);
+}
+
+.roledays__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 6px 0;
+  border-top: 1px solid var(--fem-border-soft);
+}
+
+.roledays__row:first-of-type {
+  border-top: 0;
+}
+
+.roledays__row.is-off {
+  color: var(--fem-text-muted);
+}
+
+.roledays__on {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.roledays__on input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--fem-blue);
+  margin: 0;
+}
+
+.roledays__on small {
+  font-weight: 400;
+  color: var(--fem-text-muted);
+}
+
+.roledays__times {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roledays__times .field__input {
+  width: 108px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.roledays__dash,
+.roledays__default {
+  font-size: 12.5px;
+  color: var(--fem-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Several days make the team table wider than a phone; it scrolls inside its
+   panel rather than pushing the page. */
+.team__scroll {
+  overflow-x: auto;
+}
+
+.team th {
+  padding: 0 10px 6px 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fem-text-muted);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.team th.team__when {
+  text-align: right;
+}
+
+.team__off {
+  color: var(--fem-text-muted);
+}
+
+.panel__title-note {
+  font-weight: 400;
+  color: var(--fem-text-muted);
+}

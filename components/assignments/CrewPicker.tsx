@@ -11,17 +11,18 @@ import { BrandLoader } from '../BrandLoader';
 export function CrewPicker({
   craft,
   city,
-  shootDate,
+  shootDates,
   onPick,
   onCancel,
 }: {
   craft: Craft;
   city: string | null;
-  shootDate: string;
+  /** The job's days as YYYY-MM-DD. */
+  shootDates: string[];
   onPick: (freelancerId: string) => Promise<void>;
   onCancel: () => void;
 }) {
-  const { crew, loading, error } = useCrew(shootDate);
+  const { crew, loading, error } = useCrew(shootDates);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pickError, setPickError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);

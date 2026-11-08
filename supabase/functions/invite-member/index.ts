@@ -12,7 +12,8 @@
 // Only then does the privileged client come out.
 
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'npm:pdf-lib@1.17.1';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -201,9 +202,16 @@ ${contact}
 
 /** Never throws: a delivered account with an undelivered mail is a smaller
     problem than an invite that reports failure after the user already exists. */
+interface Attachment {
+  filename: string;
+  /** Base64. Resend takes the bytes inline; nothing is hosted. */
+  content: string;
+}
+
 async function sendMail(
   to: string,
   mail: { subject: string; html: string; text: string },
+  attachments: Attachment[] = [],
 ): Promise<string> {
   if (!RESEND_KEY) return 'skipped: RESEND_API_KEY is not set on this function';
 
@@ -223,6 +231,7 @@ async function sendMail(
         subject,
         html,
         text,
+        ...(attachments.length > 0 ? { attachments } : {}),
       }),
     });
 
@@ -252,6 +261,7 @@ interface Job {
   link?: string | null;
   invoice?: string | null;
   returned_copy?: boolean;
+  days?: { day: string; on_site?: string | null; wrapped?: string | null; note?: string | null }[];
 }
 
 function euro(cents: number | undefined): string {
@@ -266,7 +276,18 @@ function euro(cents: number | undefined): string {
 function whenLine(job: Job): string {
   const parts: string[] = [];
 
-  if (job.starts_at && job.on_site) {
+  // Several days: each on its own, with its hours. One day reads as before.
+  if (job.days && job.days.length > 1) {
+    for (const d of job.days) {
+      const label = new Date(`${d.day}T12:00:00`).toLocaleDateString('en-GB', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      });
+      const hours = d.on_site ? ` ${d.on_site.slice(0, 5)}${d.wrapped ? `\u2013${d.wrapped.slice(0, 5)}` : ''}` : '';
+      parts.push(`${label}${hours}`);
+    }
+  } else if (job.starts_at && job.on_site) {
     const d = new Date(job.starts_at).toLocaleDateString('en-GB', {
       weekday: 'long',
       day: 'numeric',
@@ -433,6 +454,684 @@ ${contact}
   return { subject: copy.subject, html, text };
 }
 
+// ---------------------------------------------------------------------------
+// The briefing as a file
+// ---------------------------------------------------------------------------
+//
+// A venue basement has no signal. The briefing goes with the booking as a PDF
+// so that what somebody reads on the train is still in their pocket on the
+// day -- and is also what they can fetch from the job page later. One page
+// builder, both uses.
+
+interface BriefingTeam {
+  name: string;
+  role: string;
+  on_site: string | null;
+  wrapped: string | null;
+  /** Per date, "07:00-21:00" or null when not on that day. Only filled on a
+      job with more than one day. */
+  days: Record<string, string | null>;
+  is_lead: boolean;
+  is_you: boolean;
+  phone: string | null;
+}
+
+interface BriefingDay {
+  day: string;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  note: string | null;
+}
+
+interface Briefing {
+  reference: string | null;
+  title: string;
+  client: string;
+  starts_at: string;
+  due_on: string | null;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  /** This person's days, in order, hours resolved. Empty for a deadline. */
+  days: BriefingDay[];
+  city: string | null;
+  venue: string | null;
+  maps_url: string | null;
+  travel: string | null;
+  parking: string | null;
+  briefing: string | null;
+  expectations: string[];
+  shots: string[];
+  equipment: string[];
+  dresscode: string | null;
+  delivery: Record<string, string>;
+  gallery_link: string | null;
+  gallery_note: string | null;
+  role_label: string;
+  fee_cents: number;
+  is_lead: boolean;
+  freelancer: string;
+  team: BriefingTeam[];
+  producer: { name: string; phone: string | null; email: string | null } | null;
+  /** Lead only. Null for everyone else, and the PDF says nothing about it. */
+  client_contact: { name: string; company: string; phone: string | null; email: string | null } | null;
+}
+
+/** Everything the PDF says, for one person on one job. Role values win over
+    the job's, the way the portal shows them; what the lead may see and the
+    others may not is decided here, not in the layout. */
+async function briefingData(admin: SupabaseClient, roleId: string): Promise<Briefing | null> {
+  const { data: r } = await admin
+    .from('assignment_roles')
+    .select(
+      `id, role_label, fee_cents, is_lead, freelancer_id,
+       on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
+       profiles ( full_name ),
+       assignments (
+         id, reference, title, starts_at, due_on, on_site, camera_ready, wrapped,
+         city, venue, maps_url, travel, parking, briefing, expectations, shots, equipment,
+         dresscode, delivery, gallery_link, gallery_note, producer_id,
+         clients ( name, contact_name, contact_phone, contact_email ),
+         assignment_days ( id, day, on_site, camera_ready, wrapped, note )
+       ),
+       assignment_role_days ( day_id, present, on_site, wrapped )`,
+    )
+    .eq('id', roleId)
+    .maybeSingle();
+
+  // deno-lint-ignore no-explicit-any
+  const row = r as any;
+  if (!row?.assignments) return null;
+  const a = row.assignments;
+
+  const { data: mates } = await admin
+    .from('assignment_roles')
+    .select(
+      'id, role_label, is_lead, on_site, wrapped, freelancer_id, profiles ( full_name, phone ), assignment_role_days ( day_id, present, on_site, wrapped )',
+    )
+    .eq('assignment_id', a.id)
+    .not('freelancer_id', 'is', null)
+    .not('offered_at', 'is', null);
+
+  let producer: Briefing['producer'] = null;
+  if (a.producer_id) {
+    const { data: p } = await admin
+      .from('profiles')
+      .select('full_name, phone, email')
+      .eq('id', a.producer_id)
+      .maybeSingle();
+    if (p) producer = { name: p.full_name ?? 'Fast Elevate Media', phone: p.phone, email: p.email };
+  }
+
+  const lead = Boolean(row.is_lead);
+
+  // deno-lint-ignore no-explicit-any
+  const jobDays: any[] = [...(a.assignment_days ?? [])].sort((x, y) => x.day.localeCompare(y.day));
+  const multi = jobDays.length > 1;
+  const hm = (t: string | null | undefined) => (t ? t.slice(0, 5) : '');
+
+  // A person's hours on a day: theirs for the day, theirs for the job, the
+  // day's, the job's. Null when the day is marked not theirs.
+  // deno-lint-ignore no-explicit-any
+  const hoursOn = (role: any, d: any): { on: string | null; off: string | null } | null => {
+    // deno-lint-ignore no-explicit-any
+    const own = (role.assignment_role_days ?? []).find((x: any) => x.day_id === d.id);
+    if (own && own.present === false) return null;
+    return {
+      on: own?.on_site ?? role.on_site ?? d.on_site ?? a.on_site ?? null,
+      off: own?.wrapped ?? role.wrapped ?? d.wrapped ?? a.wrapped ?? null,
+    };
+  };
+
+  const myDays: BriefingDay[] = jobDays.flatMap((d) => {
+    const h = hoursOn(row, d);
+    if (!h) return [];
+    return [{
+      day: d.day,
+      on_site: h.on,
+      camera_ready: row.camera_ready ?? d.camera_ready ?? a.camera_ready ?? null,
+      wrapped: h.off,
+      note: d.note ?? null,
+    }];
+  });
+
+  return {
+    reference: a.reference,
+    title: a.title,
+    client: a.clients?.name ?? 'Fast Elevate Media',
+    starts_at: a.starts_at,
+    due_on: row.due_on ?? a.due_on,
+    on_site: myDays[0]?.on_site ?? row.on_site ?? a.on_site,
+    camera_ready: myDays[0]?.camera_ready ?? row.camera_ready ?? a.camera_ready,
+    wrapped: myDays[0]?.wrapped ?? row.wrapped ?? a.wrapped,
+    days: myDays,
+    city: a.city,
+    venue: a.venue,
+    maps_url: a.maps_url,
+    travel: a.travel,
+    parking: a.parking,
+    briefing: row.briefing ?? a.briefing,
+    expectations: row.expectations ?? a.expectations ?? [],
+    shots: row.shots ?? a.shots ?? [],
+    equipment: row.equipment ?? a.equipment ?? [],
+    dresscode: a.dresscode,
+    delivery: { ...(a.delivery ?? {}), ...(row.delivery ?? {}) },
+    gallery_link: a.gallery_link,
+    gallery_note: a.gallery_note,
+    role_label: row.role_label,
+    fee_cents: row.fee_cents,
+    is_lead: lead,
+    freelancer: row.profiles?.full_name ?? '',
+    // deno-lint-ignore no-explicit-any
+    team: ((mates ?? []) as any[])
+      .map((m) => ({
+        name: m.profiles?.full_name ?? 'Crew',
+        role: m.role_label,
+        on_site: m.on_site ?? a.on_site,
+        wrapped: m.wrapped ?? a.wrapped,
+        days: multi
+          ? Object.fromEntries(
+              jobDays.map((d) => {
+                const h = hoursOn(m, d);
+                return [d.day, h && h.on && h.off ? `${hm(h.on)}\u2013${hm(h.off)}` : null];
+              }),
+            )
+          : {},
+        is_lead: Boolean(m.is_lead),
+        is_you: m.id === row.id,
+        // Numbers are the lead's to have. Nobody else gets them, in the PDF
+        // any more than on the page.
+        phone: lead && m.id !== row.id ? (m.profiles?.phone ?? null) : null,
+      }))
+      .sort(
+        (x, y) =>
+          Number(y.is_you) - Number(x.is_you) ||
+          Number(y.is_lead) - Number(x.is_lead) ||
+          (x.on_site ?? '').localeCompare(y.on_site ?? ''),
+      ),
+    producer,
+    client_contact:
+      lead && a.clients?.contact_name
+        ? {
+            name: a.clients.contact_name,
+            company: a.clients.name,
+            phone: a.clients.contact_phone,
+            email: a.clients.contact_email,
+          }
+        : null,
+  };
+}
+
+/** Standard fonts speak WinAnsi and nothing else. Anything outside it -- an
+    emoji in a briefing, say -- would throw mid-page, so it is dropped here. */
+function winAnsi(text: string): string {
+  return text.replace(/[^\n\r\t -~\u00a0-\u00ff\u2013\u2014\u2018\u2019\u201c\u201d\u2022\u2026\u20ac]/g, '');
+}
+
+function hhmm(t: string | null): string {
+  return t ? t.slice(0, 5) : '';
+}
+
+function longDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function shortDay(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** The briefing, laid out like a call sheet: what matters on the day at the
+    top, the rest in reading order, the team at the end. A4, one column, so it
+    reads the same on a phone screen as on paper. */
+async function briefingPdf(b: Briefing): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Briefing - ${b.title}`);
+  doc.setAuthor('Fast Elevate Media');
+
+  const regular = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+  let logo: Awaited<ReturnType<typeof doc.embedPng>> | null = null;
+  try {
+    const res = await fetch(`${PORTAL_URL}/logo.png`);
+    if (res.ok) logo = await doc.embedPng(await res.arrayBuffer());
+  } catch {
+    // No logo is a plainer page, not a failed one.
+  }
+
+  const ink = rgb(0.07, 0.067, 0.067);
+  const muted = rgb(0.545, 0.565, 0.604);
+  const secondary = rgb(0.29, 0.29, 0.29);
+  const blue = rgb(0.298, 0.447, 0.663);
+  const panel = rgb(0.965, 0.961, 0.961);
+  const gold = rgb(0.949, 0.745, 0.314);
+  const line = rgb(0.925, 0.925, 0.925);
+
+  const W = 595.28;
+  const H = 841.89;
+  const M = 46;
+  const COL = W - 2 * M;
+
+  const pages: PDFPage[] = [];
+  let page!: PDFPage;
+  let y = 0;
+
+  const newPage = () => {
+    page = doc.addPage([W, H]);
+    pages.push(page);
+    y = H - M;
+  };
+
+  const ensure = (h: number) => {
+    if (y - h < M + 28) newPage();
+  };
+
+  const wrap = (text: string, font: PDFFont, size: number, width: number): string[] => {
+    const out: string[] = [];
+    for (const para of winAnsi(text).split(/\r?\n/)) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        out.push('');
+        continue;
+      }
+      let cur = '';
+      for (const w of words) {
+        const next = cur ? `${cur} ${w}` : w;
+        if (font.widthOfTextAtSize(next, size) <= width) {
+          cur = next;
+        } else {
+          if (cur) out.push(cur);
+          cur = w;
+        }
+      }
+      if (cur) out.push(cur);
+    }
+    return out;
+  };
+
+  const text = (
+    str: string,
+    opts: { size?: number; font?: PDFFont; color?: ReturnType<typeof rgb>; x?: number; width?: number; gap?: number } = {},
+  ) => {
+    const size = opts.size ?? 10.5;
+    const font = opts.font ?? regular;
+    const x = opts.x ?? M;
+    const width = opts.width ?? COL;
+    const lh = size * 1.45;
+    const lines = wrap(str, font, size, width);
+    for (const l of lines) {
+      ensure(lh);
+      page.drawText(l, { x, y: y - size, size, font, color: opts.color ?? ink });
+      y -= lh;
+    }
+    y -= opts.gap ?? 0;
+  };
+
+  const eyebrow = (str: string) => {
+    ensure(26);
+    y -= 6;
+    page.drawText(winAnsi(str).toUpperCase(), {
+      x: M,
+      y: y - 8,
+      size: 8,
+      font: bold,
+      color: muted,
+      characterSpacing: 1.2,
+    } as Parameters<PDFPage['drawText']>[1]);
+    y -= 18;
+  };
+
+  const rule = () => {
+    ensure(12);
+    page.drawLine({ start: { x: M, y: y - 4 }, end: { x: W - M, y: y - 4 }, thickness: 0.6, color: line });
+    y -= 12;
+  };
+
+  const bullets = (items: string[]) => {
+    for (const it of items) {
+      const lines = wrap(it, regular, 10.5, COL - 14);
+      ensure(lines.length * 15.2);
+      page.drawText('\u2022', { x: M + 2, y: y - 10.5, size: 10.5, font: regular, color: blue });
+      for (const l of lines) {
+        page.drawText(l, { x: M + 14, y: y - 10.5, size: 10.5, font: regular, color: ink });
+        y -= 15.2;
+      }
+      y -= 2;
+    }
+  };
+
+  /** Label on the left, value on the right, the way a booking reads. */
+  const kv = (rows: [string, string][]) => {
+    const labelW = 118;
+    for (const [k, v] of rows) {
+      if (!v) continue;
+      const lines = wrap(v, regular, 10.5, COL - labelW);
+      ensure(lines.length * 15.2 + 4);
+      page.drawText(winAnsi(k).toUpperCase(), {
+        x: M,
+        y: y - 9.5,
+        size: 7.5,
+        font: bold,
+        color: muted,
+        characterSpacing: 1,
+      } as Parameters<PDFPage['drawText']>[1]);
+      for (const l of lines) {
+        page.drawText(l, { x: M + labelW, y: y - 10.5, size: 10.5, font: regular, color: ink });
+        y -= 15.2;
+      }
+      y -= 4;
+    }
+  };
+
+  // --- Page one --------------------------------------------------------------
+
+  newPage();
+
+  if (logo) {
+    const lw = 118;
+    const lh = (logo.height / logo.width) * lw;
+    page.drawRectangle({ x: M - 10, y: y - lh - 14, width: lw + 20, height: lh + 20, color: ink });
+    page.drawImage(logo, { x: M, y: y - lh - 4, width: lw, height: lh });
+  }
+
+  const eb = `CREW BRIEFING \u00b7 ${winAnsi(b.role_label).toUpperCase()}`;
+  page.drawText(eb, {
+    x: W - M - bold.widthOfTextAtSize(eb, 8) - 8,
+    y: y - 10,
+    size: 8,
+    font: bold,
+    color: muted,
+    characterSpacing: 1.2,
+  } as Parameters<PDFPage['drawText']>[1]);
+  if (b.reference) {
+    page.drawText(b.reference, {
+      x: W - M - regular.widthOfTextAtSize(b.reference, 9),
+      y: y - 24,
+      size: 9,
+      font: regular,
+      color: muted,
+    });
+  }
+  y -= 54;
+
+  text(b.title, { size: 21, font: bold, gap: 2 });
+  const when =
+    b.days.length > 1
+      ? `${shortDay(b.days[0].day)} \u2013 ${longDate(`${b.days[b.days.length - 1].day}T12:00:00`)}`
+      : longDate(b.starts_at);
+  text(`${when}${b.city ? ` \u00b7 ${b.city}` : ''} \u00b7 for ${b.client}`, {
+    size: 11,
+    color: secondary,
+    gap: 10,
+  });
+
+  text(`Your role: ${b.is_lead ? 'LEAD and ' : ''}${b.role_label}`, { size: 13, font: bold, gap: 2 });
+  if (b.is_lead) {
+    text(
+      'You hold the overview on site: point of contact for the client and the crew, and the one who checks everything is in before anyone leaves. Price and planning still go through FEM.',
+      { size: 10, color: secondary, gap: 6 },
+    );
+  }
+
+  // The days, boxed, two to a row. Times are the thing people check twice,
+  // and on a two-day job the Thursday half-day is the one they get wrong.
+  {
+    const eyebrowAt = (str: string, x: number, yy: number) =>
+      page.drawText(winAnsi(str).toUpperCase(), {
+        x,
+        y: yy,
+        size: 7.5,
+        font: bold,
+        color: muted,
+        characterSpacing: 1,
+      } as Parameters<PDFPage['drawText']>[1]);
+
+    const drawTimes = (x: number, yy: number, on: string, cam: string, off: string) => {
+      let bx = x;
+      const slot = (label: string, value: string, highlight = false) => {
+        if (!value) return;
+        eyebrowAt(label, bx, yy);
+        if (highlight) {
+          const w = bold.widthOfTextAtSize(value, 14) + 12;
+          page.drawRectangle({ x: bx - 6, y: yy - 23, width: w, height: 20, color: gold });
+        }
+        page.drawText(value, { x: bx, y: yy - 18, size: 14, font: bold, color: ink });
+        bx += Math.max(70, bold.widthOfTextAtSize(value, 14) + 26);
+      };
+      slot('On site', on);
+      slot('Camera ready', cam, true);
+      slot('Wrapped', off);
+    };
+
+    const days = b.days;
+    if (days.length === 0) {
+      const boxH = b.due_on ? 56 : 44;
+      ensure(boxH + 10);
+      page.drawRectangle({ x: M, y: y - boxH, width: COL, height: boxH, color: panel, borderColor: line, borderWidth: 0.6 });
+      page.drawText('No shoot day. Delivery only.', { x: M + 16, y: y - 26, size: 10.5, font: regular, color: secondary });
+      if (b.due_on) {
+        eyebrowAt('Deadline', M + 16, y - boxH + 14);
+        page.drawText(shortDate(b.due_on), { x: M + 16 + 60, y: y - boxH + 12, size: 10.5, font: bold, color: ink });
+      }
+      y -= boxH + 14;
+    } else {
+      const perRow = days.length === 1 ? 1 : 2;
+      const gap = 10;
+      const w = (COL - gap * (perRow - 1)) / perRow;
+      const boxH = 66;
+      for (let i = 0; i < days.length; i += perRow) {
+        ensure(boxH + 10);
+        for (let j = 0; j < perRow && i + j < days.length; j++) {
+          const d = days[i + j];
+          const x = M + j * (w + gap);
+          page.drawRectangle({ x, y: y - boxH, width: w, height: boxH, color: panel, borderColor: line, borderWidth: 0.6 });
+          const head = `${days.length > 1 ? `Day ${i + j + 1} \u00b7 ` : ''}${shortDay(d.day)}${d.note ? ` \u00b7 ${d.note}` : ''}`;
+          eyebrowAt(head, x + 14, y - 16);
+          drawTimes(x + 14, y - 32, hhmm(d.on_site), hhmm(d.camera_ready), hhmm(d.wrapped));
+        }
+        y -= boxH + gap;
+      }
+      if (b.due_on) {
+        ensure(20);
+        eyebrowAt('Deadline', M, y - 8);
+        page.drawText(shortDate(b.due_on), { x: M + 60, y: y - 10, size: 10.5, font: bold, color: ink });
+        y -= 20;
+      }
+      y -= 6;
+    }
+  }
+
+  if (b.briefing) {
+    eyebrow('The job');
+    text(b.briefing, { gap: 4 });
+  }
+
+  if (b.venue || b.city) {
+    eyebrow('Where');
+    text([b.venue, b.city].filter(Boolean).join(', '), { font: bold, size: 11.5, gap: 1 });
+    const whereRows: [string, string][] = [];
+    if (b.maps_url) whereRows.push(['Maps', b.maps_url]);
+    if (b.parking) whereRows.push(['Parking', b.parking]);
+    if (b.travel) whereRows.push(['Getting there', b.travel]);
+    kv(whereRows);
+  }
+
+  eyebrow('Your booking');
+  kv([
+    ['Role', `${b.is_lead ? 'Lead \u00b7 ' : ''}${b.role_label}`],
+    ['Fee', `${euro(b.fee_cents)} ex VAT`],
+    ['Deadline', b.due_on ? shortDate(b.due_on) : ''],
+    ['Bring', b.equipment.join(', ')],
+    ['Dresscode', b.dresscode ?? ''],
+  ]);
+
+  if (b.expectations.length > 0) {
+    eyebrow('What we expect');
+    bullets(b.expectations);
+  }
+
+  if (b.shots.length > 0) {
+    eyebrow('Shot list');
+    bullets(b.shots);
+  }
+
+  {
+    const d = b.delivery;
+    const rows: [string, string][] = [
+      ['First selection', d.firstSelection ?? ''],
+      ['Full edit', d.fullEdit ?? ''],
+      ['Format', d.format ?? ''],
+      ['Save originals', d.retention ?? ''],
+      ['Gallery', b.gallery_link ? `${b.gallery_link}${b.gallery_note ? ` \u2014 ${b.gallery_note}` : ''}` : ''],
+      ['Invoice', 'Through the portal, not by email. The upload opens once you mark the files delivered.'],
+    ];
+    if (rows.some(([, v]) => v)) {
+      eyebrow('What you deliver');
+      kv(rows);
+    }
+  }
+
+  if (b.team.length > 1) {
+    eyebrow('Who you work with');
+    const showPhone = b.is_lead;
+    // One hours column per day, or one for the job. Fixed first two columns,
+    // the days share what is left; the phone column takes its share off them.
+    const dayCols = b.days.length > 1 ? b.days.map((d) => d.day) : [null];
+    const phoneW = showPhone ? 84 : 0;
+    const whoW = 128;
+    const roleW = dayCols.length > 2 ? 110 : 150;
+    const dayW = Math.max(56, (COL - whoW - roleW - phoneW) / dayCols.length);
+    const head = ['Who', 'Role', ...dayCols.map((d) => (d ? shortDay(d) : 'Hours')), ...(showPhone ? ['Phone'] : [])];
+    const widths = [whoW, roleW, ...dayCols.map(() => dayW), ...(showPhone ? [phoneW] : [])];
+
+    ensure(18);
+    let cx = M;
+    head.forEach((h, i) => {
+      page.drawText(winAnsi(h).toUpperCase(), {
+        x: cx,
+        y: y - 8,
+        size: 7.5,
+        font: bold,
+        color: muted,
+        characterSpacing: 1,
+      } as Parameters<PDFPage['drawText']>[1]);
+      cx += widths[i];
+    });
+    y -= 14;
+    rule();
+    for (const m of b.team) {
+      ensure(18);
+      const f = m.is_you ? bold : regular;
+      cx = M;
+      const who = `${m.is_you ? 'You' : m.name}${m.is_lead ? '  LEAD' : ''}`;
+      page.drawText(winAnsi(who), { x: cx, y: y - 10, size: 10, font: f, color: ink });
+      cx += whoW;
+      page.drawText(winAnsi(m.role), { x: cx, y: y - 10, size: 9.5, font: f, color: secondary });
+      cx += roleW;
+      for (const d of dayCols) {
+        const hours = d ? m.days[d] : `${hhmm(m.on_site)}\u2013${hhmm(m.wrapped)}`;
+        page.drawText(hours ?? '\u2014', { x: cx, y: y - 10, size: 10, font: f, color: hours ? ink : muted });
+        cx += dayW;
+      }
+      if (showPhone && m.phone) {
+        page.drawText(winAnsi(m.phone), { x: cx, y: y - 10, size: 9.5, font: regular, color: blue });
+      }
+      y -= 16;
+    }
+    y -= 4;
+  }
+
+  eyebrow('Contacts');
+  {
+    const rows: [string, string][] = [];
+    if (b.producer) {
+      rows.push([
+        'FEM',
+        `${b.producer.name}${b.producer.phone ? ` \u00b7 ${b.producer.phone}` : ''}${b.producer.email ? ` \u00b7 ${b.producer.email}` : ''}`,
+      ]);
+    }
+    if (b.client_contact) {
+      rows.push([
+        'Client',
+        `${b.client_contact.name}, ${b.client_contact.company}${b.client_contact.phone ? ` \u00b7 ${b.client_contact.phone}` : ''}${b.client_contact.email ? ` \u00b7 ${b.client_contact.email}` : ''}`,
+      ]);
+    }
+    rows.push(['Questions', MAIL_REPLY_TO || 'Through the portal']);
+    kv(rows);
+  }
+
+  eyebrow('House rules');
+  bullets([
+    'Nothing on social media without agreeing it with FEM first: stills, behind the scenes and stories included. Do not tag the client.',
+    'No direct contact with the client about price or planning. That goes through FEM' + (b.is_lead ? '' : ' or the lead') + '.',
+    'Overtime after your wrap time only after checking with FEM.',
+    'Thank everyone before you leave.',
+  ]);
+
+  // --- Footer on every page ----------------------------------------------------
+
+  const stamp = `Generated ${shortDate(new Date().toISOString())}`;
+  pages.forEach((pg, i) => {
+    pg.drawLine({ start: { x: M, y: M - 6 }, end: { x: W - M, y: M - 6 }, thickness: 0.6, color: line });
+    pg.drawText(`Fast Elevate Media \u00b7 ${MAIL_REPLY_TO || 'fastelevatemedia.com'}`, {
+      x: M,
+      y: M - 20,
+      size: 8,
+      font: regular,
+      color: muted,
+    });
+    const right = `Page ${i + 1} of ${pages.length} \u00b7 ${stamp}`;
+    pg.drawText(right, {
+      x: W - M - regular.widthOfTextAtSize(right, 8),
+      y: M - 20,
+      size: 8,
+      font: regular,
+      color: muted,
+    });
+  });
+
+  return await doc.save();
+}
+
+function briefingFilename(b: Briefing): string {
+  const safe = (s: string) => winAnsi(s).replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, ' ');
+  return `Briefing - ${safe(b.title)} - ${shortDate(b.starts_at).replace(/ /g, '-')}.pdf`;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/** The PDF for a role, or nothing. A briefing that fails to render must not
+    stop the booking mail: the page is still there, the file is a convenience. */
+async function briefingAttachment(admin: SupabaseClient, roleId: string | undefined): Promise<Attachment[]> {
+  if (!roleId) return [];
+  try {
+    const data = await briefingData(admin, roleId);
+    if (!data) return [];
+    const bytes = await briefingPdf(data);
+    return [{ filename: briefingFilename(data), content: toBase64(bytes) }];
+  } catch (err) {
+    console.error('briefing pdf failed', roleId, err instanceof Error ? err.message : err);
+    return [];
+  }
+}
+
 /** Sends whatever is waiting. Called by the portal rather than a scheduler, so
     a message goes out within seconds of the change that caused it -- and any
     later call picks up whatever an interrupted one left behind.
@@ -473,7 +1172,15 @@ async function drainNotifications(): Promise<Response> {
       continue;
     }
 
-    const result = await sendMail(row.recipient_email as string, mail);
+    // The booking carries the briefing; so does a change to it, since the
+    // copy in their pocket is now wrong.
+    const kind = row.kind as string;
+    const attachments =
+      kind === 'booked' || kind === 'job-changed'
+        ? await briefingAttachment(admin, (row.payload as Job | null)?.role_id)
+        : [];
+
+    const result = await sendMail(row.recipient_email as string, mail, attachments);
 
     if (result === 'sent') {
       await admin
@@ -506,6 +1213,7 @@ async function handler(req: Request): Promise<Response> {
     full_name?: string;
     role?: string;
     target_id?: string;
+    role_id?: string;
   };
   try {
     payload = await req.json();
@@ -514,7 +1222,7 @@ async function handler(req: Request): Promise<Response> {
   }
 
   const action = payload.action ?? 'invite';
-  if (!['invite', 'revoke', 'restore', 'set-role', 'notify'].includes(action)) {
+  if (!['invite', 'revoke', 'restore', 'set-role', 'notify', 'briefing'].includes(action)) {
     return json({ error: 'Unknown action.' }, 400);
   }
 
@@ -527,7 +1235,9 @@ async function handler(req: Request): Promise<Response> {
     if (!GRANTABLE.includes(role)) return json({ error: 'Unknown role.' }, 400);
   } else if (action === 'set-role' && !GRANTABLE.includes(role)) {
     return json({ error: 'Unknown role.' }, 400);
-  } else if (action !== 'notify' && !payload.target_id) {
+  } else if (action === 'briefing' && !payload.role_id) {
+    return json({ error: 'Say which role.' }, 400);
+  } else if (!['notify', 'briefing'].includes(action) && !payload.target_id) {
     // Draining names nobody: it sends what the database already addressed.
     return json({ error: 'Say whose access to change.' }, 400);
   }
@@ -553,6 +1263,34 @@ async function handler(req: Request): Promise<Response> {
   // checked, and the queue could be flushed by a stranger.
   if (action === 'notify') {
     return await drainNotifications();
+  }
+
+  // The briefing as a file, for whoever may see the role. Row level security
+  // answers that: the read below returns the row to the person booked on it
+  // and to FEM, and nothing to anyone else.
+  if (action === 'briefing') {
+    const { data: allowed } = await asCaller
+      .from('assignment_roles')
+      .select('id')
+      .eq('id', payload.role_id!)
+      .maybeSingle();
+
+    if (!allowed) return json({ error: 'Not your assignment.' }, 403);
+
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const data = await briefingData(admin, payload.role_id!);
+    if (!data) return json({ error: 'No such role.' }, 404);
+
+    const bytes = await briefingPdf(data);
+    return new Response(bytes, {
+      headers: {
+        ...cors,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="${briefingFilename(data)}"`,
+      },
+    });
   }
 
   // RLS does the heavy lifting: a staff session below aal2 reads nothing here.

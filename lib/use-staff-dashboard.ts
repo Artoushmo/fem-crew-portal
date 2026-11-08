@@ -76,7 +76,7 @@ function roleName(r: Role): string {
     disagree with the page you clicked through to. */
 export function useStaffDashboard() {
   const { shoots, loading: shootsLoading, error: shootsError, reload } = useShoots();
-  const { crew, loading: crewLoading } = useCrew(null);
+  const { crew, loading: crewLoading } = useCrew([]);
   const { clients, loading: clientsLoading } = useClients();
 
   const tasks = useMemo<Task[]>(() => {

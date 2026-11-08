@@ -1,7 +1,11 @@
 'use client';
 
-import type { Delivery, RoleDraft } from '@/lib/use-staff-assignments';
+import type { DayDraft, Delivery, RoleDraft } from '@/lib/use-staff-assignments';
 import { Field } from '../profile/SectionForm';
+
+function dayLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
 
 /** The job's own text, as a role starts out with it. */
 export interface Inherited {
@@ -23,12 +27,27 @@ export interface Inherited {
 export function RoleDetails({
   role,
   inherited,
+  days = [],
   onChange,
 }: {
   role: RoleDraft;
   inherited: Inherited;
+  /** The job's days. With more than one, each gets a line here: there or
+      not, and at what hours. */
+  days?: DayDraft[];
   onChange: (patch: Partial<RoleDraft>) => void;
 }) {
+  const dayOf = (date: string) => role.days[date] ?? { present: true, on_site: '', wrapped: '' };
+  const setDay = (date: string, patch: Partial<RoleDraft['days'][string]>) => {
+    const next = { ...dayOf(date), ...patch };
+    const copy = { ...role.days };
+    // Back to the default means no row at all, so the day keeps following
+    // the job.
+    if (next.present && !next.on_site && !next.wrapped) delete copy[date];
+    else copy[date] = next;
+    onChange({ days: copy });
+  };
+
   // What is shown: the role's own if set, otherwise the job's.
   const shown = (key: 'briefing' | 'expectations' | 'shots' | 'equipment') =>
     role[key] !== '' ? role[key] : inherited[key];
@@ -58,6 +77,59 @@ export function RoleDetails({
       <p className="field__hint field__hint--block">
         Starts as the job. Change what is different for this person.
       </p>
+
+      {days.length > 1 && (
+        <div className="roledays">
+          <p className="field__label">Days</p>
+          {days
+            .filter((d) => d.day !== '')
+            .map((d) => {
+              const rd = dayOf(d.day);
+              return (
+                <div key={d.day} className={`roledays__row ${rd.present ? '' : 'is-off'}`}>
+                  <label className="roledays__on">
+                    <input
+                      type="checkbox"
+                      checked={rd.present}
+                      onChange={(e) => setDay(d.day, { present: e.target.checked })}
+                    />
+                    <span>
+                      {dayLabel(d.day)}
+                      {d.note && <small> {d.note}</small>}
+                    </span>
+                  </label>
+                  {rd.present && (
+                    <span className="roledays__times">
+                      <input
+                        type="time"
+                        className="field__input"
+                        value={rd.on_site}
+                        placeholder={d.on_site}
+                        aria-label={`On site ${dayLabel(d.day)}`}
+                        onChange={(e) => setDay(d.day, { on_site: e.target.value })}
+                      />
+                      <span className="roledays__dash">\u2013</span>
+                      <input
+                        type="time"
+                        className="field__input"
+                        value={rd.wrapped}
+                        placeholder={d.wrapped}
+                        aria-label={`Wrapped ${dayLabel(d.day)}`}
+                        onChange={(e) => setDay(d.day, { wrapped: e.target.value })}
+                      />
+                      {!rd.on_site && !rd.wrapped && (
+                        <span className="roledays__default">
+                          {d.on_site}\u2013{d.wrapped}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                  {!rd.present && <span className="roledays__default">Not on this day</span>}
+                </div>
+              );
+            })}
+        </div>
+      )}
 
       <div className="form-grid form-grid--four">
         <Field label="On site">
@@ -190,7 +262,8 @@ export function inheritedFrom(src: {
     the label, so a producer sees at a glance which roles depart from the job. */
 export function roleHasOwn(r: RoleDraft): boolean {
   return Boolean(
-    r.on_site ||
+    Object.keys(r.days).length > 0 ||
+      r.on_site ||
       r.camera_ready ||
       r.wrapped ||
       r.due_on ||

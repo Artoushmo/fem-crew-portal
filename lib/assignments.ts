@@ -50,12 +50,28 @@ export const PAYMENT_LABEL: Record<PaymentState, string> = {
 export interface TeamMember {
   name: string;
   role: string;
+  /** First day's hours; what a one-day job shows. */
   onSite: string;
   wrapped: string;
+  /** Per date: "07:00\u201321:00", or null on a day they are not there. Only
+      filled on a job with more than one day. */
+  days: Record<string, string | null>;
   isLead: boolean;
   isYou: boolean;
   phone: string;
   email: string;
+}
+
+/** One day of a job as this person works it. */
+export interface AssignmentDay {
+  date: string;
+  /** "Wed 14 Oct" */
+  label: string;
+  onSite: string;
+  cameraReady: string;
+  wrapped: string;
+  note: string;
+  calendar: { start: string; end: string };
 }
 
 export interface Assignment {
@@ -63,8 +79,13 @@ export interface Assignment {
   title: string;
   client: string;
   startsAt: string;
+  /** Last day, for "is this over". Same as startsAt on a one-day job. */
+  endsAt: string;
+  /** "14 October 2026", or "14\u201315 October 2026" for a run of days. */
   dateLabel: string;
-  /** Big three of the shoot day. */
+  /** The days this person is on, in order. Empty for a deadline-only job. */
+  days: AssignmentDay[];
+  /** Big three of the first shoot day. */
   onSite: string;
   cameraReady: string;
   wrapped: string;
@@ -120,7 +141,59 @@ export interface Assignment {
   calendar: { start: string; end: string };
 }
 
-export const assignments: Assignment[] = [
+type Seed = Omit<Assignment, 'days' | 'endsAt' | 'team'> & {
+  team: Omit<TeamMember, 'days'>[];
+};
+
+/** The sample jobs are one-day jobs; the per-day fields follow from that. */
+function fromSeed(a: Seed): Assignment {
+  const date = a.startsAt.slice(0, 10);
+  return {
+    ...a,
+    endsAt: a.startsAt,
+    days: [
+      {
+        date,
+        label: shortDay(date),
+        onSite: a.onSite,
+        cameraReady: a.cameraReady,
+        wrapped: a.wrapped,
+        note: '',
+        calendar: a.calendar,
+      },
+    ],
+    team: a.team.map((m) => ({ ...m, days: { [date]: `${m.onSite}\u2013${m.wrapped}` } })),
+  };
+}
+
+/** "Wed 14 Oct": the column head a team table and a call sheet use. */
+export function shortDay(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+/** "14 October 2026" for one day; "14\u201315 October 2026" for a run; across a
+    month boundary both months are named. */
+export function rangeLabel(dates: string[], fallbackIso: string): string {
+  const long = (d: string) =>
+    new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const dayOnly = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric' });
+  const dayMonth = (d: string) =>
+    new Date(`${d}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+
+  if (dates.length === 0) return long(fallbackIso.slice(0, 10));
+  if (dates.length === 1) return long(dates[0]);
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  return first.slice(0, 7) === last.slice(0, 7)
+    ? `${dayOnly(first)}\u2013${long(last)}`
+    : `${dayMonth(first)} \u2013 ${long(last)}`;
+}
+
+const seed: Seed[] = [
   {
     id: 'corporate-event-client-x',
     title: 'Corporate Event',
@@ -392,6 +465,8 @@ export const assignments: Assignment[] = [
   },
 ];
 
+export const assignments: Assignment[] = seed.map(fromSeed);
+
 export function getAssignment(id: string) {
   return assignments.find((a) => a.id === id);
 }
@@ -589,17 +664,25 @@ function stamp(value: string): string {
   return `${d.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
 }
 
-export function calendarLinks(a: Assignment, portalUrl: string) {
-  const title = `${a.title} - ${a.client} (FEM)`;
-  const details = [
-    `On site ${a.onSite}, camera ready ${a.cameraReady}, wrap ${a.wrapped}.`,
-    `Role: ${a.role}. Fee: ${formatFee(a.fee)}.`,
-    `Assignment: ${portalUrl}`,
-  ].join('\n');
+export function calendarLinks(a: Assignment, portalUrl: string, dayIndex = 0) {
+  // The .ics carries every day; the web links take one at a time, because
+  // neither Google nor Outlook accepts two events in one URL.
+  const days = a.days.length > 0 ? a.days : [{ ...a, date: a.startsAt.slice(0, 10), label: '', note: '' }];
+  const d = days[Math.min(dayIndex, days.length - 1)];
+  const multi = days.length > 1;
+
+  const title = `${a.title} - ${a.client} (FEM)${multi ? ` \u00b7 day ${dayIndex + 1}` : ''}`;
+  const detailsFor = (x: typeof d) =>
+    [
+      `On site ${x.onSite}, camera ready ${x.cameraReady}, wrap ${x.wrapped}.`,
+      `Role: ${a.role}. Fee: ${formatFee(a.fee)}.`,
+      `Assignment: ${portalUrl}`,
+    ].join('\n');
+  const details = detailsFor(d);
   const location = [a.venue, a.city].filter(Boolean).join(', ');
 
-  const start = stamp(a.calendar.start);
-  const end = stamp(a.calendar.end);
+  const start = stamp(d.calendar.start);
+  const end = stamp(d.calendar.end);
 
   const google =
     'https://calendar.google.com/calendar/render?action=TEMPLATE' +
@@ -613,8 +696,8 @@ export function calendarLinks(a: Assignment, portalUrl: string) {
   const outlook =
     'https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent' +
     `&subject=${encodeURIComponent(title)}` +
-    `&startdt=${encodeURIComponent(new Date(a.calendar.start).toISOString())}` +
-    `&enddt=${encodeURIComponent(new Date(a.calendar.end).toISOString())}` +
+    `&startdt=${encodeURIComponent(new Date(d.calendar.start).toISOString())}` +
+    `&enddt=${encodeURIComponent(new Date(d.calendar.end).toISOString())}` +
     `&location=${encodeURIComponent(location)}` +
     `&body=${encodeURIComponent(details)}`;
 
@@ -625,26 +708,30 @@ export function calendarLinks(a: Assignment, portalUrl: string) {
 
   const escape = (v: string) => v.replace(/([,;\\])/g, '\\$1').replace(/\n/g, '\\n');
 
+  const events = days.flatMap((x, i) => [
+    'BEGIN:VEVENT',
+    // Without a UID and a DTSTAMP most clients treat the file as malformed and
+    // say they found nothing to add.
+    `UID:${a.id}${multi ? `-${i + 1}` : ''}@fastelevatemedia.com`,
+    `DTSTAMP:${stamp(new Date().toISOString())}`,
+    fold(`SUMMARY:${escape(`${a.title} - ${a.client} (FEM)${multi ? ` \u00b7 day ${i + 1}` : ''}`)}`),
+    `DTSTART:${stamp(x.calendar.start)}`,
+    `DTEND:${stamp(x.calendar.end)}`,
+    fold(`LOCATION:${escape(location)}`),
+    fold(`DESCRIPTION:${escape(detailsFor(x))}`),
+    fold(`URL:${portalUrl}`),
+    'END:VEVENT',
+  ]);
+
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//Fast Elevate Media//Crew Portal//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    // Without a UID and a DTSTAMP most clients treat the file as malformed and
-    // say they found nothing to add.
-    `UID:${a.id}@fastelevatemedia.com`,
-    `DTSTAMP:${stamp(new Date().toISOString())}`,
-    fold(`SUMMARY:${escape(title)}`),
-    `DTSTART:${start}`,
-    `DTEND:${end}`,
-    fold(`LOCATION:${escape(location)}`),
-    fold(`DESCRIPTION:${escape(details)}`),
-    fold(`URL:${portalUrl}`),
-    'END:VEVENT',
+    ...events,
     'END:VCALENDAR',
   ].join('\r\n');
 
-  return { google, outlook, ics, filename: `FEM-${a.id}.ics` };
+  return { google, outlook, ics, filename: `FEM-${a.id}.ics`, days: days.length };
 }

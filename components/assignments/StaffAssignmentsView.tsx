@@ -8,6 +8,7 @@ import { useClients } from '@/lib/use-clients';
 import {
   BLANK_ROLE,
   JOB_STATUS_LABEL,
+  daysLabel,
   formatEuro,
   jobProgress,
   jobStatus,
@@ -48,7 +49,9 @@ function dateLabel(iso: string): string {
 }
 
 function bucket(s: Shoot): Filter {
-  if (new Date(s.starts_at) < new Date(new Date().toDateString())) return 'past';
+  // A two-day job is current until its last day is over.
+  const last = s.days.length > 0 ? `${s.days[s.days.length - 1].day}T23:59:59` : s.starts_at;
+  if (new Date(last) < new Date(new Date().toDateString())) return 'past';
   return s.roles.some((r) => !r.freelancer_id) ? 'unbooked' : 'booked';
 }
 
@@ -271,11 +274,13 @@ export function StaffAssignmentsView() {
                         <span className="joblist__client">{s.client_name ?? '—'}</span>
 
                         <span className="joblist__when">
-                          {dateLabel(s.starts_at)}
+                          {s.days.length > 1 ? daysLabel(s.days) : dateLabel(s.starts_at)}
                           <span className="joblist__time">
-                            {s.on_site && s.wrapped
-                              ? `${s.on_site.slice(0, 5)}-${s.wrapped.slice(0, 5)}`
-                              : 'Deadline'}
+                            {s.days.length > 1
+                              ? `${s.days.length} days`
+                              : s.on_site && s.wrapped
+                                ? `${s.on_site.slice(0, 5)}-${s.wrapped.slice(0, 5)}`
+                                : 'Deadline'}
                           </span>
                         </span>
 
@@ -358,6 +363,12 @@ export function StaffAssignmentsView() {
                                     <span className="roles__own">
                                       {r.on_site?.slice(0, 5) ?? '—'}
                                       {r.wrapped ? `-${r.wrapped.slice(0, 5)}` : ''}
+                                    </span>
+                                  )}
+                                  {s.days.length > 1 && r.days.some((d) => !d.present) && (
+                                    <span className="roles__own">
+                                      {s.days.length - r.days.filter((d) => !d.present).length} of{' '}
+                                      {s.days.length} days
                                     </span>
                                   )}
                                   {r.due_on && (
@@ -490,11 +501,17 @@ export function StaffAssignmentsView() {
                                       setEditRole(
                                         editRole?.id === r.id
                                           ? null
-                                          : { id: r.id, shootId: s.id, draft: roleToDraft(r) },
+                                          : {
+                                              id: r.id,
+                                              shootId: s.id,
+                                              draft: roleToDraft(r, new Map(s.days.map((d) => [d.id, d.day]))),
+                                            },
                                       )
                                     }
                                   >
-                                    {roleHasOwn(roleToDraft(r)) ? 'Own details' : 'Details'}
+                                    {roleHasOwn(roleToDraft(r, new Map(s.days.map((d) => [d.id, d.day]))))
+                                      ? 'Own details'
+                                      : 'Details'}
                                   </button>
 
                                   {r.freelancer_id ? (
@@ -541,6 +558,13 @@ export function StaffAssignmentsView() {
                                   equipment: s.equipment.join('\n'),
                                   delivery: s.delivery,
                                 })}
+                                days={s.days.map((d) => ({
+                                  day: d.day,
+                                  on_site: (d.on_site ?? s.on_site)?.slice(0, 5) ?? '',
+                                  camera_ready: (d.camera_ready ?? s.camera_ready)?.slice(0, 5) ?? '',
+                                  wrapped: (d.wrapped ?? s.wrapped)?.slice(0, 5) ?? '',
+                                  note: d.note ?? '',
+                                }))}
                                 onChange={(patch) =>
                                   setEditRole({
                                     ...editRole,
@@ -576,7 +600,9 @@ export function StaffAssignmentsView() {
                             <CrewPicker
                               craft={pickingRole.role.craft}
                               city={s.city}
-                              shootDate={s.starts_at}
+                              shootDates={
+                                s.days.length > 0 ? s.days.map((d) => d.day) : [s.starts_at.slice(0, 10)]
+                              }
                               onPick={async (freelancerId) => {
                                 await book(pickingRole.role.id, freelancerId);
                                 setPickingRole(null);

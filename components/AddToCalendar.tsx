@@ -31,8 +31,13 @@ export function AddToCalendar({
     };
   }, [open]);
 
-  const links = () =>
-    calendarLinks(assignment, `${window.location.origin}/assignments/${assignment.id}`);
+  const links = (day = 0) =>
+    calendarLinks(assignment, `${window.location.origin}/assignments/${assignment.id}`, day);
+
+  // Google and Outlook take one event per link. With several days the menu
+  // offers each; the .ics carries them all at once.
+  const dayCount = Math.max(1, assignment.days.length);
+  const dayLabel = (i: number) => (dayCount > 1 ? ` \u00b7 ${assignment.days[i].label}` : '');
 
   const downloadIcs = () => {
     const { ics, filename } = links();
@@ -61,31 +66,37 @@ export function AddToCalendar({
 
       {open && (
         <div className={`calendar__menu ${onDark ? 'calendar__menu--below' : ''}`} role="menu">
-          <button
-            type="button"
-            role="menuitem"
-            className="calendar__item"
-            onClick={() => {
-              window.open(links().google, '_blank', 'noopener');
-              setOpen(false);
-            }}
-          >
-            Google Calendar
-          </button>
+          {Array.from({ length: dayCount }, (_, i) => (
+            <button
+              key={`g${i}`}
+              type="button"
+              role="menuitem"
+              className="calendar__item"
+              onClick={() => {
+                window.open(links(i).google, '_blank', 'noopener');
+                setOpen(false);
+              }}
+            >
+              Google Calendar{dayLabel(i)}
+            </button>
+          ))}
           <button type="button" role="menuitem" className="calendar__item" onClick={downloadIcs}>
-            Apple Calendar
+            Apple Calendar{dayCount > 1 ? ' \u00b7 all days' : ''}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="calendar__item"
-            onClick={() => {
-              window.open(links().outlook, '_blank', 'noopener');
-              setOpen(false);
-            }}
-          >
-            Outlook
-          </button>
+          {Array.from({ length: dayCount }, (_, i) => (
+            <button
+              key={`o${i}`}
+              type="button"
+              role="menuitem"
+              className="calendar__item"
+              onClick={() => {
+                window.open(links(i).outlook, '_blank', 'noopener');
+                setOpen(false);
+              }}
+            >
+              Outlook{dayLabel(i)}
+            </button>
+          ))}
         </div>
       )}
     </div>

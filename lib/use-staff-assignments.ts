@@ -6,6 +6,7 @@ import type { Craft } from './profile-types';
 import { drainNotifications } from './notify';
 import { sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /** One person wanted on a shoot. Fee and progress live here rather than on the
     shoot, because they are per person: the photographer can be paid while the
@@ -24,6 +25,9 @@ export interface Role {
   shots: string[] | null;
   equipment: string[] | null;
   delivery: Partial<Delivery> | null;
+  /** Where this person's day differs from the job's: not there, or there at
+      other hours. Empty for most people on most jobs. */
+  days: RoleDay[];
   freelancer_id: string | null;
   freelancer_name: string | null;
   freelancer_avatar: string | null;
@@ -54,6 +58,23 @@ export interface Role {
   iban: string | null;
   company_name: string | null;
   vat_number: string | null;
+}
+
+export interface RoleDay {
+  day_id: string;
+  present: boolean;
+  on_site: string | null;
+  wrapped: string | null;
+}
+
+/** One day of a job. Times null mean the job's. */
+export interface ShootDay {
+  id: string;
+  day: string;
+  on_site: string | null;
+  camera_ready: string | null;
+  wrapped: string | null;
+  note: string | null;
 }
 
 export type JobKind = 'shoot' | 'project';
@@ -97,6 +118,8 @@ export interface Shoot {
   unpublished_changes: string[];
   last_published_at: string | null;
   delivery: Delivery;
+  /** In order. Empty for a deadline-only job. */
+  days: ShootDay[];
   roles: Role[];
 }
 
@@ -114,11 +137,37 @@ export const BLANK_DELIVERY: Delivery = {
   retention: '',
 };
 
+/** A person's say over one day, keyed by the day's date in the form so a day
+    that does not exist yet can still be referred to. */
+export interface RoleDayDraft {
+  present: boolean;
+  on_site: string;
+  wrapped: string;
+}
+
+export interface DayDraft {
+  day: string;
+  on_site: string;
+  camera_ready: string;
+  wrapped: string;
+  note: string;
+}
+
+export const BLANK_DAY: DayDraft = {
+  day: '',
+  on_site: '12:30',
+  camera_ready: '13:00',
+  wrapped: '18:00',
+  note: '',
+};
+
 export interface RoleDraft {
   craft: Craft | '';
   role_label: string;
   fee: string;
   is_lead: boolean;
+  /** Per date. Absent means present at the day's hours. */
+  days: Record<string, RoleDayDraft>;
   /** Everything below is optional. Empty means this role follows the job, which
       is the case for most of them -- a producer fills in what differs. */
   on_site: string;
@@ -139,11 +188,9 @@ export interface ShootDraft {
   hasDeadline: boolean;
   title: string;
   client_id: string;
-  date: string;
+  /** The shoot days, in order. One for most jobs. */
+  days: DayDraft[];
   due_on: string;
-  on_site: string;
-  camera_ready: string;
-  wrapped: string;
   city: string;
   venue: string;
   maps_url: string;
@@ -167,6 +214,7 @@ export const BLANK_ROLE: RoleDraft = {
   role_label: '',
   fee: '',
   is_lead: false,
+  days: {},
   on_site: '',
   camera_ready: '',
   wrapped: '',
@@ -183,11 +231,8 @@ export const BLANK_SHOOT: ShootDraft = {
   hasDeadline: false,
   title: '',
   client_id: '',
-  date: '',
+  days: [{ ...BLANK_DAY }],
   due_on: '',
-  on_site: '12:30',
-  camera_ready: '13:00',
-  wrapped: '18:00',
   city: '',
   venue: '',
   maps_url: '',
@@ -210,12 +255,14 @@ const SHOOT_COLUMNS = `
   equipment, dresscode, delivery, gallery_link, gallery_note,
   unpublished_changes, last_published_at,
   clients ( name ),
+  assignment_days ( id, day, on_site, camera_ready, wrapped, note ),
   assignment_roles (
     id, assignment_id, craft, role_label, freelancer_id, fee_cents, is_lead,
     status, stage, payment_state, offered_at, accepted_at,
     delivery_link, delivery_note, invoice_path, invoice_name, invoice_number,
     delivered_at, invoiced_on, paid_on, reminded_at,
     on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
+    assignment_role_days ( day_id, present, on_site, wrapped ),
     profiles ( full_name, avatar_path, iban, company_name, vat_number )
   )
 `;
@@ -226,6 +273,21 @@ export function toCents(fee: string): number {
   const cleaned = fee.replace(/[^\d.,-]/g, '').replace(',', '.');
   const value = Number.parseFloat(cleaned);
   return Number.isFinite(value) ? Math.round(value * 100) : 0;
+}
+
+/** "14 Oct" for one day, "14\u201315 Oct" for a run, "30 Sept \u2013 1 Oct" across a
+    month. The short form a list reads at a glance. */
+export function daysLabel(days: { day: string }[], fallbackIso?: string): string {
+  const fmt = (iso: string, withMonth: boolean) =>
+    new Date(iso).toLocaleDateString('en-GB', withMonth ? { day: 'numeric', month: 'short' } : { day: 'numeric' });
+
+  if (days.length === 0) return fallbackIso ? fmt(fallbackIso, true) : '';
+  if (days.length === 1) return fmt(days[0].day, true);
+
+  const first = days[0].day;
+  const last = days[days.length - 1].day;
+  const sameMonth = first.slice(0, 7) === last.slice(0, 7);
+  return sameMonth ? `${fmt(first, false)}\u2013${fmt(last, true)}` : `${fmt(first, true)} \u2013 ${fmt(last, true)}`;
 }
 
 export function formatEuro(cents: number): string {
@@ -295,6 +357,22 @@ export function jobProgress(s: Shoot): number {
 /** A role row, with everything left blank stored as null so it keeps following
     the job. Writing empty strings instead would freeze today's values onto the
     role and a later change to the job would stop reaching it. */
+/** The rows worth writing for one person's days: only where something departs
+    from the day. Dates are turned into day ids here, after the days exist. */
+export function toRoleDayRows(draft: RoleDraft, roleId: string, days: ShootDay[]) {
+  const some = (v: string) => (v.trim() === '' ? null : v.trim());
+  const rows: { role_id: string; day_id: string; present: boolean; on_site: string | null; wrapped: string | null }[] = [];
+
+  for (const [date, d] of Object.entries(draft.days)) {
+    const day = days.find((x) => x.day === date);
+    if (!day) continue;
+    const row = { role_id: roleId, day_id: day.id, present: d.present, on_site: some(d.on_site), wrapped: some(d.wrapped) };
+    if (!row.present || row.on_site || row.wrapped) rows.push(row);
+  }
+
+  return rows;
+}
+
 export function toRoleRow(draft: RoleDraft, assignmentId: string) {
   const some = (v: string) => (v.trim() === '' ? null : v.trim());
   const lines = (v: string) => (toLines(v).length === 0 ? null : toLines(v));
@@ -368,6 +446,7 @@ interface RawRole {
   invoiced_on: string | null;
   paid_on: string | null;
   reminded_at: string | null;
+  assignment_role_days: RoleDay[] | null;
   profiles: {
     full_name: string | null;
     avatar_path: string | null;
@@ -377,22 +456,25 @@ interface RawRole {
   } | null;
 }
 
-interface RawShoot extends Omit<Shoot, 'client_name' | 'roles' | 'delivery'> {
+interface RawShoot extends Omit<Shoot, 'client_name' | 'roles' | 'delivery' | 'days'> {
   clients: { name: string } | null;
+  assignment_days: ShootDay[] | null;
   assignment_roles: RawRole[];
   delivery: Partial<Delivery> | null;
 }
 
 function flatten(row: RawShoot): Shoot {
-  const { clients, assignment_roles, delivery, ...rest } = row;
+  const { clients, assignment_days, assignment_roles, delivery, ...rest } = row;
 
   return {
     ...rest,
     client_name: clients?.name ?? null,
     delivery: { ...BLANK_DELIVERY, ...(delivery ?? {}) },
+    days: [...(assignment_days ?? [])].sort((a, b) => a.day.localeCompare(b.day)),
     roles: (assignment_roles ?? [])
-      .map(({ profiles, ...r }) => ({
+      .map(({ profiles, assignment_role_days, ...r }) => ({
         ...r,
+        days: assignment_role_days ?? [],
         freelancer_name: profiles?.full_name ?? null,
         freelancer_avatar: profiles?.avatar_path ?? null,
         iban: profiles?.iban ?? null,
@@ -404,6 +486,35 @@ function flatten(row: RawShoot): Shoot {
   };
 }
 
+/** Days with a date, in order, with each day's blanks filled from the first.
+    A second day added without times is the same hours as the first. */
+export function sortedDays(draft: ShootDraft): DayDraft[] {
+  const first = draft.days.find((d) => d.day !== '');
+  return draft.days
+    .filter((d) => d.day !== '')
+    .map((d) => ({
+      ...d,
+      on_site: d.on_site || first?.on_site || '09:00',
+      camera_ready: d.camera_ready || first?.camera_ready || d.on_site || first?.on_site || '09:00',
+      wrapped: d.wrapped || first?.wrapped || '17:00',
+    }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+/** Whether a day's times differ from the job's (the first day's). Only those
+    are stored; the rest follow. */
+function dayRow(d: DayDraft, first: DayDraft, assignmentId: string) {
+  const diff = (v: string, base: string) => (v && v !== base ? v : null);
+  return {
+    assignment_id: assignmentId,
+    day: d.day,
+    on_site: diff(d.on_site, first.on_site),
+    camera_ready: diff(d.camera_ready, first.camera_ready),
+    wrapped: diff(d.wrapped, first.wrapped),
+    note: d.note.trim() === '' ? null : d.note.trim(),
+  };
+}
+
 function toShootRow(draft: ShootDraft, producerId: string | null) {
   const tidy = (v: string) => {
     const t = v.trim();
@@ -411,6 +522,8 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
   };
 
   const { hasShootDay, hasDeadline } = draft;
+  const days = hasShootDay ? sortedDays(draft) : [];
+  const first = days[0];
 
   return {
     title: draft.title.trim(),
@@ -418,14 +531,16 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     producer_id: producerId,
     // Whatever comes first is what the job sorts by, so a shoot day and a
     // deadline both land in the same list in the order a producer works
-    // through them.
-    starts_at: hasShootDay
-      ? new Date(`${draft.date}T${draft.on_site}`).toISOString()
+    // through them. The days trigger keeps this in step afterwards.
+    starts_at: first
+      ? new Date(`${first.day}T${first.on_site}`).toISOString()
       : new Date(`${draft.due_on}T09:00`).toISOString(),
     due_on: hasDeadline ? draft.due_on : null,
-    on_site: hasShootDay ? draft.on_site : null,
-    camera_ready: hasShootDay ? draft.camera_ready : null,
-    wrapped: hasShootDay ? draft.wrapped : null,
+    // The job's times are the first day's: what every day and every person
+    // inherits unless they say otherwise.
+    on_site: first ? first.on_site : null,
+    camera_ready: first ? first.camera_ready : null,
+    wrapped: first ? first.wrapped : null,
     city: tidy(draft.city),
     venue: hasShootDay ? draft.venue.trim() : null,
     maps_url: tidy(draft.maps_url),
@@ -487,15 +602,27 @@ export function useShoots() {
       if (writeError) throw new Error(writeError.message);
       const id = (data as { id: string }).id;
 
-      const roles = draft.roles.filter((r) => r.craft !== '').map((r) => toRoleRow(r, id));
+      const savedDays = await saveDays(client, id, draft);
 
-      if (roles.length > 0) {
-        const { error: roleError } = await client.from('assignment_roles').insert(roles);
+      const wanted = draft.roles.filter((r) => r.craft !== '');
+      if (wanted.length > 0) {
+        const { data: made, error: roleError } = await client
+          .from('assignment_roles')
+          .insert(wanted.map((r) => toRoleRow(r, id)))
+          .select('id');
         if (roleError) {
           // A shoot nobody is wanted on is worse than no shoot: it hides in the
           // list looking finished.
           await client.from('assignments').delete().eq('id', id);
           throw new Error(roleError.message);
+        }
+
+        // Insert order is preserved, so the ids line up with the drafts.
+        const ids = (made as { id: string }[]).map((m) => m.id);
+        const dayRows = wanted.flatMap((r, i) => toRoleDayRows(r, ids[i], savedDays));
+        if (dayRows.length > 0) {
+          const { error: dayError } = await client.from('assignment_role_days').insert(dayRows);
+          if (dayError) throw new Error(dayError.message);
         }
       }
 
@@ -505,14 +632,64 @@ export function useShoots() {
     [load, profile?.id],
   );
 
+  /** The days as written: new ones added, missing ones removed, the rest
+      updated in place so their id -- and the per-person rows hanging off it
+      -- survive an edit. Returns what is now stored. */
+  async function saveDays(client: SupabaseClient, assignmentId: string, draft: ShootDraft): Promise<ShootDay[]> {
+    const days = draft.hasShootDay ? sortedDays(draft) : [];
+    const first = days[0];
+
+    const { data: existing } = await client
+      .from('assignment_days')
+      .select('id, day')
+      .eq('assignment_id', assignmentId);
+    const have = (existing as { id: string; day: string }[]) ?? [];
+
+    const gone = have.filter((h) => !days.some((d) => d.day === h.day)).map((h) => h.id);
+    if (gone.length > 0) {
+      const { error } = await client.from('assignment_days').delete().in('id', gone);
+      if (error) throw new Error(error.message);
+    }
+
+    for (const d of days) {
+      const row = dayRow(d, first, assignmentId);
+      const { error } = await client
+        .from('assignment_days')
+        .upsert(row, { onConflict: 'assignment_id,day' });
+      if (error) throw new Error(error.message);
+    }
+
+    const { data: now } = await client
+      .from('assignment_days')
+      .select('id, day, on_site, camera_ready, wrapped, note')
+      .eq('assignment_id', assignmentId)
+      .order('day');
+    return (now as ShootDay[]) ?? [];
+  }
+
+  /** One person's days, replaced wholesale: there are few, and a diff would
+      be more code than the rows. */
+  async function saveRoleDays(client: SupabaseClient, roleId: string, draft: RoleDraft, days: ShootDay[]) {
+    const { error: clearError } = await client.from('assignment_role_days').delete().eq('role_id', roleId);
+    if (clearError) throw new Error(clearError.message);
+
+    const rows = toRoleDayRows(draft, roleId, days);
+    if (rows.length > 0) {
+      const { error } = await client.from('assignment_role_days').insert(rows);
+      if (error) throw new Error(error.message);
+    }
+  }
+
   const update = useCallback(
     async (id: string, draft: ShootDraft) => {
-      const { error: writeError } = await requireSupabase()
+      const client = requireSupabase();
+      const { error: writeError } = await client
         .from('assignments')
         .update(toShootRow(draft, profile?.id ?? null))
         .eq('id', id);
 
       if (writeError) throw new Error(writeError.message);
+      await saveDays(client, id, draft);
       drainNotifications();
       await load();
     },
@@ -551,29 +728,39 @@ export function useShoots() {
 
   const addRole = useCallback(
     async (assignmentId: string, draft: RoleDraft) => {
-      const { error: writeError } = await requireSupabase()
+      const client = requireSupabase();
+      const { data, error: writeError } = await client
         .from('assignment_roles')
-        .insert(toRoleRow(draft, assignmentId));
+        .insert(toRoleRow(draft, assignmentId))
+        .select('id')
+        .single();
       if (writeError) throw new Error(writeError.message);
+
+      const days = shoots.find((s) => s.id === assignmentId)?.days ?? [];
+      await saveRoleDays(client, (data as { id: string }).id, draft, days);
       await load();
     },
-    [load],
+    [load, shoots],
   );
 
   /** Changes what one person is asked for, without touching anyone else. */
   const updateRole = useCallback(
     async (roleId: string, assignmentId: string, draft: RoleDraft) => {
+      const client = requireSupabase();
       const { assignment_id: _drop, ...fields } = toRoleRow(draft, assignmentId);
-      const { error: writeError } = await requireSupabase()
+      const { error: writeError } = await client
         .from('assignment_roles')
         .update(fields)
         .eq('id', roleId);
 
       if (writeError) throw new Error(writeError.message);
+
+      const days = shoots.find((s) => s.id === assignmentId)?.days ?? [];
+      await saveRoleDays(client, roleId, draft, days);
       drainNotifications();
       await load();
     },
-    [load],
+    [load, shoots],
   );
 
   const removeRole = useCallback(

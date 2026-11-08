@@ -11,6 +11,7 @@ import {
   withVat,
   type Assignment,
 } from '@/lib/assignments';
+import { hasBriefingFile, openBriefing } from '@/lib/briefing';
 import { AddToCalendar } from './AddToCalendar';
 import { BrandLoader } from './BrandLoader';
 import { Checklist } from './Checklist';
@@ -151,14 +152,32 @@ export function AssignmentDetail({ id }: { id: string }) {
 function DayTab({ a }: { a: Assignment }) {
   return (
     <>
-      <section className="panel">
-        <h2 className="panel__title">Timing</h2>
-        <div className="times">
-          <Time label="On site" value={a.onSite} />
-          <Time label="Camera ready" value={a.cameraReady} />
-          <Time label="Wrapped" value={a.wrapped} />
-        </div>
-      </section>
+      {a.days.length > 1 ? (
+        // One block per day: the hours differ, and the Thursday half-day is
+        // the one people get wrong.
+        a.days.map((d, i) => (
+          <section key={d.date} className="panel">
+            <h2 className="panel__title">
+              Day {i + 1} \u00b7 {d.label}
+              {d.note && <span className="panel__title-note"> \u00b7 {d.note}</span>}
+            </h2>
+            <div className="times">
+              <Time label="On site" value={d.onSite} />
+              <Time label="Camera ready" value={d.cameraReady} />
+              <Time label="Wrapped" value={d.wrapped} />
+            </div>
+          </section>
+        ))
+      ) : (
+        <section className="panel">
+          <h2 className="panel__title">Timing</h2>
+          <div className="times">
+            <Time label="On site" value={a.onSite} />
+            <Time label="Camera ready" value={a.cameraReady} />
+            <Time label="Wrapped" value={a.wrapped} />
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel__row">
@@ -216,29 +235,53 @@ function DayTab({ a }: { a: Assignment }) {
       {a.team.length > 1 && (
         <section className="panel">
           <h2 className="panel__title">Who is on it</h2>
-          <table className="team">
-            <tbody>
-              {a.team.map((m) => (
-                <tr key={`${m.name}-${m.role}`} className={m.isYou ? 'team__you' : undefined}>
-                  <td className="team__who">
-                    {m.isYou ? 'You' : m.name}
-                    {m.isLead && <span className="team__lead">Lead</span>}
-                  </td>
-                  <td className="team__role">{m.role}</td>
-                  <td className="team__when">
-                    {m.onSite}–{m.wrapped}
-                  </td>
-                  {a.isLead && (
-                    <td className="team__reach">
-                      {!m.isYou && m.phone && (
-                        <a href={`tel:${m.phone.replace(/[^\d+]/g, '')}`}>{m.phone}</a>
-                      )}
+          <div className="team__scroll">
+            <table className="team">
+              {a.days.length > 1 && (
+                <thead>
+                  <tr>
+                    <th />
+                    <th className="team__role" />
+                    {a.days.map((d) => (
+                      <th key={d.date} className="team__when">
+                        {d.label}
+                      </th>
+                    ))}
+                    {a.isLead && <th />}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {a.team.map((m) => (
+                  <tr key={`${m.name}-${m.role}`} className={m.isYou ? 'team__you' : undefined}>
+                    <td className="team__who">
+                      {m.isYou ? 'You' : m.name}
+                      {m.isLead && <span className="team__lead">Lead</span>}
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td className="team__role">{m.role}</td>
+                    {a.days.length > 1 ? (
+                      a.days.map((d) => (
+                        <td key={d.date} className={`team__when ${m.days[d.date] ? '' : 'team__off'}`}>
+                          {m.days[d.date] ?? '\u2014'}
+                        </td>
+                      ))
+                    ) : (
+                      <td className="team__when">
+                        {m.onSite}\u2013{m.wrapped}
+                      </td>
+                    )}
+                    {a.isLead && (
+                      <td className="team__reach">
+                        {!m.isYou && m.phone && (
+                          <a href={`tel:${m.phone.replace(/[^\d+]/g, '')}`}>{m.phone}</a>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
@@ -318,7 +361,43 @@ function DayTab({ a }: { a: Assignment }) {
       {a.stage >= 1 && (
         <div className="panel__actions">
           <AddToCalendar assignment={a} />
+          {hasBriefingFile(a.id) && <BriefingButton roleId={a.id} />}
         </div>
+      )}
+    </>
+  );
+}
+
+/** The same PDF that came with the booking, for the venue basement with no
+    signal. Built fresh, so it says what the job says now. */
+function BriefingButton({ roleId }: { roleId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`btn btn--outline btn--sm ${busy ? 'is-busy' : ''}`}
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setFailed(null);
+          try {
+            await openBriefing(roleId);
+          } catch (err) {
+            setFailed(err instanceof Error ? err.message : 'Could not open the briefing.');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Building...' : 'Briefing (PDF)'}
+      </button>
+      {failed && (
+        <p className="auth__error" role="alert">
+          {failed}
+        </p>
       )}
     </>
   );

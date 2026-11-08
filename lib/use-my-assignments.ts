@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
-import type { Assignment, PaymentState, Status } from './assignments';
+import {
+  rangeLabel,
+  shortDay,
+  type Assignment,
+  type PaymentState,
+  type Status,
+  type TeamMember,
+} from './assignments';
 import { drainNotifications } from './notify';
 import { recordSignature, sha256 as hashFile } from './signing';
 import { requireSupabase, supabase } from './supabase';
@@ -21,11 +28,13 @@ const COLUMNS = `
   offered_at, accepted_at,
   delivery_link, delivery_note,
   on_site, camera_ready, wrapped, due_on, briefing, expectations, shots, equipment, delivery,
+  assignment_role_days ( day_id, present, on_site, wrapped ),
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
     equipment, dresscode, delivery, gallery_link, gallery_note,
     clients ( name ),
+    assignment_days ( id, day, on_site, camera_ready, wrapped, note ),
     assignment_files ( name, kind, size_label )
   )
 `;
@@ -57,6 +66,9 @@ interface RawRole {
   delivery: Record<string, string> | null;
   offered_at: string | null;
   accepted_at: string | null;
+  assignment_role_days:
+    | { day_id: string; present: boolean; on_site: string | null; wrapped: string | null }[]
+    | null;
   assignments: {
     id: string;
     kind: 'shoot' | 'project';
@@ -80,6 +92,16 @@ interface RawRole {
     gallery_note: string | null;
     delivery: Record<string, string> | null;
     clients: { name: string } | null;
+    assignment_days:
+      | {
+          id: string;
+          day: string;
+          on_site: string | null;
+          camera_ready: string | null;
+          wrapped: string | null;
+          note: string | null;
+        }[]
+      | null;
     assignment_files: { name: string; kind: string; size_label: string | null }[] | null;
   } | null;
 }
@@ -88,6 +110,8 @@ interface Person {
   kind: 'producer' | 'crew' | 'client';
   name: string;
   role_label: string;
+  /** Crew rows come once per day they are on. Null on a deadline job. */
+  day: string | null;
   on_site: string | null;
   wrapped: string | null;
   is_lead: boolean;
@@ -154,9 +178,34 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
   // Anything set on the role wins. Null means "the same as the job" rather
   // than "nothing", so a producer sets what differs and leaves the rest to
   // follow the shoot.
-  const onSite = timeOf(row.on_site ?? s.on_site, '09:00');
-  const wrapped = timeOf(row.wrapped ?? s.wrapped, '17:00');
-  const day = s.starts_at.slice(0, 10);
+  // The days this person works, in order. A day's hours: theirs for that
+  // day, else theirs for the job, else the day's, else the job's. A day marked
+  // not-present is left out: it is not their day.
+  const mine = new Map((row.assignment_role_days ?? []).map((d) => [d.day_id, d]));
+  const days = [...(s.assignment_days ?? [])]
+    .sort((x, y) => x.day.localeCompare(y.day))
+    .filter((d) => mine.get(d.id)?.present !== false)
+    .map((d) => {
+      const own = mine.get(d.id);
+      const dOn = timeOf(own?.on_site ?? row.on_site ?? d.on_site ?? s.on_site, '09:00');
+      const dWrap = timeOf(own?.wrapped ?? row.wrapped ?? d.wrapped ?? s.wrapped, '17:00');
+      const dCam = timeOf(row.camera_ready ?? d.camera_ready ?? s.camera_ready, dOn);
+      return {
+        date: d.day,
+        label: shortDay(d.day),
+        onSite: dOn,
+        cameraReady: dCam,
+        wrapped: dWrap,
+        note: d.note ?? '',
+        calendar: { start: `${d.day}T${dOn}:00`, end: `${d.day}T${dWrap}:00` },
+      };
+    });
+
+  const first = days[0];
+  const onSite = first?.onSite ?? timeOf(row.on_site ?? s.on_site, '09:00');
+  const wrapped = first?.wrapped ?? timeOf(row.wrapped ?? s.wrapped, '17:00');
+  const day = first?.date ?? s.starts_at.slice(0, 10);
+  const multi = (s.assignment_days ?? []).length > 1;
 
   const ownDetails = Boolean(
     row.on_site ||
@@ -174,9 +223,11 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     title: s.title,
     client: s.clients?.name ?? 'Fast Elevate Media',
     startsAt: s.starts_at,
-    dateLabel: dayLabel(s.starts_at),
+    endsAt: days.length > 0 ? `${days[days.length - 1].date}T${days[days.length - 1].wrapped}:00` : s.starts_at,
+    dateLabel: days.length > 0 ? rangeLabel(days.map((d) => d.date), s.starts_at) : dayLabel(s.starts_at),
+    days,
     onSite,
-    cameraReady: timeOf(row.camera_ready ?? s.camera_ready, onSite),
+    cameraReady: first?.cameraReady ?? timeOf(row.camera_ready ?? s.camera_ready, onSite),
     wrapped,
     city: s.city ?? '',
     venue: s.venue ?? (s.kind === 'project' ? 'Remote' : ''),
@@ -201,17 +252,32 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
     },
     // Yourself first, then the lead, then by call time: the order a call sheet
     // reads in.
-    team: crew
-      .map((c) => ({
-        name: c.name,
-        role: c.role_label,
-        onSite: timeOf(c.on_site, onSite),
-        wrapped: timeOf(c.wrapped, wrapped),
-        isLead: c.is_lead,
-        isYou: c.is_you,
-        phone: c.phone ?? '',
-        email: c.email ?? '',
-      }))
+    team: Object.values(
+      // shoot_people gives one row per person per day; fold them back into
+      // one person with a column per day.
+      crew.reduce<Record<string, TeamMember>>((acc, c) => {
+        const key = `${c.name}|${c.role_label}`;
+        const hours = c.on_site && c.wrapped ? `${timeOf(c.on_site, '')}\u2013${timeOf(c.wrapped, '')}` : null;
+        const m = (acc[key] ??= {
+          name: c.name,
+          role: c.role_label,
+          onSite: timeOf(c.on_site, onSite),
+          wrapped: timeOf(c.wrapped, wrapped),
+          days: {},
+          isLead: c.is_lead,
+          isYou: c.is_you,
+          phone: c.phone ?? '',
+          email: c.email ?? '',
+        });
+        if (c.day) m.days[c.day] = hours;
+        return acc;
+      }, {}),
+    )
+      .map((m) => {
+        // Days they are not on still get a column, marked absent.
+        if (multi) for (const d of s.assignment_days ?? []) m.days[d.day] ??= null;
+        return m;
+      })
       .sort(
         (x, y) =>
           Number(y.isYou) - Number(x.isYou) ||
@@ -252,7 +318,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       ...(row.paid_on ? { paidOn: shortDate(row.paid_on) } : {}),
       ...(row.invoice_path ? { path: row.invoice_path, name: row.invoice_name ?? 'Invoice' } : {}),
     },
-    calendar: {
+    calendar: first?.calendar ?? {
       start: `${day}T${onSite}:00`,
       end: `${day}T${wrapped}:00`,
     },

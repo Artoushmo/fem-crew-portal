@@ -44,7 +44,10 @@ interface Row {
   gear: { id: string }[];
   credentials: { label: string; expires_on: string | null }[];
   availability: { kind: string; starts_on: string; ends_on: string }[];
-  assignment_roles: { offered_at: string | null; assignments: { starts_at: string } | null }[];
+  assignment_roles: {
+    offered_at: string | null;
+    assignments: { starts_at: string; assignment_days: { day: string }[] | null } | null;
+  }[];
   agreements: { year: number; signed_on: string | null }[];
 }
 
@@ -54,7 +57,7 @@ const COLUMNS = `
   gear ( id ),
   credentials ( label, expires_on ),
   availability ( kind, starts_on, ends_on ),
-  assignment_roles ( offered_at, assignments ( starts_at ) ),
+  assignment_roles ( offered_at, assignments ( starts_at, assignment_days ( day ) ) ),
   agreements ( year, signed_on )
 `;
 
@@ -65,7 +68,10 @@ function sameDay(a: string, b: string): boolean {
 /** Everyone bookable, with the handful of facts that decide a booking. The
     shoot date is passed in because half of those facts are only true relative
     to a day. */
-export function useCrew(shootDate: string | null) {
+/** `shootDates` are the days of the job being crewed, as YYYY-MM-DD. A clash
+    is any of them already booked; unavailability and expiring papers are
+    checked against the first. */
+export function useCrew(shootDates: string[]) {
   const { stage } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +100,8 @@ export function useCrew(shootDate: string | null) {
   }, [load]);
 
   const crew = useMemo<CrewMember[]>(() => {
-    const day = shootDate ? shootDate.slice(0, 10) : null;
+    const days = shootDates.map((d) => d.slice(0, 10));
+    const day = days[0] ?? null;
 
     return rows.map((r) => {
       const crafts = (r.freelancer_crafts ?? []).map((c) => c.craft);
@@ -112,11 +119,15 @@ export function useCrew(shootDate: string | null) {
           )
         : false;
 
-      const clash = day
-        ? (r.assignment_roles ?? []).some(
-            (b) => b.offered_at !== null && b.assignments && sameDay(b.assignments.starts_at, day),
-          )
-        : false;
+      // Every day the other job runs, against every day this one does.
+      const clash =
+        days.length > 0 &&
+        (r.assignment_roles ?? []).some((b) => {
+          if (b.offered_at === null || !b.assignments) return false;
+          const theirs = (b.assignments.assignment_days ?? []).map((d) => d.day);
+          if (theirs.length === 0) theirs.push(b.assignments.starts_at.slice(0, 10));
+          return theirs.some((t) => days.some((d) => sameDay(t, d)));
+        });
 
       const thisYear = new Date().getFullYear();
 
@@ -139,7 +150,7 @@ export function useCrew(shootDate: string | null) {
         clash,
       };
     });
-  }, [rows, shootDate]);
+  }, [rows, shootDates]);
 
   return { crew, loading, error, reload: load };
 }

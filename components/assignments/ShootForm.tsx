@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
 import type { Client } from '@/lib/use-clients';
 import {
+  BLANK_DAY,
   BLANK_ROLE,
   BLANK_SHOOT,
   centsToInput,
   fromLines,
+  type DayDraft,
   type RoleDraft,
   type Shoot,
   type ShootDraft,
@@ -18,12 +20,23 @@ import { RoleDetails, inheritedFrom, roleHasOwn } from './RoleDetails';
 
 /** A saved role back into something the form can edit. Empty strings where the
     role follows the job, which is what the form shows as "same as the job". */
-export function roleToDraft(r: Shoot['roles'][number]): RoleDraft {
+/** `dayDates` maps day ids to dates, because the form keys a person's days by
+    date -- a day being added has no id yet. */
+export function roleToDraft(
+  r: Shoot['roles'][number],
+  dayDates: Map<string, string> = new Map(),
+): RoleDraft {
   return {
     craft: r.craft,
     role_label: r.role_label,
     fee: centsToInput(r.fee_cents),
     is_lead: r.is_lead,
+    days: Object.fromEntries(
+      (r.days ?? []).map((d) => [
+        dayDates.get(d.day_id) ?? d.day_id,
+        { present: d.present, on_site: d.on_site?.slice(0, 5) ?? '', wrapped: d.wrapped?.slice(0, 5) ?? '' },
+      ]),
+    ),
     on_site: r.on_site?.slice(0, 5) ?? '',
     camera_ready: r.camera_ready?.slice(0, 5) ?? '',
     wrapped: r.wrapped?.slice(0, 5) ?? '',
@@ -42,16 +55,35 @@ export function roleToDraft(r: Shoot['roles'][number]): RoleDraft {
 }
 
 export function toDraft(s: Shoot): ShootDraft {
+  const dayDates = new Map(s.days.map((d) => [d.id, d.day]));
+  // Stored days inherit the job's times where they say nothing; the form
+  // shows every day filled in, so a producer reads hours rather than blanks.
+  const days: DayDraft[] =
+    s.days.length > 0
+      ? s.days.map((d) => ({
+          day: d.day,
+          on_site: (d.on_site ?? s.on_site)?.slice(0, 5) ?? '09:00',
+          camera_ready: (d.camera_ready ?? s.camera_ready)?.slice(0, 5) ?? '09:00',
+          wrapped: (d.wrapped ?? s.wrapped)?.slice(0, 5) ?? '17:00',
+          note: d.note ?? '',
+        }))
+      : [
+          {
+            day: s.starts_at.slice(0, 10),
+            on_site: s.on_site?.slice(0, 5) ?? '12:30',
+            camera_ready: s.camera_ready?.slice(0, 5) ?? '13:00',
+            wrapped: s.wrapped?.slice(0, 5) ?? '18:00',
+            note: '',
+          },
+        ];
+
   return {
     title: s.title,
     client_id: s.client_id ?? '',
     hasShootDay: Boolean(s.on_site && s.venue),
     hasDeadline: Boolean(s.due_on),
-    date: s.starts_at.slice(0, 10),
+    days,
     due_on: s.due_on ?? '',
-    on_site: s.on_site?.slice(0, 5) ?? '12:30',
-    camera_ready: s.camera_ready?.slice(0, 5) ?? '13:00',
-    wrapped: s.wrapped?.slice(0, 5) ?? '18:00',
     city: s.city ?? '',
     venue: s.venue ?? '',
     maps_url: s.maps_url ?? '',
@@ -67,7 +99,7 @@ export function toDraft(s: Shoot): ShootDraft {
     delivery: s.delivery,
     // Roles are edited on the job itself, where you can also see who is on
     // them. Editing them here would mean two places to book from.
-    roles: s.roles.map((r) => roleToDraft(r)),
+    roles: s.roles.map((r) => roleToDraft(r, dayDates)),
   };
 }
 
@@ -109,6 +141,26 @@ export function ShootForm({
 
   const addRole = () => setForm((f) => ({ ...f, roles: [...f.roles, { ...BLANK_ROLE }] }));
 
+  const setDay = (i: number, patch: Partial<DayDraft>) =>
+    setForm((f) => ({ ...f, days: f.days.map((d, n) => (n === i ? { ...d, ...patch } : d)) }));
+
+  // The next day, same hours. Two-day conferences keep the same call time;
+  // the one that differs is edited after.
+  const addDay = () =>
+    setForm((f) => {
+      const last = f.days[f.days.length - 1] ?? BLANK_DAY;
+      let day = '';
+      if (last.day) {
+        const d = new Date(`${last.day}T12:00:00`);
+        d.setDate(d.getDate() + 1);
+        day = d.toISOString().slice(0, 10);
+      }
+      return { ...f, days: [...f.days, { ...last, day, note: '' }] };
+    });
+
+  const dropDay = (i: number) =>
+    setForm((f) => ({ ...f, days: f.days.filter((_, n) => n !== i) }));
+
   const dropRole = (i: number) =>
     setForm((f) => ({ ...f, roles: f.roles.filter((_, n) => n !== i) }));
 
@@ -120,7 +172,7 @@ export function ShootForm({
     form.title.trim() !== '' &&
     form.client_id !== '' &&
     (hasShootDay || hasDeadline) &&
-    (!hasShootDay || (form.date !== '' && form.venue.trim() !== '')) &&
+    (!hasShootDay || (form.days.some((d) => d.day !== '') && form.venue.trim() !== '')) &&
     (!hasDeadline || form.due_on !== '') &&
     (editing || form.roles.some((r) => r.craft !== ''));
 
@@ -284,6 +336,7 @@ export function ShootForm({
                   <RoleDetails
                     role={r}
                     inherited={inheritedFrom(form)}
+                    days={form.days}
                     onChange={(patch) => setRole(i, patch)}
                   />
                 )}
@@ -299,27 +352,71 @@ export function ShootForm({
 
       {hasShootDay && (
         <>
-          <p className="eyebrow eyebrow--spaced">The shoot day</p>
-          <div className="form-grid form-grid--four">
-          <Field label="Date">
-            <input type="date" className="field__input" value={form.date} onChange={set('date')} required />
-          </Field>
-          <Field label="On site">
-            <input type="time" className="field__input" value={form.on_site} onChange={set('on_site')} required />
-          </Field>
-          <Field label="Camera ready">
-            <input
-              type="time"
-              className="field__input"
-              value={form.camera_ready}
-              onChange={set('camera_ready')}
-              required
-            />
-          </Field>
-            <Field label="Wrapped">
-              <input type="time" className="field__input" value={form.wrapped} onChange={set('wrapped')} required />
-            </Field>
-          </div>
+          <p className="eyebrow eyebrow--spaced">
+            {form.days.length > 1 ? 'The shoot days' : 'The shoot day'}
+          </p>
+          <ul className="daylines">
+            {form.days.map((d, i) => (
+              <li key={i} className="daylines__row">
+                <input
+                  type="date"
+                  className="field__input"
+                  value={d.day}
+                  aria-label={`Date, day ${i + 1}`}
+                  onChange={(e) => setDay(i, { day: e.target.value })}
+                  required
+                />
+                <input
+                  type="time"
+                  className="field__input"
+                  value={d.on_site}
+                  aria-label={`On site, day ${i + 1}`}
+                  title="On site"
+                  onChange={(e) => setDay(i, { on_site: e.target.value })}
+                  required
+                />
+                <input
+                  type="time"
+                  className="field__input"
+                  value={d.camera_ready}
+                  aria-label={`Camera ready, day ${i + 1}`}
+                  title="Camera ready"
+                  onChange={(e) => setDay(i, { camera_ready: e.target.value })}
+                  required
+                />
+                <input
+                  type="time"
+                  className="field__input"
+                  value={d.wrapped}
+                  aria-label={`Wrapped, day ${i + 1}`}
+                  title="Wrapped"
+                  onChange={(e) => setDay(i, { wrapped: e.target.value })}
+                  required
+                />
+                <input
+                  className="field__input"
+                  value={d.note}
+                  aria-label={`Note, day ${i + 1}`}
+                  placeholder={form.days.length > 1 ? 'Build day, Conference' : 'Note'}
+                  onChange={(e) => setDay(i, { note: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="link-arrow link-arrow--button link-arrow--danger"
+                  onClick={() => dropDay(i)}
+                  disabled={form.days.length === 1}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="field__hint field__hint--block daylines__legend">
+            Date \u00b7 on site \u00b7 camera ready \u00b7 wrapped. Everyone is on every day unless their role says otherwise.
+          </p>
+          <button type="button" className="btn btn--outline btn--sm" onClick={addDay}>
+            Add a day
+          </button>
         </>
       )}
 
