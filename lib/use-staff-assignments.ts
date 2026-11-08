@@ -458,11 +458,10 @@ export function useShoots() {
       .order('starts_at', { ascending: true });
 
     if (queryError) {
-      setError(
-        queryError.message.includes('assignment_roles')
-          ? 'The roles table is missing. Run migrations 0008 and 0009 in Supabase.'
-          : queryError.message,
-      );
+      // The database's own words. A friendlier guess here once blamed a missing
+      // table for a missing column and sent someone to re-run the wrong
+      // migration; the raw message names the column.
+      setError(queryError.message);
     }
 
     setShoots(((data as unknown as RawShoot[]) ?? []).map(flatten));
