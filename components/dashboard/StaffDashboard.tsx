@@ -86,27 +86,27 @@ export function StaffDashboard() {
                   Each of these opens the list it is counting. */}
               <Tile
                 label="Committed"
-                value={formatEuro(money.committed)}
+                value={`${formatEuro(money.committed)} ex`}
                 note="All booked fees"
                 href="/assignments"
               />
               <Tile
                 label="To be invoiced"
-                value={formatEuro(money.awaitingInvoice)}
+                value={`${formatEuro(money.awaitingInvoice)} ex`}
                 note="Delivered, not invoiced"
                 tone={money.awaitingInvoice > 0 ? 'wait' : undefined}
                 href="/payments?show=to-invoice"
               />
               <Tile
                 label="To pay"
-                value={formatEuro(money.awaitingPayment)}
+                value={`${formatEuro(money.awaitingPayment)} ex`}
                 note="Invoice in"
                 tone={money.awaitingPayment > 0 ? 'warn' : undefined}
                 href="/payments?show=to-pay"
               />
               <Tile
                 label="Paid"
-                value={formatEuro(money.paid)}
+                value={`${formatEuro(money.paid)} ex`}
                 note="Settled"
                 href="/payments?show=paid"
               />

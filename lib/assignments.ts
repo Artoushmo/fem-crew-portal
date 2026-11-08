@@ -20,13 +20,17 @@ export const VAT_RATE = 0.21;
  * Signing the yearly agreement used to be step one. It is a condition now, not
  * a step: nobody can be booked or accept without it, which is a stronger rule
  * than a tracker entry an impatient click can walk past. */
+/** Each step in two tenses. `label`/`short` are the step once done; `todo`/
+    `act` are the step while it is the one to take. A tracker that said
+    "Assignment accepted" above an Accept button was wrong in a way people
+    noticed. */
 export const STAGES = [
-  { key: 'accepted', label: 'Assignment accepted', short: 'Accepted' },
-  { key: 'briefing', label: 'Briefing reviewed', short: 'Briefing' },
-  { key: 'shoot', label: 'Shoot day', short: 'Shoot' },
-  { key: 'upload', label: 'Files delivered', short: 'Deliver' },
-  { key: 'invoice', label: 'Invoice sent', short: 'Invoice' },
-  { key: 'paid', label: 'Paid', short: 'Paid' },
+  { key: 'accepted', label: 'Assignment accepted', short: 'Accepted', todo: 'Accept the assignment', act: 'Accept' },
+  { key: 'briefing', label: 'Briefing read', short: 'Briefing', todo: 'Read the briefing', act: 'Briefing' },
+  { key: 'shoot', label: 'Shoot done', short: 'Shoot', todo: 'Shoot day', act: 'Shoot' },
+  { key: 'upload', label: 'Files delivered', short: 'Delivered', todo: 'Deliver the files', act: 'Deliver' },
+  { key: 'invoice', label: 'Invoice sent', short: 'Invoiced', todo: 'Send your invoice', act: 'Invoice' },
+  { key: 'paid', label: 'Paid', short: 'Paid', todo: 'Payment by FEM', act: 'Paid' },
 ] as const;
 
 export type Status = 'action-required' | 'confirmed' | 'in-progress' | 'delivered' | 'completed';
@@ -60,6 +64,8 @@ export interface TeamMember {
   isYou: boolean;
   phone: string;
   email: string;
+  /** Storage path of their photo; empty when none. */
+  avatar: string;
 }
 
 /** One day of a job as this person works it. */
@@ -142,7 +148,7 @@ export interface Assignment {
 }
 
 type Seed = Omit<Assignment, 'days' | 'endsAt' | 'team'> & {
-  team: Omit<TeamMember, 'days'>[];
+  team: Omit<TeamMember, 'days' | 'avatar'>[];
 };
 
 /** The sample jobs are one-day jobs; the per-day fields follow from that. */
@@ -162,7 +168,7 @@ function fromSeed(a: Seed): Assignment {
         calendar: a.calendar,
       },
     ],
-    team: a.team.map((m) => ({ ...m, days: { [date]: `${m.onSite}\u2013${m.wrapped}` } })),
+    team: a.team.map((m) => ({ ...m, avatar: '', days: { [date]: `${m.onSite}\u2013${m.wrapped}` } })),
   };
 }
 

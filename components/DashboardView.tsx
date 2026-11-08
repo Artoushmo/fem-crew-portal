@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from './Money';
+
 import Link from 'next/link';
 import { useActionQueue, useAssignments } from '@/lib/assignment-state';
 import { useAuth } from '@/lib/auth';
@@ -125,7 +127,7 @@ export function DashboardView() {
                 <div className="fact">
                   <FeeIcon />
                   <div>
-                    <div className="fact__value fact__value--money">{formatFee(job.fee)}</div>
+                    <div className="fact__value fact__value--money"><Money amount={job.fee} /></div>
                     <div className="fact__note">Agreed fee</div>
                   </div>
                 </div>
@@ -177,7 +179,7 @@ export function DashboardView() {
                         {a.client} · {a.role} · on site {a.onSite}
                       </span>
                     </span>
-                    <span className="upnext__fee">{formatFee(a.fee)}</span>
+                    <span className="upnext__fee"><Money amount={a.fee} /></span>
                   </Link>
                 </li>
               ))}
@@ -196,19 +198,19 @@ export function DashboardView() {
           <div className="tiles tiles--three">
             <div className="tile">
               <span className="tile__label">Booked ahead</span>
-              <span className="tile__value">{formatFee(bookedFees)}</span>
+              <span className="tile__value"><Money amount={bookedFees} /></span>
               <span className="tile__note">
                 {scheduled.length} assignment{scheduled.length === 1 ? '' : 's'}
               </span>
             </div>
             <div className="tile tile--act">
               <span className="tile__label">Ready to invoice</span>
-              <span className="tile__value">{formatFee(toInvoice)}</span>
+              <span className="tile__value"><Money amount={toInvoice} /></span>
               <span className="tile__note">Files delivered</span>
             </div>
             <div className="tile tile--wait">
               <span className="tile__label">Awaiting payment</span>
-              <span className="tile__value">{formatFee(awaiting)}</span>
+              <span className="tile__value"><Money amount={awaiting} /></span>
               <span className="tile__note">Invoices sent</span>
             </div>
           </div>

@@ -21,6 +21,7 @@ import {
 import { avatarUrl } from '@/lib/use-profile';
 import { BrandLoader } from '../BrandLoader';
 import { ChevronIcon } from '../Icons';
+import { Money } from '../Money';
 import { Masthead } from '../Masthead';
 import { CrewPicker } from './CrewPicker';
 import Link from 'next/link';
@@ -319,7 +320,7 @@ export function StaffAssignmentsView() {
                           </span>
                         </span>
 
-                        <span className="joblist__fee">{formatEuro(fees)}</span>
+                        <span className="joblist__fee"><Money cents={fees} /></span>
                       </button>
 
                       {open && (
@@ -491,7 +492,7 @@ export function StaffAssignmentsView() {
                                   </>
                                 )}
 
-                                <span className="roles__fee">{formatEuro(r.fee_cents)}</span>
+                                <span className="roles__fee"><Money cents={r.fee_cents} /></span>
 
                                 <span className="roles__controls">
                                   <button
@@ -541,60 +542,61 @@ export function StaffAssignmentsView() {
                                     </>
                                   )}
                                 </span>
+
+                                      {/* Under the role it belongs to, so there is no
+                                          doubt whose briefing is being written. Same
+                                          form as when the job was created. */}
+                                {editRole?.id === r.id && (
+                                  <div className="roleedit">
+                                    <RoleDetails
+                                      role={editRole.draft}
+                                      inherited={inheritedFrom({
+                                        briefing: s.briefing ?? '',
+                                        expectations: s.expectations.join('\n'),
+                                        shots: s.shots.join('\n'),
+                                        equipment: s.equipment.join('\n'),
+                                        delivery: s.delivery,
+                                      })}
+                                      days={s.days.map((d) => ({
+                                        day: d.day,
+                                        on_site: (d.on_site ?? s.on_site)?.slice(0, 5) ?? '',
+                                        camera_ready: (d.camera_ready ?? s.camera_ready)?.slice(0, 5) ?? '',
+                                        wrapped: (d.wrapped ?? s.wrapped)?.slice(0, 5) ?? '',
+                                        note: d.note ?? '',
+                                      }))}
+                                      onChange={(patch) =>
+                                        setEditRole({
+                                          ...editRole,
+                                          draft: { ...editRole.draft, ...patch },
+                                        })
+                                      }
+                                    />
+                                    <div className="panel__actions">
+                                      <button
+                                        type="button"
+                                        className="btn btn--primary btn--sm"
+                                        onClick={() =>
+                                          guard(async () => {
+                                            await updateRole(editRole.id, s.id, editRole.draft);
+                                            setEditRole(null);
+                                          })
+                                        }
+                                      >
+                                        Save role
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn btn--outline btn--sm"
+                                        onClick={() => setEditRole(null)}
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
                               </li>
                             ))}
                           </ul>
-
-                          {/* Same form as when the job was written, so nobody
-                              has to learn two versions of it. */}
-                          {editRole?.shootId === s.id && (
-                            <div className="roleedit">
-                              <RoleDetails
-                                role={editRole.draft}
-                                inherited={inheritedFrom({
-                                  briefing: s.briefing ?? '',
-                                  expectations: s.expectations.join('\n'),
-                                  shots: s.shots.join('\n'),
-                                  equipment: s.equipment.join('\n'),
-                                  delivery: s.delivery,
-                                })}
-                                days={s.days.map((d) => ({
-                                  day: d.day,
-                                  on_site: (d.on_site ?? s.on_site)?.slice(0, 5) ?? '',
-                                  camera_ready: (d.camera_ready ?? s.camera_ready)?.slice(0, 5) ?? '',
-                                  wrapped: (d.wrapped ?? s.wrapped)?.slice(0, 5) ?? '',
-                                  note: d.note ?? '',
-                                }))}
-                                onChange={(patch) =>
-                                  setEditRole({
-                                    ...editRole,
-                                    draft: { ...editRole.draft, ...patch },
-                                  })
-                                }
-                              />
-                              <div className="panel__actions">
-                                <button
-                                  type="button"
-                                  className="btn btn--primary btn--sm"
-                                  onClick={() =>
-                                    guard(async () => {
-                                      await updateRole(editRole.id, s.id, editRole.draft);
-                                      setEditRole(null);
-                                    })
-                                  }
-                                >
-                                  Save role
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn--outline btn--sm"
-                                  onClick={() => setEditRole(null)}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
 
                           {pickingRole?.shoot.id === s.id && (
                             <CrewPicker

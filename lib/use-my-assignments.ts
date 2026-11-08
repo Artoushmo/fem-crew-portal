@@ -118,6 +118,7 @@ interface Person {
   is_you: boolean;
   phone: string | null;
   email: string | null;
+  avatar_path: string | null;
 }
 
 const NEXT_ACTION: Record<number, string> = {
@@ -268,6 +269,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
           isYou: c.is_you,
           phone: c.phone ?? '',
           email: c.email ?? '',
+          avatar: c.avatar_path ?? '',
         });
         if (c.day) m.days[c.day] = hours;
         return acc;

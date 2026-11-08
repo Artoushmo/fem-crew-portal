@@ -12,6 +12,8 @@ import {
   type Assignment,
 } from '@/lib/assignments';
 import { hasBriefingFile, openBriefing } from '@/lib/briefing';
+import { avatarUrl } from '@/lib/use-profile';
+import { Money } from './Money';
 import { AddToCalendar } from './AddToCalendar';
 import { BrandLoader } from './BrandLoader';
 import { Checklist } from './Checklist';
@@ -20,6 +22,11 @@ import { StageAction } from './StageAction';
 import { StatusPill } from './StatusPill';
 import { Stepper } from './Stepper';
 import { Tabs } from './Tabs';
+
+/** Where FEM can be reached when the producer's own details are not on file.
+    Set on Vercel; the mail address is the one every message already carries. */
+const FEM_EMAIL = process.env.NEXT_PUBLIC_FEM_EMAIL ?? 'info@fastelevatemedia.com';
+const FEM_PHONE = process.env.NEXT_PUBLIC_FEM_PHONE ?? '';
 
 /** The short version of why the current step cannot be taken, for under the
     dot. The panel below gives the full sentence; this only has to stop the
@@ -223,10 +230,10 @@ function DayTab({ a }: { a: Assignment }) {
       <section className="panel">
         <h2 className="panel__title">Your fee</h2>
         <p className="fee">
-          {formatFee(a.fee)} <span>excl. VAT</span>
+          {formatFee(a.fee)} <span>ex VAT</span>
         </p>
         <p className="fee__sub">
-          {withVat(a.fee)} incl. {Math.round(VAT_RATE * 100)}% VAT
+          {withVat(a.fee)} incl {Math.round(VAT_RATE * 100)}% VAT
         </p>
       </section>
 
@@ -255,6 +262,7 @@ function DayTab({ a }: { a: Assignment }) {
                 {a.team.map((m) => (
                   <tr key={`${m.name}-${m.role}`} className={m.isYou ? 'team__you' : undefined}>
                     <td className="team__who">
+                      <Face name={m.name} path={m.avatar} />
                       {m.isYou ? 'You' : m.name}
                       {m.isLead && <span className="team__lead">Lead</span>}
                     </td>
@@ -321,10 +329,10 @@ function DayTab({ a }: { a: Assignment }) {
       )}
 
       <section className="panel">
-        {/* Not "your producer" -- they know who booked them. The question they
-            actually have is about this job, so that is the heading, and the two
-            ways people reach FEM are the buttons. */}
-        <h2 className="panel__title">Questions about your booking?</h2>
+        {/* Both ways to reach FEM, always. The producer's own details where
+            they are on file; the office otherwise, so nobody is left with a
+            heading and no button. */}
+        <h2 className="panel__title">Contact FEM</h2>
 
         <div className="contact">
           <div>
@@ -332,20 +340,18 @@ function DayTab({ a }: { a: Assignment }) {
             <p className="contact__role">Fast Elevate Media</p>
           </div>
           <p className="contact__links">
-            {a.contact.email && (
+            <a
+              href={`mailto:${a.contact.email || FEM_EMAIL}?subject=${encodeURIComponent(
+                `${a.title} - ${a.dateLabel}`,
+              )}`}
+              className="btn btn--outline btn--sm"
+            >
+              Email
+            </a>
+            {(a.contact.phone || FEM_PHONE) && (
               <a
-                href={`mailto:${a.contact.email}?subject=${encodeURIComponent(
-                  `${a.title} - ${a.dateLabel}`,
-                )}`}
-                className="btn btn--outline btn--sm"
-              >
-                Email
-              </a>
-            )}
-            {a.contact.phone && (
-              <a
-                href={`https://wa.me/${a.contact.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
-                  `Hi, about ${a.title} on ${a.dateLabel} — `,
+                href={`https://wa.me/${(a.contact.phone || FEM_PHONE).replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+                  `Hi, about ${a.title} on ${a.dateLabel} \u2014 `,
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -365,6 +371,26 @@ function DayTab({ a }: { a: Assignment }) {
         </div>
       )}
     </>
+  );
+}
+
+/** A face next to a name, so a team of six is recognisable on the day.
+    Initials where no photo is on file. */
+function Face({ name, path }: { name: string; path: string }) {
+  const url = avatarUrl(path || null);
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img className="team__face" src={url} alt="" />
+  ) : (
+    <span className="team__face team__face--initials" aria-hidden>
+      {initials || '?'}
+    </span>
   );
 }
 
@@ -410,12 +436,6 @@ function BriefingTab({ a }: { a: Assignment }) {
         <p className="state state--idle">
           Details can still change until you accept.
         </p>
-      )}
-
-      {/* Said once, at the top. Without it a videographer called in at eight
-          has no way to know the half twelve on the job is not theirs. */}
-      {a.ownDetails && (
-        <p className="state state--ok">This briefing is set for your role.</p>
       )}
 
       <section className="panel panel--lead">
@@ -553,7 +573,7 @@ function PaymentTab({ a }: { a: Assignment }) {
         <dl className="specs">
           <div>
             <dt>Fee</dt>
-            <dd>{formatFee(a.fee)}</dd>
+            <dd><Money amount={a.fee} /></dd>
           </div>
           <div>
             <dt>VAT {Math.round(VAT_RATE * 100)}%</dt>
@@ -561,7 +581,7 @@ function PaymentTab({ a }: { a: Assignment }) {
           </div>
           <div className="specs__total">
             <dt>Total</dt>
-            <dd>{withVat(a.fee)}</dd>
+            <dd><Money amount={a.fee * (1 + VAT_RATE)} vat="incl" /></dd>
           </div>
         </dl>
       </section>

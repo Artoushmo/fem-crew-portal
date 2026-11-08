@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from './Money';
+
 import Link from 'next/link';
 import { useAssignments } from '@/lib/assignment-state';
 import { PAYMENT_LABEL, formatFee } from '@/lib/assignments';
@@ -27,9 +29,9 @@ export function PaymentsView() {
 
       <main className="content content--wide">
         <div className="tiles">
-          <Tile label="Paid out" value={formatFee(paid)} />
-          <Tile label="Awaiting payment" value={formatFee(awaiting)} tone="wait" />
-          <Tile label="Ready to invoice" value={formatFee(toInvoice)} tone="act" />
+          <Tile label="Paid out" value={`${formatFee(paid)} ex`} />
+          <Tile label="Awaiting payment" value={`${formatFee(awaiting)} ex`} tone="wait" />
+          <Tile label="Ready to invoice" value={`${formatFee(toInvoice)} ex`} tone="act" />
           <Tile label="Assignments" value={String(assignments.length)} />
         </div>
 
@@ -45,7 +47,7 @@ export function PaymentsView() {
                     {a.dateLabel} · {a.client} · {a.role}
                   </span>
                 </span>
-                <span className="payrow__fee">{formatFee(a.fee)}</span>
+                <span className="payrow__fee"><Money amount={a.fee} /></span>
                 <span className={`pay pay--${a.payment.state}`}>
                   {a.payment.state === 'not-invoiced' && a.stage === 4
                     ? 'Ready to invoice'

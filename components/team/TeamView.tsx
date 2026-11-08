@@ -214,7 +214,9 @@ function MemberList({
                       ))}
                     </select>
 
-                    {onFreelancing && !revoked && (
+                    {/* A freelancer is bookable by definition; the switch only
+                        means something for somebody whose job is otherwise. */}
+                    {onFreelancing && !revoked && m.role !== 'freelancer' && (
                       <label className="toggle toggle--inline">
                         <input
                           type="checkbox"

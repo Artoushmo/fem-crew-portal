@@ -312,61 +312,89 @@ function whenLine(job: Job): string {
   const place = [job.venue, job.city].filter(Boolean).join(', ');
   if (place) parts.push(place);
 
-  return parts.join(' &middot; ');
+  return parts.map((p) => escapeHtml(p)).join(' &middot; ');
 }
 
 /** What each kind of message says. One place, so the tone stays the same and a
     new kind cannot quietly ship without wording. */
-function compose(kind: string, job: Job): { subject: string; heading: string; body: string; cta: string } | null {
+/** Only an https URL is worth turning into a link. Anything else -- a
+    javascript: scheme pasted by someone who should not be able to, a bare
+    path -- is shown as text and goes nowhere. */
+function safeHref(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function compose(kind: string, raw: Job): { subject: string; heading: string; body: string; cta: string } | null {
+  // Everything here was typed by somebody and ends up in HTML. The body is
+  // built with markup of our own, so the values are escaped first and the
+  // markup added after; the subject stays plain text.
+  const e = (v: string | null | undefined) => (v == null ? v : escapeHtml(v));
+  const job: Job = {
+    ...raw,
+    title: e(raw.title) ?? undefined,
+    client: e(raw.client) ?? undefined,
+    role_label: e(raw.role_label) ?? undefined,
+    changed: e(raw.changed) ?? undefined,
+    invoice: e(raw.invoice),
+    freelancer: e(raw.freelancer),
+    reason: e(raw.reason) ?? undefined,
+    link: safeHref(raw.link),
+  };
   const name = job.title ?? 'an assignment';
   const client = job.client ? ` for ${job.client}` : '';
 
   switch (kind) {
     case 'booked':
       return {
-        subject: `You have been booked: ${name}`,
+        subject: `You have been booked: ${raw.title ?? 'an assignment'}`,
         heading: 'You have been booked',
         body: `Fast Elevate Media has put you down as ${job.is_lead ? '<strong>lead</strong> and ' : ''}${job.role_label ?? 'crew'} on <strong>${name}</strong>${client}, at ${euro(job.fee_cents)}.${job.is_lead ? ' As lead you hold the overview on site and are the point of contact for the client and the crew.' : ''} Open it to read the briefing and accept.`,
         cta: 'View and accept',
       };
     case 'unbooked':
       return {
-        subject: `No longer needed: ${name}`,
+        subject: `No longer needed: ${raw.title ?? 'an assignment'}`,
         heading: 'This one is off',
         body: `You are no longer booked on <strong>${name}</strong>${client}. If you had kept the day free, it is yours again.`,
         cta: 'Open the portal',
       };
     case 'contract-changed':
       return {
-        subject: `New contract to sign: ${name}`,
+        subject: `New contract to sign: ${raw.title ?? 'an assignment'}`,
         heading: 'The paperwork changed',
         body: `${job.reason ?? 'The contract for this job was replaced.'} Until it is signed, the job cannot move on.`,
         cta: 'Read and sign',
       };
     case 'job-changed':
       return {
-        subject: `Changed: ${name}`,
+        subject: `Changed: ${raw.title ?? 'an assignment'}`,
         heading: 'Something changed on this job',
         body: `Fast Elevate Media changed ${job.changed ?? 'the details'} on <strong>${name}</strong>${client}. Check it before the day.`,
         cta: 'See what changed',
       };
     case 'paid':
       return {
-        subject: `Paid: ${name}`,
+        subject: `Paid: ${raw.title ?? 'an assignment'}`,
         heading: 'Your invoice is paid',
         body: `Fast Elevate Media has confirmed payment of ${euro(job.fee_cents)} for <strong>${name}</strong>${client}.`,
         cta: 'Open the portal',
       };
     case 'accepted':
       return {
-        subject: `Accepted: ${name}`,
+        subject: `Accepted: ${raw.title ?? 'an assignment'}`,
         heading: `${job.freelancer ?? 'Your crew'} accepted`,
         body: `${job.freelancer ?? 'They'} accepted ${job.role_label ? `the ${job.role_label.toLowerCase()} role` : 'the role'} on <strong>${name}</strong>${client}. You can stop looking.`,
         cta: 'Open the assignment',
       };
     case 'contract-signed':
       return {
-        subject: `Signed: ${name}`,
+        subject: `Signed: ${raw.title ?? 'an assignment'}`,
         heading: `${job.freelancer ?? 'Your crew'} signed`,
         body: job.returned_copy
           ? `${job.freelancer ?? 'They'} returned a signed copy for <strong>${name}</strong>${client}. It is on the role, ready to file.`
@@ -375,21 +403,21 @@ function compose(kind: string, job: Job): { subject: string; heading: string; bo
       };
     case 'delivered':
       return {
-        subject: `Delivered: ${name}`,
+        subject: `Delivered: ${raw.title ?? 'an assignment'}`,
         heading: `${job.freelancer ?? 'Your crew'} delivered`,
         body: `The work for <strong>${name}</strong>${client} has been handed over.${job.link ? ` It is at <a href="${job.link}">${job.link}</a>.` : ''}`,
         cta: 'Open the assignment',
       };
     case 'invoiced':
       return {
-        subject: `Invoice in: ${name}`,
+        subject: `Invoice in: ${raw.title ?? 'an assignment'}`,
         heading: 'An invoice is waiting',
         body: `${job.freelancer ?? 'Your crew'} invoiced ${euro(job.fee_cents)} for <strong>${name}</strong>${client}${job.invoice ? `, reference ${job.invoice}` : ''}. Mark it paid once it has gone out.`,
         cta: 'Open the assignment',
       };
     case 'invoice-due':
       return {
-        subject: `Invoice still open: ${name}`,
+        subject: `Invoice still open: ${raw.title ?? 'an assignment'}`,
         heading: 'We are waiting on your invoice',
         body: `The work on <strong>${name}</strong>${client} is delivered, but your invoice for ${euro(job.fee_cents)} has not come in. Send it through the portal and it goes into the next payment run.`,
         cta: 'Send your invoice',
@@ -424,7 +452,7 @@ function notificationEmail(
 </td></tr>
 
 <tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;color:#121111;">
-<p style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;">${escapeHtml(copy.heading)}</p>
+<p style="margin:0 0 18px;font-size:20px;line-height:1.35;font-weight:600;">${copy.heading}</p>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#4a4a4a;">${copy.body}</p>
 ${when ? `<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#121111;font-weight:600;">${when}</p>` : ''}
 
@@ -440,14 +468,16 @@ ${contact}
 
 </table></td></tr></table></body></html>`;
 
-  const text = [
-    copy.heading,
-    '',
-    copy.body.replace(/<[^>]+>/g, ''),
-    when ? when.replace(/&middot;/g, '-') : '',
-    '',
-    link,
-  ]
+  const plain = (h: string) =>
+    h
+      .replace(/<[^>]+>/g, '')
+      .replace(/&middot;/g, '-')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"');
+
+  const text = [plain(copy.heading), '', plain(copy.body), when ? plain(when) : '', '', link]
     .filter((l) => l !== '')
     .join('\n');
 
@@ -1280,6 +1310,26 @@ async function handler(req: Request): Promise<Response> {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    // Building a PDF costs real CPU. Thirty in ten minutes is more than any
+    // person needs and less than a script wants; the log that enforces it is
+    // the same one that says who fetched which briefing when.
+    const since = new Date(Date.now() - 10 * 60_000).toISOString();
+    const { count } = await admin
+      .from('access_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('actor_id', caller.user.id)
+      .eq('action', 'downloaded the briefing')
+      .gte('occurred_at', since);
+    if ((count ?? 0) >= 30) return json({ error: 'Too many downloads. Try again in a few minutes.' }, 429);
+
+    await admin.from('access_log').insert({
+      actor_id: caller.user.id,
+      action: 'downloaded the briefing',
+      subject_type: 'assignment_role',
+      subject_id: payload.role_id!,
+    });
+
     const data = await briefingData(admin, payload.role_id!);
     if (!data) return json({ error: 'No such role.' }, 404);
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from './Money';
+
 import { useState } from 'react';
 import { useAgreement, useAssignments, useProgressActions } from '@/lib/assignment-state';
 import { VAT_RATE, withVat } from '@/lib/assignments';
@@ -196,7 +198,7 @@ export function DocumentsView() {
                       : 'Awaiting payment'}
                   </span>
 
-                  <span className="roles__fee">{withVat(a.fee)}</span>
+                  <span className="roles__fee"><Money amount={a.fee * 1.21} vat="incl" /></span>
 
                   <span className="payline__controls">
                     {a.payment.path && (

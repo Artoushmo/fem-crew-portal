@@ -7,6 +7,7 @@ import { CRAFT_LABEL } from '@/lib/profile-types';
 import { formatEuro, useShoots, type Role, type Shoot } from '@/lib/use-staff-assignments';
 import { BrandLoader } from '../BrandLoader';
 import { Masthead } from '../Masthead';
+import { Money } from '../Money';
 
 type Show = 'to-invoice' | 'to-pay' | 'paid' | 'all';
 
@@ -202,6 +203,7 @@ export function StaffPaymentsView() {
         <p className="hero__sub">
           {formatEuro(totals['to-pay'])} waiting to go out
           {totals['to-invoice'] > 0 && `, ${formatEuro(totals['to-invoice'])} not yet invoiced`}
+          {' \u00b7 ex VAT'}
         </p>
       </Masthead>
 
@@ -247,7 +249,7 @@ export function StaffPaymentsView() {
             {selected.length > 0 && (
               <div className="paybar">
                 <span className="paybar__count">
-                  {selected.length} selected · {formatEuro(selectedTotal)}
+                  {selected.length} selected \u00b7 <Money cents={selectedTotal} />
                 </span>
 
                 {missingIban > 0 && (
@@ -360,7 +362,7 @@ export function StaffPaymentsView() {
                                   : 'In progress'}
                         </span>
 
-                        <span className="roles__fee">{formatEuro(role.fee_cents)}</span>
+                        <span className="roles__fee"><Money cents={role.fee_cents} /></span>
 
                         <span className="payline__controls">
                           {bucket === 'to-invoice' && (

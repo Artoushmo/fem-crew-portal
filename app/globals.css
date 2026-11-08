@@ -5252,3 +5252,48 @@ select.field__input {
   font-weight: 400;
   color: var(--fem-text-muted);
 }
+
+/* --- Amounts ------------------------------------------------------------- */
+
+.money {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.money__vat {
+  margin-left: 4px;
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--fem-text-muted);
+  vertical-align: 1px;
+}
+
+/* --- Faces in the team table ------------------------------------------- */
+
+.team__face {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  margin-right: 8px;
+  border-radius: 50%;
+  object-fit: cover;
+  vertical-align: middle;
+  background: var(--fem-track);
+}
+
+.team__face--initials {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  color: var(--fem-text-secondary);
+}
+
+/* The role editor sits inside the role's own row, full width under it. */
+.roles__row .roleedit {
+  flex-basis: 100%;
+  margin: 4px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--fem-border-soft);
+}

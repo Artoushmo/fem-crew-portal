@@ -1,8 +1,9 @@
 import { STAGES } from '@/lib/assignments';
 import { CheckIcon } from './Icons';
 
-/** Horizontal seven-stage tracker: contract → … → paid.
-    Scrolls sideways on narrow screens rather than cramming. */
+/** Horizontal six-step tracker: accept → … → paid. Steps done read in the
+    past tense, the step in hand in the imperative, the rest by name. Scrolls
+    sideways on narrow screens rather than cramming. */
 export function Stepper({
   stage,
   dates,
@@ -27,7 +28,7 @@ export function Stepper({
         <p className="stepper__label">Your progress</p>
         <p className="stepper__count">
           {complete ? STAGES.length : stage + 1} of {STAGES.length} ·{' '}
-          <strong>{complete ? 'Finished' : STAGES[stage].label}</strong>
+          <strong>{complete ? 'Finished' : STAGES[stage].todo}</strong>
         </p>
       </div>
 
@@ -40,12 +41,12 @@ export function Stepper({
                 <span className="stp__dot" aria-hidden>
                   {state === 'done' ? <CheckIcon size={12} /> : i + 1}
                 </span>
-                <span className="stp__label">{s.short}</span>
+                <span className="stp__label">{state === 'done' ? s.short : s.act}</span>
                 <span className="stp__date">
                   {dates[i] ?? (state === 'current' ? (waitingUntil ?? 'Now') : '—')}
                 </span>
                 <span className="sr-only">
-                  {s.label}: {state === 'done' ? 'done' : state === 'current' ? 'in progress' : 'not started'}
+                  {state === 'done' ? `${s.label}: done` : state === 'current' ? `${s.todo}: now` : `${s.todo}: not yet`}
                 </span>
               </li>
             );

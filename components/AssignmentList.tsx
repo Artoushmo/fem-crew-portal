@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from './Money';
+
 import Link from 'next/link';
 import { useState } from 'react';
 import {
@@ -48,7 +50,7 @@ export function AssignmentList({ items }: { items: Assignment[] }) {
                 <span className="row__role">{a.role}</span>
               </span>
 
-              <span className="row__fee">{formatFee(a.fee)}</span>
+              <span className="row__fee"><Money amount={a.fee} /></span>
 
               <StatusPill status={a.status} />
             </button>
