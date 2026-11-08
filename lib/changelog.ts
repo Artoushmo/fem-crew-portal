@@ -24,6 +24,95 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.0',
+    date: '2026-11-08',
+    summary: 'Jobs over several days, a lead on site, and the briefing as a PDF.',
+    changes: [
+      {
+        title: 'A job can take several days',
+        body: 'Each day has its own times. Everyone is on every day unless their role says otherwise.',
+      },
+      {
+        title: 'The briefing comes as a PDF',
+        body: 'Attached to the booking and to every published change. Also a button on the job, for a venue without signal.',
+      },
+      {
+        title: 'One lead per job',
+        body: 'Point of contact on site. Sees the client contact and the crew\u2019s numbers. Nobody else does.',
+      },
+      {
+        title: 'Who is on it, and when',
+        body: 'Everyone sees the team with their hours per day.',
+        who: 'crew',
+      },
+      {
+        title: 'Picking is not telling',
+        body: 'Choosing someone in Find someone is internal. The booking goes out when you publish.',
+        who: 'fem',
+      },
+      {
+        title: 'Role details start as the job',
+        body: 'Open a role and the job\u2019s briefing is already there. Change what differs for that person.',
+        who: 'fem',
+      },
+      {
+        title: 'Briefing step opens the briefing',
+        body: 'At step 2 the page opens on the briefing tab.',
+        who: 'crew',
+      },
+      {
+        title: 'Pay now',
+        body: 'On a job, Pay now goes to Payments with that row open: invoice, IBAN, amount.',
+        who: 'fem',
+      },
+      {
+        title: 'Calendar per day',
+        body: 'Apple gets all days in one file. Google and Outlook one entry per day.',
+        who: 'crew',
+      },
+    ],
+  },
+  {
+    version: '1.3',
+    date: '2026-09-23',
+    summary: 'Per-person details, saving without sending, and a payments page to work from.',
+    changes: [
+      {
+        title: 'Each role has its own times, deadline and briefing',
+        body: 'The reel due tomorrow, the stills on Friday. Empty means the same as the job.',
+        who: 'fem',
+      },
+      {
+        title: 'Save, then publish',
+        body: 'Edits pile up. Publish sends one message naming everything since the last one.',
+        who: 'fem',
+      },
+      {
+        title: 'No contract per job',
+        body: 'Only the yearly Freelancer Agreement. Without it, no booking and no accepting.',
+      },
+      {
+        title: 'Documents is your administration',
+        body: 'Your agreement and every invoice, with amount and status.',
+        who: 'crew',
+      },
+      {
+        title: 'One account, two hats',
+        body: 'Someone at FEM who also shoots switches between Fast Elevate Media and Crew in the account menu. Replaces the role preview.',
+      },
+      {
+        title: 'Payments you can work from',
+        body: 'Remind for a missing invoice. Oldest first, due dates, overdue flagged. Open a row for IBAN and reference. Tick several, mark paid, copy for the bank.',
+        who: 'fem',
+      },
+      {
+        title: 'FEM can move a step',
+        body: 'Minus and plus on every role. The ledger records who moved it.',
+        who: 'fem',
+      },
+    ],
+  },
+  {
     version: '1.2',
     date: '2026-09-13',
     summary: 'Six steps, a list view, and shorter copy throughout.',
