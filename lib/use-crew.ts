@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './auth';
-import type { Craft, TravelScope } from './profile-types';
+import { canDo, type Craft, type TravelScope } from './profile-types';
 import { supabase } from './supabase';
 
 export interface CrewMember {
@@ -162,7 +162,7 @@ export function rankForCraft(crew: CrewMember[], craft: Craft, city: string | nu
   const score = (m: CrewMember) => {
     let s = 0;
     if (m.primary_craft === craft) s += 4;
-    else if (m.crafts.includes(craft)) s += 3;
+    else if (canDo(m.crafts, craft)) s += 3;
     if (city && m.base_city && m.base_city.toLowerCase() === city.toLowerCase()) s += 2;
     if (m.gear_count > 0) s += 1;
     if (!m.signed) s -= 20;
@@ -173,6 +173,6 @@ export function rankForCraft(crew: CrewMember[], craft: Craft, city: string | nu
   };
 
   return [...crew]
-    .map((m) => ({ member: m, score: score(m), fits: m.crafts.includes(craft) }))
+    .map((m) => ({ member: m, score: score(m), fits: canDo(m.crafts, craft) }))
     .sort((a, b) => b.score - a.score || (a.member.full_name ?? '').localeCompare(b.member.full_name ?? ''));
 }
