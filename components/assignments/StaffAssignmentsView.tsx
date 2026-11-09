@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CRAFTS, CRAFT_LABEL } from '@/lib/profile-types';
+import { CRAFTS, CRAFT_LABEL, type Craft } from '@/lib/profile-types';
 import { STAGES } from '@/lib/assignments';
 import { useClients } from '@/lib/use-clients';
 import {
@@ -23,6 +23,7 @@ import { BrandLoader } from '../BrandLoader';
 import { ChevronIcon } from '../Icons';
 import { Money } from '../Money';
 import { Masthead } from '../Masthead';
+import { Field } from '../profile/SectionForm';
 import { CrewPicker } from './CrewPicker';
 import Link from 'next/link';
 import { RoleDetails, inheritedFrom, roleHasOwn } from './RoleDetails';
@@ -47,6 +48,16 @@ function dateLabel(iso: string): string {
     // The year only earns its place when it is not this one.
     ...(thisYear ? {} : { year: 'numeric' }),
   });
+}
+
+/** What changing a fee does to the person already on it. Nothing to say while
+    the role is open. */
+function feeHint(r: Role): string | undefined {
+  if (r.payment_state === 'awaiting' || r.payment_state === 'paid') {
+    return `Their invoice is in for ${formatEuro(r.fee_cents)}.`;
+  }
+  if (r.freelancer_id) return 'They hear about a new fee when you publish.';
+  return undefined;
 }
 
 function bucket(s: Shoot): Filter {
@@ -548,6 +559,73 @@ export function StaffAssignmentsView() {
                                           form as when the job was created. */}
                                 {editRole?.id === r.id && (
                                   <div className="roleedit">
+                                    {/* What the role is and what it pays. Only
+                                        writable when the job was created, so a
+                                        fee forgotten then could not be added. */}
+                                    <div className="form-grid form-grid--three">
+                                      <Field
+                                        label="Craft"
+                                        hint={r.freelancer_id ? 'Unbook first to change it.' : undefined}
+                                      >
+                                        <select
+                                          className="field__input"
+                                          value={editRole.draft.craft}
+                                          disabled={Boolean(r.freelancer_id)}
+                                          onChange={(e) => {
+                                            const craft = e.target.value as Craft;
+                                            const was = editRole.draft;
+                                            setEditRole({
+                                              ...editRole,
+                                              draft: {
+                                                ...was,
+                                                craft,
+                                                // The label follows the craft
+                                                // unless someone typed their own.
+                                                role_label:
+                                                  was.craft !== '' && was.role_label === CRAFT_LABEL[was.craft]
+                                                    ? CRAFT_LABEL[craft]
+                                                    : was.role_label,
+                                              },
+                                            });
+                                          }}
+                                        >
+                                          {CRAFTS.map((c) => (
+                                            <option key={c} value={c}>
+                                              {CRAFT_LABEL[c]}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </Field>
+
+                                      <Field label="On the call sheet">
+                                        <input
+                                          className="field__input"
+                                          value={editRole.draft.role_label}
+                                          onChange={(e) =>
+                                            setEditRole({
+                                              ...editRole,
+                                              draft: { ...editRole.draft, role_label: e.target.value },
+                                            })
+                                          }
+                                        />
+                                      </Field>
+
+                                      <Field label="Fee ex. VAT" hint={feeHint(r)}>
+                                        <input
+                                          className="field__input"
+                                          value={editRole.draft.fee}
+                                          inputMode="decimal"
+                                          placeholder="0"
+                                          onChange={(e) =>
+                                            setEditRole({
+                                              ...editRole,
+                                              draft: { ...editRole.draft, fee: e.target.value },
+                                            })
+                                          }
+                                        />
+                                      </Field>
+                                    </div>
+
                                     <RoleDetails
                                       role={editRole.draft}
                                       inherited={inheritedFrom({

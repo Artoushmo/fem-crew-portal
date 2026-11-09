@@ -247,6 +247,12 @@ export function ShootForm({
         </Field>
       </div>
 
+      {editing && (
+        <p className="field__hint field__hint--block">
+          Roles and fees are set per person: open <strong>Details</strong> on the role in the list.
+        </p>
+      )}
+
       {!editing && (
         <>
           <p className="eyebrow eyebrow--spaced">Who you need</p>

@@ -24,6 +24,18 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '2.1',
+    date: '2026-11-09',
+    summary: 'Fixes from the first real job.',
+    changes: [
+      {
+        title: 'A fee can be added after the job exists',
+        body: 'Details on a role now has the craft, the call sheet label and the fee. Booked people hear about a new fee when you publish.',
+        who: 'fem',
+      },
+    ],
+  },
+  {
     version: '2.0',
     date: '2026-11-08',
     summary: 'Jobs over several days, a lead on site, and the briefing as a PDF.',

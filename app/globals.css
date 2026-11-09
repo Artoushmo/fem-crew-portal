@@ -2759,6 +2759,12 @@ select.field__input {
   .form-grid--four {
     grid-template-columns: repeat(4, 1fr);
   }
+
+  /* Craft, label, fee: the same proportions as a role line when the job is
+     created, so the two read as one form. */
+  .form-grid--three {
+    grid-template-columns: 1.1fr 1.3fr 0.7fr;
+  }
 }
 
 @media (min-width: 720px) {
