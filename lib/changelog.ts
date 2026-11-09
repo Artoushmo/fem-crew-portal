@@ -33,6 +33,14 @@ export const RELEASES: Release[] = [
         body: 'Details on a role now has the craft, the call sheet label and the fee. Booked people hear about a new fee when you publish.',
         who: 'fem',
       },
+      {
+        title: 'Photo/Videographer and Interview',
+        body: 'Two new crafts. One person doing stills and video is one role. Anyone listing both photographer and videographer shows up for it.',
+      },
+      {
+        title: 'A reference link',
+        body: 'Under the gallery link: a previous shoot or moodboard, so the style is clear before the day. Crew find it on the briefing tab and in the PDF.',
+      },
     ],
   },
   {

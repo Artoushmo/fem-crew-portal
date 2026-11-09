@@ -96,6 +96,7 @@ export function toDraft(s: Shoot): ShootDraft {
     dresscode: s.dresscode ?? '',
     gallery_link: s.gallery_link ?? '',
     gallery_note: s.gallery_note ?? '',
+    reference_link: s.reference_link ?? '',
     delivery: s.delivery,
     // Roles are edited on the job itself, where you can also see who is on
     // them. Editing them here would mean two places to book from.
@@ -549,14 +550,29 @@ export function ShootForm({
             placeholder={'JPEG, sRGB, full resolution\nWeb exports at 2048px long edge\nFilenames: FEM_client_date_001'}
           />
         </Field>
-        <Field label="Gallery link" hint="Pixieset or similar. Crew delivers into it.">
-          <input
-            className="field__input"
-            value={form.gallery_link}
-            onChange={set('gallery_link')}
-            placeholder="https://..."
-          />
-        </Field>
+        {/* The two links stacked in one cell: where the work goes, and what
+            it should look like. Next to Format, which is about as tall. */}
+        <div className="field-stack">
+          <Field label="Gallery link" hint="Pixieset or similar. Crew delivers into it.">
+            <input
+              type="url"
+              className="field__input"
+              value={form.gallery_link}
+              onChange={set('gallery_link')}
+              placeholder="https://..."
+            />
+          </Field>
+
+          <Field label="Reference link" hint="A previous shoot or moodboard. Shows the crew the style.">
+            <input
+              type="url"
+              className="field__input"
+              value={form.reference_link}
+              onChange={set('reference_link')}
+              placeholder="https://..."
+            />
+          </Field>
+        </div>
 
         <Field label="Save originals for">
           <input

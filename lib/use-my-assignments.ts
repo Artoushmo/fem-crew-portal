@@ -32,7 +32,7 @@ const COLUMNS = `
   assignments (
     id, kind, title, starts_at, due_on, on_site, camera_ready, wrapped,
     city, venue, maps_url, travel, parking, briefing, expectations, shots,
-    equipment, dresscode, delivery, gallery_link, gallery_note,
+    equipment, dresscode, delivery, gallery_link, gallery_note, reference_link,
     clients ( name ),
     assignment_days ( id, day, on_site, camera_ready, wrapped, note ),
     assignment_files ( name, kind, size_label )
@@ -90,6 +90,7 @@ interface RawRole {
     dresscode: string | null;
     gallery_link: string | null;
     gallery_note: string | null;
+    reference_link: string | null;
     delivery: Record<string, string> | null;
     clients: { name: string } | null;
     assignment_days:
@@ -241,6 +242,7 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       ? { link: row.delivery_link, note: row.delivery_note ?? '' }
       : null,
     gallery: s.gallery_link ? { link: s.gallery_link, note: s.gallery_note ?? '' } : null,
+    reference: s.reference_link,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),

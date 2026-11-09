@@ -113,6 +113,8 @@ export interface Shoot {
   dresscode: string | null;
   gallery_link: string | null;
   gallery_note: string | null;
+  /** Earlier work to match -- a previous shoot, a moodboard. */
+  reference_link: string | null;
   /** What has changed since the crew was last told. Empty means they are up to
       date. */
   unpublished_changes: string[];
@@ -204,6 +206,7 @@ export interface ShootDraft {
   dresscode: string;
   gallery_link: string;
   gallery_note: string;
+  reference_link: string;
   delivery: Delivery;
   /** Only used when creating: the crew the shoot opens with. */
   roles: RoleDraft[];
@@ -245,6 +248,7 @@ export const BLANK_SHOOT: ShootDraft = {
   dresscode: '',
   gallery_link: '',
   gallery_note: '',
+  reference_link: '',
   delivery: BLANK_DELIVERY,
   roles: [{ ...BLANK_ROLE }],
 };
@@ -252,7 +256,7 @@ export const BLANK_SHOOT: ShootDraft = {
 const SHOOT_COLUMNS = `
   id, reference, kind, title, client_id, starts_at, due_on, on_site, camera_ready, wrapped,
   city, venue, maps_url, travel, parking, briefing, expectations, shots,
-  equipment, dresscode, delivery, gallery_link, gallery_note,
+  equipment, dresscode, delivery, gallery_link, gallery_note, reference_link,
   unpublished_changes, last_published_at,
   clients ( name ),
   assignment_days ( id, day, on_site, camera_ready, wrapped, note ),
@@ -553,6 +557,7 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     dresscode: tidy(draft.dresscode),
     gallery_link: tidy(draft.gallery_link),
     gallery_note: tidy(draft.gallery_note),
+    reference_link: tidy(draft.reference_link),
     delivery: draft.delivery,
   };
 }

@@ -109,6 +109,8 @@ export interface Assignment {
   /** A gallery FEM already made. When there is one, delivering means adding to
       it rather than sending a link back. */
   gallery: { link: string; note: string } | null;
+  /** Earlier work to match. A link says more about a style than a paragraph. */
+  reference: string | null;
   /** This role's own deadline, where it differs from the shoot day. */
   dueOn: string | null;
   /** True where any of what is shown was set for this person rather than the
@@ -218,6 +220,7 @@ const seed: Seed[] = [
     fee: 450,
     deliveredTo: null,
     gallery: null,
+    reference: null,
     dueOn: null,
     ownDetails: false,
     status: 'confirmed',
@@ -291,6 +294,7 @@ const seed: Seed[] = [
     fee: 780,
     deliveredTo: null,
     gallery: null,
+    reference: null,
     dueOn: null,
     ownDetails: false,
     status: 'action-required',
@@ -357,6 +361,7 @@ const seed: Seed[] = [
     fee: 520,
     deliveredTo: null,
     gallery: null,
+    reference: null,
     dueOn: null,
     ownDetails: false,
     status: 'delivered',
@@ -424,6 +429,7 @@ const seed: Seed[] = [
     fee: 640,
     deliveredTo: null,
     gallery: null,
+    reference: null,
     dueOn: null,
     ownDetails: false,
     status: 'completed',

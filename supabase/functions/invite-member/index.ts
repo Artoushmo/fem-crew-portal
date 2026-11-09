@@ -553,6 +553,7 @@ interface Briefing {
   delivery: Record<string, string>;
   gallery_link: string | null;
   gallery_note: string | null;
+  reference_link: string | null;
   role_label: string;
   fee_cents: number;
   is_lead: boolean;
@@ -576,7 +577,7 @@ async function briefingData(admin: SupabaseClient, roleId: string): Promise<Brie
        assignments (
          id, reference, title, starts_at, due_on, on_site, camera_ready, wrapped,
          city, venue, maps_url, travel, parking, briefing, expectations, shots, equipment,
-         dresscode, delivery, gallery_link, gallery_note, producer_id,
+         dresscode, delivery, gallery_link, gallery_note, reference_link, producer_id,
          clients ( name, contact_name, contact_phone, contact_email ),
          assignment_days ( id, day, on_site, camera_ready, wrapped, note )
        ),
@@ -664,6 +665,7 @@ async function briefingData(admin: SupabaseClient, roleId: string): Promise<Brie
     delivery: { ...(a.delivery ?? {}), ...(row.delivery ?? {}) },
     gallery_link: a.gallery_link,
     gallery_note: a.gallery_note,
+    reference_link: a.reference_link,
     role_label: row.role_label,
     fee_cents: row.fee_cents,
     is_lead: lead,
@@ -1018,6 +1020,7 @@ async function briefingPdf(b: Briefing): Promise<Uint8Array> {
     ['Deadline', b.due_on ? shortDate(b.due_on) : ''],
     ['Bring', b.equipment.join(', ')],
     ['Dresscode', b.dresscode ?? ''],
+    ['Reference', b.reference_link ?? ''],
   ]);
 
   if (b.expectations.length > 0) {
