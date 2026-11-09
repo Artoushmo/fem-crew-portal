@@ -462,7 +462,17 @@ function BriefingTab({ a }: { a: Assignment }) {
           <p className="prose">{a.dresscode}</p>
         </section>
 
-
+        {a.reference && (
+          <section className="panel">
+            <h2 className="panel__title">Reference</h2>
+            <p className="prose">
+              The style to match.{' '}
+              <a href={a.reference} target="_blank" rel="noopener noreferrer" className="link-arrow">
+                Open the reference
+              </a>
+            </p>
+          </section>
+        )}
       </div>
     </>
   );

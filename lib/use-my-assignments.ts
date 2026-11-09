@@ -241,6 +241,9 @@ function toAssignment(row: RawRole, people: Person[]): Assignment | null {
       ? { link: row.delivery_link, note: row.delivery_note ?? '' }
       : null,
     gallery: s.gallery_link ? { link: s.gallery_link, note: s.gallery_note ?? '' } : null,
+    // The job's, never a role's: it is how the whole job should look. Only a
+    // web link becomes a link -- nothing in the database checks this one.
+    reference: /^https?:\/\//i.test(s.delivery?.reference ?? '') ? s.delivery!.reference : null,
     status: deriveStatus(row.stage, row.payment_state),
     stage: row.stage,
     stageDates: toStageDates(row.stage_dates),

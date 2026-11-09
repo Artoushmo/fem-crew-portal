@@ -113,6 +113,10 @@ export interface Shoot {
   dresscode: string | null;
   gallery_link: string | null;
   gallery_note: string | null;
+  /** Earlier work to match -- a previous shoot, a moodboard. Kept in the
+      delivery terms (`delivery.reference`), which already travel to the crew
+      and count as a change on Publish, so it needed no new column. */
+  reference_link: string | null;
   /** What has changed since the crew was last told. Empty means they are up to
       date. */
   unpublished_changes: string[];
@@ -204,6 +208,7 @@ export interface ShootDraft {
   dresscode: string;
   gallery_link: string;
   gallery_note: string;
+  reference_link: string;
   delivery: Delivery;
   /** Only used when creating: the crew the shoot opens with. */
   roles: RoleDraft[];
@@ -245,6 +250,7 @@ export const BLANK_SHOOT: ShootDraft = {
   dresscode: '',
   gallery_link: '',
   gallery_note: '',
+  reference_link: '',
   delivery: BLANK_DELIVERY,
   roles: [{ ...BLANK_ROLE }],
 };
@@ -456,20 +462,24 @@ interface RawRole {
   } | null;
 }
 
-interface RawShoot extends Omit<Shoot, 'client_name' | 'roles' | 'delivery' | 'days'> {
+interface RawShoot extends Omit<Shoot, 'client_name' | 'roles' | 'delivery' | 'days' | 'reference_link'> {
   clients: { name: string } | null;
   assignment_days: ShootDay[] | null;
   assignment_roles: RawRole[];
-  delivery: Partial<Delivery> | null;
+  delivery: (Partial<Delivery> & { reference?: string | null }) | null;
 }
 
 function flatten(row: RawShoot): Shoot {
   const { clients, assignment_days, assignment_roles, delivery, ...rest } = row;
+  // The reference rides in the delivery terms but is edited on its own, so it
+  // comes out here and goes back in toShootRow.
+  const { reference, ...terms } = delivery ?? {};
 
   return {
     ...rest,
     client_name: clients?.name ?? null,
-    delivery: { ...BLANK_DELIVERY, ...(delivery ?? {}) },
+    reference_link: reference || null,
+    delivery: { ...BLANK_DELIVERY, ...terms },
     days: [...(assignment_days ?? [])].sort((a, b) => a.day.localeCompare(b.day)),
     roles: (assignment_roles ?? [])
       .map(({ profiles, assignment_role_days, ...r }) => ({
@@ -553,7 +563,9 @@ function toShootRow(draft: ShootDraft, producerId: string | null) {
     dresscode: tidy(draft.dresscode),
     gallery_link: tidy(draft.gallery_link),
     gallery_note: tidy(draft.gallery_note),
-    delivery: draft.delivery,
+    delivery: tidy(draft.reference_link)
+      ? { ...draft.delivery, reference: tidy(draft.reference_link) }
+      : draft.delivery,
   };
 }
 
