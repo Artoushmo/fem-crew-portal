@@ -5,7 +5,7 @@ assignment. Built from the Claude Design source
 [`FEM Freelancer Portal.dc.html`](https://claude.ai/design/p/ba17e9f1-e3c8-42d5-be20-1092596c20f2)
 and the assignments PDF.
 
-**Live:** https://artoushmo.github.io/fem-crew-portal/
+**Live:** https://fastelevatecrewportal.com (Vercel; https://fem-crew-portal.vercel.app redirects there)
 
 ```bash
 npm install
@@ -14,22 +14,18 @@ npm run dev
 
 ## Deploying
 
-Every push to `main` rebuilds and republishes via
-[`.github/workflows/pages.yml`](.github/workflows/pages.yml). Nothing to run by
-hand.
+Vercel builds and publishes every push to `main`; nothing to run by hand. The
+site is served with security headers from `next.config.js`, which only a
+server can send -- so Vercel is the host, not a static export.
 
-All routes are statically prerenderable, so the site ships as plain files:
+Everything that names the portal's address lives in settings, not code, so a
+domain move touches no source: `ALLOWED_ORIGIN` and `PORTAL_URL` on the
+`invite-member` Edge Function, Site URL and Redirect URLs under Supabase Auth,
+and the domain itself under Vercel.
 
-```bash
-NEXT_STATIC_EXPORT=1 NEXT_BASE_PATH=/fem-crew-portal \
-NEXT_PUBLIC_BASE_PATH=/fem-crew-portal npm run build   # → out/
-```
-
-GitHub Pages serves a project repo from `/<repo>/`, hence the base path. It has to
-be passed twice: `NEXT_BASE_PATH` prefixes the framework's own URLs, and
-`NEXT_PUBLIC_BASE_PATH` reaches the plain `<img>` tags in `Logo.tsx`, which Next
-does not rewrite. The workflow also drops a `.nojekyll` file, without which Pages
-runs the output through Jekyll and silently discards `_next/`.
+The old GitHub Pages workflow and the `NEXT_STATIC_EXPORT` path still work for
+a throwaway static build, but that build has no headers and no server, so it
+is not what runs in production.
 
 ## Working on this
 

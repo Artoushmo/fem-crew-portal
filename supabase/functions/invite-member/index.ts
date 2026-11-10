@@ -30,11 +30,10 @@ const MAIL_FROM = Deno.env.get('MAIL_FROM') ?? 'FEM Crew Portal <noreply@mail.fa
 // Set MAIL_REPLY_TO to an empty string to drop the header entirely and let the
 // mail be as one-directional as the address suggests.
 const MAIL_REPLY_TO = (Deno.env.get('MAIL_REPLY_TO') ?? 'info@fastelevatemedia.com').trim();
-// Defaults to Vercel, not the GitHub Pages build. Pages is a static export: it
-// only has pages for the sample assignments, so a link to a real one 404s
-// before the portal gets a chance to load. A mail that lands on a dead page is
-// worse than no mail.
-const PORTAL_URL = (Deno.env.get('PORTAL_URL') ?? 'https://fem-crew-portal.vercel.app').replace(/\/+$/, '');
+// Where every link in every mail points, and where the PDF fetches the logo.
+// The secret is the one that counts; this is only what happens if it is
+// missing, and it should be the real address rather than a stale one.
+const PORTAL_URL = (Deno.env.get('PORTAL_URL') ?? 'https://fastelevatecrewportal.com').replace(/\/+$/, '');
 
 // Set ALLOWED_ORIGIN to the portal's URL in production. Several, comma
 // separated, while a domain is being moved: the old address keeps working
