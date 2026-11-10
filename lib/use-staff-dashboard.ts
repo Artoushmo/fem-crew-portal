@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { CRAFT_LABEL } from './profile-types';
+import { CRAFT_LABEL, withArticle } from './profile-types';
 import { useClients } from './use-clients';
 import { useCrew } from './use-crew';
 import { useShoots, type Role, type Shoot } from './use-staff-assignments';
@@ -95,7 +95,7 @@ export function useStaffDashboard() {
             out.push({
               ...base,
               id: `open-${r.id}`,
-              what: `Book a ${CRAFT_LABEL[r.craft].toLowerCase()}`,
+              what: `Book ${withArticle(r.craft)}`,
               urgency: urgencyOf(days),
             });
           }

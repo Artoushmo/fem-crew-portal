@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CRAFT_LABEL, TRAVEL_SCOPE_LABEL, type Craft } from '@/lib/profile-types';
+import { CRAFT_LABEL, TRAVEL_SCOPE_LABEL, withArticle, type Craft } from '@/lib/profile-types';
 import { rankForCraft, useCrew } from '@/lib/use-crew';
 import { avatarUrl } from '@/lib/use-profile';
 import { BrandLoader } from '../BrandLoader';
@@ -46,7 +46,7 @@ export function CrewPicker({
     <div className="picker">
       <div className="picker__head">
         <div>
-          <p className="eyebrow">Book a {CRAFT_LABEL[craft].toLowerCase()}</p>
+          <p className="eyebrow">Book {withArticle(craft)}</p>
           <p className="picker__hint">They hear about it when you publish.</p>
         </div>
         <button type="button" className="link-arrow link-arrow--button" onClick={onCancel}>

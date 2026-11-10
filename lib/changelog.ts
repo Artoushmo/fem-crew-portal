@@ -34,6 +34,10 @@ export const RELEASES: Release[] = [
         who: 'fem',
       },
       {
+        title: 'Photo/Videographer and Interview',
+        body: 'Two new crafts. One person doing stills and video is one role. Anyone listing both photographer and videographer shows up for it, and any videographer for an interview.',
+      },
+      {
         title: 'A reference link',
         body: 'Under the gallery link: a previous shoot or moodboard, so the style is clear before the day. Crew find it on the briefing tab.',
       },

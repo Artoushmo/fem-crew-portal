@@ -1,6 +1,8 @@
 export type Craft =
   | 'photographer'
   | 'videographer'
+  | 'photo-videographer'
+  | 'interview'
   | 'drone-operator'
   | 'editor'
   | 'assistant'
@@ -15,6 +17,8 @@ export type Craft =
 export const CRAFT_LABEL: Record<Craft, string> = {
   photographer: 'Photographer',
   videographer: 'Videographer',
+  'photo-videographer': 'Photo/Videographer',
+  interview: 'Interview',
   'drone-operator': 'Drone operator',
   editor: 'Editor',
   assistant: 'Assistant',
@@ -28,6 +32,27 @@ export const CRAFT_LABEL: Record<Craft, string> = {
 };
 
 export const CRAFTS = Object.keys(CRAFT_LABEL) as Craft[];
+
+/** Who can do a craft without listing it by name. One person shooting stills
+    and video on the same day is a photo/videographer whether or not their
+    profile says so; filming an interview is a videographer's job. Each entry
+    is a set of crafts the person must list all of. */
+const COVERED_BY: Partial<Record<Craft, Craft[][]>> = {
+  'photo-videographer': [['photographer', 'videographer']],
+  interview: [['videographer']],
+};
+
+/** Whether someone listing these crafts can be booked for this one. */
+export function canDo(crafts: Craft[], craft: Craft): boolean {
+  if (crafts.includes(craft)) return true;
+  return (COVERED_BY[craft] ?? []).some((set) => set.every((c) => crafts.includes(c)));
+}
+
+/** "a photographer", "an interview": the article a craft label takes. */
+export function withArticle(craft: Craft): string {
+  const label = CRAFT_LABEL[craft].toLowerCase();
+  return `${/^[aeiou]/.test(label) ? 'an' : 'a'} ${label}`;
+}
 
 export type GearCategory =
   | 'camera'
