@@ -5310,3 +5310,137 @@ select.field__input {
   padding-top: 12px;
   border-top: 1px solid var(--fem-border-soft);
 }
+
+/* --- A freelancer's profile, read by FEM -------------------------------- */
+
+.member__profilelink {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: 12.5px;
+}
+
+.member__profile {
+  flex-basis: 100%;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--fem-border-soft);
+}
+
+.memberprofile {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.memberprofile__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 20px;
+}
+
+.memberprofile__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.memberprofile__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fem-text-muted);
+}
+
+.memberprofile__value {
+  font-size: 13.5px;
+  color: var(--fem-text);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+a.memberprofile__value:hover {
+  color: var(--fem-blue);
+  text-decoration: underline;
+}
+
+.memberprofile__value--copy {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.memberprofile__value--copy:hover {
+  color: var(--fem-blue);
+}
+
+.memberprofile__missing {
+  font-size: 13.5px;
+  color: var(--fem-text-muted);
+}
+
+.memberprofile__block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memberprofile__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fem-text-secondary);
+}
+
+.memberprofile__none {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fem-text-muted);
+}
+
+.memberprofile__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memberprofile__list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.memberprofile__gear {
+  font-size: 13.5px;
+  color: var(--fem-text);
+}
+
+.memberprofile__meta {
+  font-size: 12.5px;
+  color: var(--fem-text-muted);
+}
+
+.memberprofile__expired {
+  color: #b4541f;
+  font-weight: 600;
+}
+
+.tagrow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

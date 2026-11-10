@@ -49,6 +49,16 @@ export const RELEASES: Release[] = [
     summary: 'Jobs over several days, a lead on site, and the briefing as a PDF.',
     changes: [
       {
+        title: 'FEM can open a freelancer\u2019s profile',
+        body: 'From Team: their kit, licences, where they work and how to invoice them. Read-only.',
+        who: 'fem',
+      },
+      {
+        title: 'One person, several tasks on a day',
+        body: 'Photo/Videographer and Interview as crafts, so one person is one booking, not three.',
+        who: 'fem',
+      },
+      {
         title: 'A job can take several days',
         body: 'Each day has its own times. Everyone is on every day unless their role says otherwise.',
       },

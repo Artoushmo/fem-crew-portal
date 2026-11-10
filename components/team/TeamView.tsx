@@ -7,6 +7,7 @@ import { ROLES, ROLE_LABEL, ROLE_NOTE, useTeam, type Member } from '@/lib/use-te
 import { BrandLoader } from '../BrandLoader';
 import { Masthead } from '../Masthead';
 import { InviteForm } from './InviteForm';
+import { MemberProfile } from './MemberProfile';
 
 export function TeamView() {
   const { profile } = useAuth();
@@ -149,6 +150,9 @@ function MemberList({
   // Ending someone's access is not undoable from their side, so it takes two
   // deliberate clicks rather than a dialog that gets dismissed by habit.
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  // Which member's full profile is open. One at a time: a producer is looking
+  // at one person, not comparing six.
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (members.length === 0) return <p className="state state--idle">{empty}</p>;
 
@@ -180,6 +184,14 @@ function MemberList({
                   {isSelf && <span className="member__you">you</span>}
                 </span>
                 <span className="member__email">{m.email}</span>
+                <button
+                  type="button"
+                  className="link-arrow link-arrow--button member__profilelink"
+                  aria-expanded={openId === m.id}
+                  onClick={() => setOpenId(openId === m.id ? null : m.id)}
+                >
+                  {openId === m.id ? 'Hide profile' : 'View profile'}
+                </button>
               </div>
 
               <div className="member__state">
@@ -296,6 +308,12 @@ function MemberList({
               <p className="member__warning">
                 Needs an authenticator. Until then the portal shows them nothing.
               </p>
+            )}
+
+            {openId === m.id && (
+              <div className="member__profile">
+                <MemberProfile id={m.id} />
+              </div>
             )}
           </li>
         );
