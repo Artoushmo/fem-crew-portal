@@ -5385,11 +5385,19 @@ select.field__input {
   color: #b4541f !important;
 }
 
-/* Kit in columns: twenty items read in one glance rather than down a page. */
+/* Kit in columns: six bodies read in one glance rather than down a page.
+   The items flow, not the groups -- one category with twenty things in it
+   still fills the width. */
 .mprof__kit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mprof__kit .kit__items {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 6px 24px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px 20px;
 }
 
 .mprof__kit .kit__item {
