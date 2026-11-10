@@ -6,6 +6,8 @@ import {
   CREDENTIAL_LABEL,
   GEAR_LABEL,
   TRAVEL_SCOPE_LABEL,
+  type GearCategory,
+  type GearRow,
 } from '@/lib/profile-types';
 import { credentialUrl, useMemberProfile } from '@/lib/use-member-profile';
 import { BrandLoader } from '../BrandLoader';
@@ -15,9 +17,10 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** What FEM sees of a freelancer: everything the person filled in, read-only.
-    Opened from the team list, so a producer can check kit, licences, where
-    someone works and how to invoice them without booking them first. */
+/** What FEM sees of a freelancer: everything the person filled in, read-only,
+    in the same panels the person sees on their own profile. Opened from the
+    team list, so a producer can check kit, licences, where someone works and
+    how to invoice them without booking them first. */
 export function MemberProfile({ id }: { id: string }) {
   const { profile, crafts, gear, credentials, loading, error } = useMemberProfile(id);
   const [docError, setDocError] = useState<string | null>(null);
@@ -32,91 +35,124 @@ export function MemberProfile({ id }: { id: string }) {
   if (!profile) return <p className="state state--idle">Nothing on file.</p>;
 
   const today = new Date().toISOString().slice(0, 10);
-  const primary = crafts.find((c) => c.is_primary);
+
+  // Kit grouped the way the owner sees it: bodies together, lenses together.
+  const byCategory = Object.values(
+    gear.reduce<Record<string, { category: GearCategory; items: GearRow[] }>>((acc, g) => {
+      (acc[g.category] ??= { category: g.category, items: [] }).items.push(g);
+      return acc;
+    }, {}),
+  );
 
   return (
-    <div className="memberprofile">
-      {/* Where they work and how far they go: the first thing a producer
-          checks before putting someone on a job. */}
-      <div className="memberprofile__grid">
-        <Fact label="Based in" value={profile.base_city} />
-        <Fact label="Travels" value={TRAVEL_SCOPE_LABEL[profile.travel_scope]} />
-        <Fact label="Phone" value={profile.phone} href={profile.phone ? `tel:${profile.phone}` : undefined} />
-        <Fact label="Email" value={profile.email} href={profile.email ? `mailto:${profile.email}` : undefined} />
-        <Fact label="Notice" value={profile.notice_hours ? `${profile.notice_hours} h` : null} />
-        <Fact label="Country" value={profile.country} />
+    <div className="mprof">
+      <div className="mprof__grid">
+        <section className="panel">
+          <h2 className="panel__title">Where they work</h2>
+          <dl className="specs">
+            <Row label="Based in" value={profile.base_city} />
+            <Row label="Travels" value={TRAVEL_SCOPE_LABEL[profile.travel_scope]} />
+            <Row label="Notice" value={profile.notice_hours ? `${profile.notice_hours} hours` : null} />
+          </dl>
+          {profile.bio && <p className="mprof__bio">{profile.bio}</p>}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Reach them</h2>
+          <dl className="specs">
+            <Row label="Phone" value={profile.phone} href={profile.phone ? `tel:${profile.phone}` : undefined} />
+            <Row label="Email" value={profile.email} href={profile.email ? `mailto:${profile.email}` : undefined} />
+          </dl>
+          {profile.phone && (
+            <div className="panel__actions panel__actions--spaced">
+              <a
+                className="btn btn--outline btn--sm"
+                href={`https://wa.me/${profile.phone.replace(/[^\d]/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </a>
+              <a className="btn btn--outline btn--sm" href={`tel:${profile.phone}`}>
+                Call
+              </a>
+            </div>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Crafts</h2>
+          {crafts.length === 0 ? (
+            <p className="state state--idle">No crafts on their profile yet.</p>
+          ) : (
+            <ul className="tagrow">
+              {crafts.map((c) => (
+                <li key={c.craft} className={`tag ${c.is_primary ? 'tag--ok' : 'tag--wait'}`}>
+                  {CRAFT_LABEL[c.craft]}
+                  {c.years_experience != null && ` · ${c.years_experience}y`}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="panel">
+          <h2 className="panel__title">Invoicing</h2>
+          <dl className="specs">
+            <Row label="Company" value={profile.company_name} />
+            <Row label="IBAN" value={profile.iban} copy />
+            <Row label="VAT" value={profile.vat_number} copy />
+            <Row label="CoC" value={profile.coc_number} copy />
+          </dl>
+        </section>
       </div>
 
-      {profile.bio && (
-        <section className="memberprofile__block">
-          <h4 className="memberprofile__title">About</h4>
-          <p className="prose">{profile.bio}</p>
-        </section>
-      )}
-
-      <section className="memberprofile__block">
-        <h4 className="memberprofile__title">Crafts</h4>
-        {crafts.length === 0 ? (
-          <p className="memberprofile__none">No crafts on their profile yet.</p>
-        ) : (
-          <ul className="tagrow">
-            {crafts.map((c) => (
-              <li key={c.craft} className={`tag ${c.is_primary ? 'tag--ok' : 'tag--wait'}`}>
-                {CRAFT_LABEL[c.craft]}
-                {c.years_experience != null && ` · ${c.years_experience}y`}
-                {c.is_primary && primary?.craft === c.craft ? ' · main' : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="memberprofile__block">
-        <h4 className="memberprofile__title">Kit</h4>
+      <section className="panel">
+        <h2 className="panel__title">Kit</h2>
         {gear.length === 0 ? (
-          <p className="memberprofile__none">No kit listed.</p>
+          <p className="state state--idle">No kit listed.</p>
         ) : (
-          <ul className="memberprofile__list">
-            {gear.map((g) => (
-              <li key={g.id}>
-                <span className="memberprofile__gear">
-                  {g.quantity > 1 ? `${g.quantity}× ` : ''}
-                  {[g.brand, g.model].filter(Boolean).join(' ')}
-                </span>
-                <span className="memberprofile__meta">
-                  {GEAR_LABEL[g.category]}
-                  {g.notes ? ` · ${g.notes}` : ''}
-                </span>
-              </li>
+          <div className="kit mprof__kit">
+            {byCategory.map(({ category, items }) => (
+              <div key={category} className="kit__group">
+                <h3 className="kit__heading">{GEAR_LABEL[category]}</h3>
+                <ul className="kit__items">
+                  {items.map((g) => (
+                    <li key={g.id} className="kit__item">
+                      <span className="kit__name">
+                        {g.quantity > 1 && <span className="kit__count">{g.quantity}×</span>}
+                        {g.brand ? `${g.brand} ` : ''}
+                        {g.model}
+                      </span>
+                      {g.notes && <span className="mprof__note">{g.notes}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
-      <section className="memberprofile__block">
-        <h4 className="memberprofile__title">Licences &amp; insurance</h4>
+      <section className="panel">
+        <h2 className="panel__title">Licences &amp; insurance</h2>
         {credentials.length === 0 ? (
-          <p className="memberprofile__none">None on file.</p>
+          <p className="state state--idle">None on file.</p>
         ) : (
-          <ul className="memberprofile__list">
+          <dl className="specs">
             {credentials.map((c) => {
               const expired = c.expires_on != null && c.expires_on < today;
               return (
-                <li key={c.id}>
-                  <span className="memberprofile__gear">
+                <div key={c.id}>
+                  <dt>
                     {c.label}
-                    <span className="memberprofile__meta"> · {CREDENTIAL_LABEL[c.kind]}</span>
-                  </span>
-                  <span className="memberprofile__meta">
-                    {c.reference ? `${c.reference} · ` : ''}
-                    {c.expires_on ? (
-                      <span className={expired ? 'memberprofile__expired' : undefined}>
-                        {expired ? 'expired ' : 'valid to '}
-                        {fmtDate(c.expires_on)}
-                      </span>
-                    ) : (
-                      'no expiry'
-                    )}
+                    <span className="mprof__note"> · {CREDENTIAL_LABEL[c.kind]}</span>
+                    {c.reference && <span className="mprof__note"> · {c.reference}</span>}
+                  </dt>
+                  <dd className={expired ? 'mprof__expired' : undefined}>
+                    {c.expires_on
+                      ? `${expired ? 'Expired' : 'Valid to'} ${fmtDate(c.expires_on)}`
+                      : 'No expiry'}
                     {c.document_path && (
                       <>
                         {' · '}
@@ -132,39 +168,29 @@ export function MemberProfile({ id }: { id: string }) {
                             }
                           }}
                         >
-                          Document
+                          Open
                         </button>
                       </>
                     )}
-                  </span>
-                </li>
+                  </dd>
+                </div>
               );
             })}
-          </ul>
+          </dl>
+        )}
+        {docError && (
+          <p className="auth__error" role="alert">
+            {docError}
+          </p>
         )}
       </section>
-
-      {/* Invoicing: what a producer needs to pay them, in one place. */}
-      <section className="memberprofile__block">
-        <h4 className="memberprofile__title">Invoicing</h4>
-        <div className="memberprofile__grid">
-          <Fact label="Company" value={profile.company_name} />
-          <Fact label="IBAN" value={profile.iban} copy />
-          <Fact label="VAT" value={profile.vat_number} copy />
-          <Fact label="CoC" value={profile.coc_number} copy />
-        </div>
-      </section>
-
-      {docError && (
-        <p className="auth__error" role="alert">
-          {docError}
-        </p>
-      )}
     </div>
   );
 }
 
-function Fact({
+/** One line of a specs list. An empty value says so in grey rather than
+    leaving a gap, so a producer can see at a glance what is still missing. */
+function Row({
   label,
   value,
   href,
@@ -179,28 +205,33 @@ function Fact({
   const shown = value && value.trim() !== '' ? value : null;
 
   return (
-    <div className="memberprofile__fact">
-      <span className="memberprofile__label">{label}</span>
+    <div>
+      <dt>{label}</dt>
       {shown == null ? (
-        <span className="memberprofile__missing">Not on file</span>
+        <dd className="mprof__missing">Not on file</dd>
       ) : href ? (
-        <a className="memberprofile__value" href={href}>
-          {shown}
-        </a>
+        <dd>
+          <a className="mprof__link" href={href}>
+            {shown}
+          </a>
+        </dd>
       ) : copy ? (
-        <button
-          type="button"
-          className="memberprofile__value memberprofile__value--copy"
-          onClick={async () => {
-            await navigator.clipboard.writeText(shown);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? 'Copied' : shown}
-        </button>
+        <dd>
+          <button
+            type="button"
+            className="mprof__copy"
+            title="Copy"
+            onClick={async () => {
+              await navigator.clipboard.writeText(shown);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+          >
+            {copied ? 'Copied' : shown}
+          </button>
+        </dd>
       ) : (
-        <span className="memberprofile__value">{shown}</span>
+        <dd>{shown}</dd>
       )}
     </div>
   );

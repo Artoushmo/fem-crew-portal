@@ -5319,121 +5319,82 @@ select.field__input {
   font-size: 12.5px;
 }
 
+/* Sits inside the member row, on the page background, so the panels in it
+   read as cards the way they do on the person's own profile. */
 .member__profile {
-  flex-basis: 100%;
-  margin-top: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--fem-border-soft);
+  padding: 16px 18px 18px;
+  background: var(--fem-page);
+  border-top: 1px solid var(--fem-border);
 }
 
-.memberprofile {
+.mprof {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
-.memberprofile__grid {
+.mprof__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
 }
 
-.memberprofile__fact {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.memberprofile__label {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--fem-text-muted);
-}
-
-.memberprofile__value {
+.mprof__bio {
+  margin: 12px 0 0;
   font-size: 13.5px;
-  color: var(--fem-text);
-  overflow-wrap: anywhere;
+  line-height: 1.55;
+  color: var(--fem-text-secondary);
+}
+
+.mprof__missing {
+  color: var(--fem-text-muted) !important;
+  font-weight: 400 !important;
+}
+
+.mprof__link {
+  color: inherit;
   text-decoration: none;
 }
 
-a.memberprofile__value:hover {
+.mprof__link:hover {
   color: var(--fem-blue);
   text-decoration: underline;
 }
 
-.memberprofile__value--copy {
+.mprof__copy {
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 13.5px;
-  text-align: left;
+  font-weight: 600;
+  color: var(--fem-text);
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
 
-.memberprofile__value--copy:hover {
+.mprof__copy:hover {
   color: var(--fem-blue);
 }
 
-.memberprofile__missing {
+.mprof__note {
+  font-weight: 400;
+  color: var(--fem-text-muted);
+}
+
+.mprof__expired {
+  color: #b4541f !important;
+}
+
+/* Kit in columns: twenty items read in one glance rather than down a page. */
+.mprof__kit {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 24px;
+}
+
+.mprof__kit .kit__item {
+  padding: 6px 8px;
   font-size: 13.5px;
-  color: var(--fem-text-muted);
-}
-
-.memberprofile__block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.memberprofile__title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--fem-text-secondary);
-}
-
-.memberprofile__none {
-  margin: 0;
-  font-size: 13px;
-  color: var(--fem-text-muted);
-}
-
-.memberprofile__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.memberprofile__list li {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.memberprofile__gear {
-  font-size: 13.5px;
-  color: var(--fem-text);
-}
-
-.memberprofile__meta {
-  font-size: 12.5px;
-  color: var(--fem-text-muted);
-}
-
-.memberprofile__expired {
-  color: #b4541f;
-  font-weight: 600;
 }
 
 .tagrow {
